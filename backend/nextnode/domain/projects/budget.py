@@ -4,7 +4,7 @@ totals. Amounts are whole CAD cents."""
 
 from nextnode.domain.errors import ValidationError
 
-MIN_PROJECT_BUDGET_CENTS = 150_000  # CAD 1,500.00
+MIN_PROJECT_BUDGET = 150_000  # in CAD cents: CAD 1,500.00
 
 
 def format_cad(cents: int) -> str:
@@ -12,9 +12,9 @@ def format_cad(cents: int) -> str:
 
 
 def ensure_meets_minimum_budget(total_cents: int, field: str = "total") -> None:
-    if total_cents < MIN_PROJECT_BUDGET_CENTS:
+    if total_cents < MIN_PROJECT_BUDGET:
         raise ValidationError(
-            f"The project total must be at least {format_cad(MIN_PROJECT_BUDGET_CENTS)}; "
-            f"this one is {format_cad(total_cents)}.",
-            fields={field: [f"Must be at least {format_cad(MIN_PROJECT_BUDGET_CENTS)}."]},
+            # Neutral wording: shown for a brief's proposed budget, an offer total and a checkout.
+            f"Must be at least {format_cad(MIN_PROJECT_BUDGET)}; this is {format_cad(total_cents)}.",
+            fields={field: [f"Must be at least {format_cad(MIN_PROJECT_BUDGET)}."]},
         )

@@ -11,7 +11,7 @@ from nextnode.domain.payments import (
     PaymentType,
     deposit_for,
 )
-from nextnode.domain.projects import MIN_PROJECT_BUDGET_CENTS, ensure_meets_minimum_budget
+from nextnode.domain.projects import MIN_PROJECT_BUDGET, ensure_meets_minimum_budget
 
 NOW = datetime(2026, 10, 28, tzinfo=UTC)
 
@@ -58,13 +58,15 @@ def test_deposit_percent_must_be_between_1_and_100(percent):
 
 
 def test_deposit_refuses_totals_below_the_minimum_budget():
-    with pytest.raises(ValidationError, match=r"at least CAD 1,500\.00; this one is CAD 1,499\.99") as exc:
-        deposit_for(MIN_PROJECT_BUDGET_CENTS - 1, 20)
+    with pytest.raises(
+        ValidationError, match=r"^Must be at least CAD 1,500\.00; this is CAD 1,499\.99\.$"
+    ) as exc:
+        deposit_for(MIN_PROJECT_BUDGET - 1, 20)
     assert exc.value.fields == {"total": ["Must be at least CAD 1,500.00."]}
 
 
 def test_minimum_budget_accepts_exactly_the_minimum_and_names_the_field():
-    ensure_meets_minimum_budget(MIN_PROJECT_BUDGET_CENTS)
+    ensure_meets_minimum_budget(MIN_PROJECT_BUDGET)
     with pytest.raises(ValidationError) as exc:
         ensure_meets_minimum_budget(0, field="budget")
     assert "budget" in exc.value.fields
