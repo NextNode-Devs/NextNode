@@ -69,8 +69,10 @@ production workflow; production deploys are out of scope for Phase 1.
 
 ## Branches and protection
 
-`develop` is the default branch and receives feature PRs; `staging` and `main`
-were created from the initial commit. Recommended protection (admin action):
+`develop` is the default branch and receives feature PRs. `staging` and `main`
+do not exist yet; create them from `develop` once its CI is green (admin
+action), e.g. `git push origin develop:staging develop:main`. Recommended
+protection (admin action):
 require a pull request with one approving review and the status checks
 `compose`, `frontend`, `backend`, `e2e` and `Branch flow / check` on
 `develop`, `staging` and `main`; block force pushes and deletion.
