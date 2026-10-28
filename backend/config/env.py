@@ -39,6 +39,15 @@ class Clerk:
 
 
 @dataclass(frozen=True)
+class Stripe:
+    secret_key: str
+    webhook_secret: str
+
+    def __repr__(self) -> str:  # never print keys, even in a traceback
+        return "Stripe(secret_key=***, webhook_secret=***)"
+
+
+@dataclass(frozen=True)
 class Env:
     environment: str
     debug: bool
@@ -47,6 +56,8 @@ class Env:
     frontend_origins: tuple[str, ...]
     database: Database
     clerk: Clerk | None
+    stripe: Stripe | None
+    deposit_percent: int
 
     @property
     def is_production(self) -> bool:
@@ -116,6 +127,32 @@ def _clerk(source: dict[str, str], frontend_origins: tuple[str, ...], production
     )
 
 
+def _stripe(source: dict[str, str], production: bool) -> Stripe | None:
+    secret_key = source.get("STRIPE_SECRET_KEY", "").strip()
+    webhook_secret = source.get("STRIPE_WEBHOOK_SECRET", "").strip()
+    if not secret_key and not webhook_secret:
+        return None  # payments off; the webhook answers 503
+    if not secret_key or not webhook_secret:
+        raise ImproperlyConfiguredEnv("Set both STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET, or neither.")
+    live = secret_key.startswith(("sk_live_", "rk_live_"))
+    if live and not production:
+        raise ImproperlyConfiguredEnv("STRIPE_SECRET_KEY is a live key; use a test key (sk_test_...).")
+    if not live and not secret_key.startswith(("sk_test_", "rk_test_")):
+        raise ImproperlyConfiguredEnv("STRIPE_SECRET_KEY must be a Stripe secret key (sk_test_...).")
+    if not webhook_secret.startswith("whsec_"):
+        raise ImproperlyConfiguredEnv("STRIPE_WEBHOOK_SECRET must be a webhook signing secret (whsec_...).")
+    return Stripe(secret_key=secret_key, webhook_secret=webhook_secret)
+
+
+def _percent(source: dict[str, str], name: str, default: int) -> int:
+    raw = source.get(name, "").strip()
+    if not raw:
+        return default
+    if not raw.isdigit() or not 1 <= int(raw) <= 100:
+        raise ImproperlyConfiguredEnv(f"{name} must be a whole number from 1 to 100, got {raw!r}.")
+    return int(raw)
+
+
 def parse(source: dict[str, str]) -> Env:
     environment = source.get("DJANGO_ENV", "development").strip() or "development"
     if environment not in ENVIRONMENTS:
@@ -147,6 +184,8 @@ def parse(source: dict[str, str]) -> Env:
         frontend_origins=frontend_origins,
         database=_database(_required(source, "DATABASE_URL")),
         clerk=_clerk(source, frontend_origins, production),
+        stripe=_stripe(source, production),
+        deposit_percent=_percent(source, "DEPOSIT_PERCENT", default=20),
     )
 
 

@@ -90,10 +90,27 @@ Templates hold placeholders only; never commit `.env` or `.env.local`.
 | | `DATABASE_URL` | `postgres://nextnode:nextnode@localhost:5432/nextnode` locally |
 | | `CLERK_ISSUER` | Clerk Frontend API URL. Empty = auth off (every token refused); required in production |
 | | `CLERK_JWKS_URL`, `CLERK_AUTHORIZED_PARTIES` | Optional overrides |
+| | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` | Stripe **test mode** (`sk_test_…`, `whsec_…`); both or neither. Empty = payments off (webhook answers 503). Live keys are refused outside production |
+| | `DEPOSIT_PERCENT` | Deposit as a % of the accepted offer total; default `20` |
 | `frontend/.env.local` | `API_BASE_URL` | Where the Next.js server reaches Django (server-only) |
 
 Both apps validate configuration at startup and stop with a message naming the
 missing or invalid variable.
+
+### Stripe webhooks locally (test mode)
+
+Only needed when working on payments (#7). Install the
+[Stripe CLI](https://docs.stripe.com/stripe-cli), then:
+
+```bash
+stripe login                     # test mode
+stripe listen --forward-to localhost:8000/api/payments/stripe/webhook/
+# copy the printed whsec_… into STRIPE_WEBHOOK_SECRET in backend/.env, restart runserver
+```
+
+Payment status changes only when a signed webhook arrives; returning from
+Checkout changes nothing. CI never uses Stripe keys: tests sign payloads with
+a generated secret. No real money moves, and NextNode holds no funds.
 
 ### Migrations
 
