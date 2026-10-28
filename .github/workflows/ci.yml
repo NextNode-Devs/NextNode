@@ -1,11 +1,14 @@
 name: CI
 
+# staging is covered by staging.yml, which calls this workflow; it is left out
+# here so staging changes are not tested twice.
 on:
   push:
-    branches: [develop, staging, main, "feature/**"]
+    branches: [develop, main, "feature/**"]
   pull_request:
-    branches: [develop, staging, main]
+    branches: [develop, main]
   workflow_dispatch:
+  workflow_call:
 
 permissions:
   contents: read
