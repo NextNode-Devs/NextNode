@@ -29,15 +29,15 @@ Status key:
 Frontend/backend skeletons, env validation, `/api/health/`, Clerk token
 verification, JSON errors, CORS, all checks passing locally.
 
-**NN-02 · Activate CI and branch protection** — *Done; two admin follow-ups*
+**NN-02 · Activate CI and branch protection** — *Done; one admin follow-up*
 Story: every PR is checked; promotion follows feature → develop → staging →
 main. Acceptance: workflows from `proposals/ci.md` (with the Redis service
 added by #1) green on a PR; `develop` and `staging` exist; protections set.
-Rulesets protect `develop`, `staging` (testing) and `main` (production).
-Remaining (admin): add `Staging gate` to `main`'s required checks (it
-currently requires only `check`); Clerk keys as GitHub environment secrets
-for authenticated E2E once #1 lands. CI uses a fake payment gateway for #7,
-so no Stripe secret is needed.
+Rulesets protect `develop` (full CI + `check`), `staging` (testing:
+`Staging gate` + `check`) and `main` (production: `Staging gate` + `check`).
+Remaining (admin): Clerk keys as GitHub environment secrets for
+authenticated E2E once #1 lands. CI uses a fake payment gateway for #7, so
+no Stripe secret is needed.
 Trace: proposal Technology; NFR4.
 
 **NN-03 · Clerk sign-in/sign-up (email + Google)** — *In* · #1
