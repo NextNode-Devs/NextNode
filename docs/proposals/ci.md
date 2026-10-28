@@ -8,9 +8,13 @@ The original proposal, run locally before activation, lives in git history.
 
 | File | Runs on | What it does |
 | --- | --- | --- |
-| `ci.yml` | push to `develop`, `main`, `feature/**`; PRs into `develop`, `main`; manual; called by `staging.yml` | Jobs `compose`, `frontend`, `backend`, `e2e` (below) |
+| `ci.yml` | push to `develop`, `feature/**`; PRs into `develop`; manual; called by `staging.yml` | Jobs `compose`, `frontend`, `backend`, `e2e` (below) |
 | `branch-flow.yml` | every PR | Enforces `feature/*` → `develop` → `staging` → `main`: only `develop` may merge into `staging`, only `staging` into `main` |
 | `staging.yml` | PRs into `staging`; push to `staging`; manual | Runs `ci.yml` in full, then the **`Staging gate`** check (fails unless every CI job passed); the deploy job is off (see CD below) |
+
+Roles: `develop` is integration (CI as early feedback); **`staging` is where
+testing is completed**, including any seeded data once it exists; **`main` is
+production** and runs no tests of its own. There is no `production.yml`.
 
 `ci.yml` jobs:
 
@@ -66,21 +70,27 @@ the repository variable `STAGING_DEPLOY_ENABLED` is `true`, and even then it
 fails until real deploy steps are added. To activate it: create the `staging`
 environment with required reviewers and its secrets, replace the `Deploy`
 step with the chosen provider's commands, then set the variable. There is no
-production workflow; production deploys are out of scope for Phase 1.
+production workflow: `main` is production, all testing is completed on
+`staging`, and production deploys are out of scope for Phase 1.
 
 ## Branches and protection
 
-Feature PRs target `develop`; `develop` → `staging` → `main` by PR only.
+Feature PRs target `develop`; `develop` → `staging` (testing) → `main`
+(production) by PR only.
 Recommended protection (admin action), with one approving review, no force
 pushes and no deletion on all three, and these required status checks:
 
 | Branch | Required checks |
 | --- | --- |
-| `develop`, `main` | `Docker Compose config`, `frontend`, `backend`, `e2e`, `check` (Branch flow) |
+| `develop` | `Docker Compose config`, `frontend`, `backend`, `e2e`, `check` (Branch flow) |
 | `staging` | `Staging gate`, `check` (Branch flow) |
+| `main` | `Staging gate`, `check` (Branch flow) |
 
 `Staging gate` already depends on every CI job, so it is the only CI check
-`staging` needs. A check appears in the branch-protection picker only after it
+`staging` needs. On `main` it is satisfied by the run already recorded on the
+promoted `staging` commit (from the push to `staging`), so nothing is
+re-tested. Merge `staging` → `main` with a merge commit, not squash or
+rebase, so the PR head stays the tested `staging` commit. A check appears in the branch-protection picker only after it
 has run at least once on the repository.
 
 ## Background: what was adapted from PUBLIC
