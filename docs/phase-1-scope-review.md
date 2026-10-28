@@ -57,7 +57,7 @@ project initiation**". The approved cut follows that sentence.
 | 28 | Time-limited invitation links/tokens | FR3 | **Defer** (in-app invitations cover the diagrams) | Invite people off-platform | 14 | M | — | Invitations only to registered developers |
 | 29 | Pre-formed "squad directory" (choose a squad) | MVP "client-facing squad directory"; FR3 "before choosing a squad" | **Not built** — no pre-formed squad marketplace without a confirmed source requirement; discovery is the developer directory + project-specific hiring | — | — | — | — | Revisit only if the group confirms a requirement |
 | 30 | CI, branch flow, protections | Proposal Technology; NFR4 | **In** (admin action) | Keeps `develop` working | first push | S | backlog NN-02 | Regressions reach `develop` |
-| 31 | ER diagram of the schema | Proposal Deliverables | **In (P2)** | Required deliverable | models from #1–#6 | S | backlog | Deliverable missing |
+| 31 | ER diagram of the schema | Proposal Deliverables | **Not in Phase 1** (Team Lead, 28 Oct 2026: reference only, not a Phase 1 deliverable) | — | — | — | — | — |
 | 32 | AWS hosting, daily backups, HTTPS | Proposal Deliverables, NFR2, NFR4 | **Defer** (Phase 1 is submitted as a runnable zip) | Public demo | all | M | — | Demo runs locally |
 | 33 | Phase 1 submission documents | P1 brief | **In** | Graded deliverable | all | S | backlog | Mark deductions per the brief |
 
@@ -172,9 +172,7 @@ work begun; one team per project; workspace chat for team members only.
 
 | # | Item | Blocks |
 | --- | --- | --- |
-| 1 | Add the five source PDFs to `docs/spec/`; until then traces, the deadline and the confirmed decisions cannot be checked against the originals in the repository | NN-23; verifying traces |
-| 2 | Clerk development keys as GitHub environment secrets for authenticated E2E in CI | CI E2E once #1 lands |
-| 3 | CI end-to-end deposit run: a Stripe **test** secret key as a GitHub environment secret, or a CI-only fake `PaymentGateway` (Team Lead's decision in #7) | #7 E2E in CI |
-| 4 | Per-location currency: wanted later? Location source and currency list | Nothing in Phase 1 |
+| 1 | Clerk development keys as GitHub environment secrets for authenticated E2E in CI | CI E2E once #1 lands |
+| 2 | Per-location currency: wanted later? Location source and currency list | Nothing in Phase 1 |
 
 Details: `decisions/phase-1-product-decisions.md`.

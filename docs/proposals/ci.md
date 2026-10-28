@@ -37,12 +37,11 @@ No Clerk or Stripe key is needed for any current job.
 - **Clerk (from #1):** authenticated E2E tests will need a Clerk development
   instance's keys as GitHub **environment** secrets.
 - **Stripe (#7):** webhook tests use payloads signed with a generated test
-  secret, so they need no Stripe secret. The end-to-end deposit run creates a
-  Checkout Session, which needs a Stripe **test** secret key
-  (`STRIPE_SECRET_KEY`) as a GitHub environment secret, unless a CI-only fake
-  `PaymentGateway` is used for that job. Stripe setup, credentials and this
-  choice belong to the Team Lead (`shar-hylton`) in #7. Never live keys;
-  never a key in YAML, docs or issues.
+  secret, so they need no Stripe secret. The end-to-end deposit run uses a
+  CI-only fake `PaymentGateway` (Team Lead's decision, 28 Oct 2026), so **no
+  Stripe secret is stored in GitHub**. Stripe setup and credentials belong to
+  the Team Lead (`shar-hylton`) in #7. Never live keys; never a key in YAML,
+  docs or issues.
 
 ## Additions planned with #1
 
