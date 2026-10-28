@@ -289,7 +289,7 @@ per project, workspace participants and deadline were confirmed on 27 Oct
 | Hire Lead | `application/use_cases/hiring` | `features/apply-to-lead`, `features/invite-lead`, `features/hire-team-lead` |
 | Hire Devs, roster | `domain/teams`, `application/use_cases/teams` | `features/apply-to-join`, `features/invite-developer`, `features/accept-invitation` |
 | Conversations | `domain/conversations` | `widgets/conversation` |
-| Payments (#7 backend, Team Lead; #26 frontend) | `domain/payments`, port `PaymentGateway` | `features/make-deposit`, `features/make-final-payment` |
+| Payments (#7 backend and #26 frontend, both Team Lead) | `domain/payments`, port `PaymentGateway` | `features/make-deposit`, `features/make-final-payment` |
 
 Create these only when a backlog item needs them.
 

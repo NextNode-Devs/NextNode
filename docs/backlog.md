@@ -120,7 +120,8 @@ Proposal, Sign Agreement; CD `sendOfferToClient`, `reviewOffer`,
 `signAgreement`; AD start gate.
 
 **NN-30 · Stripe test-mode deposit** — *In* · #7 backend, owned by the Team
-Lead (`shar-hylton`; foundation merged in #23) · #26 frontend (`AliyaaAli`)
+Lead (`shar-hylton`; foundation merged in #23) · #26 frontend, also the Team
+Lead's. All Stripe work is the Team Lead's.
 Stripe test account and keys (environment variables / GitHub environment
 secrets only), Checkout Session, deposit = **20 % of the final accepted offer
 total, CAD**, payable at initiation, computed on the server; minimum budget
@@ -224,7 +225,7 @@ co-op auditing portals; ratings/bidding; in-app video.
 | [#5](https://github.com/NextNode-Devs/NextNode/issues/5) Hire Devs and team roster (5–7 incl. Lead) | NN-12 | #3, #4 | M | `Kaushalya-123` |
 | [#6](https://github.com/NextNode-Devs/NextNode/issues/6) Start gate: close proposal, offer, agreement acceptance, project start, workspace chat | NN-13, NN-15a | #5 | M | `KaiNabea` |
 | [#7](https://github.com/NextNode-Devs/NextNode/issues/7) Stripe test-mode deposit (backend) | NN-30 | #6 for the accepted offer; foundation merged (#23) | M | `shar-hylton` (Team Lead) |
-| [#26](https://github.com/NextNode-Devs/NextNode/issues/26) Deposit UI: Pay deposit action and Stripe return pages | NN-30 (frontend) | #7 checkout endpoint, #6 gate status; mocks until then | S | `AliyaaAli` |
+| [#26](https://github.com/NextNode-Devs/NextNode/issues/26) Deposit UI: Pay deposit action and Stripe return pages | NN-30 (frontend) | #7 checkout endpoint, #6 gate status; mocks until then | S | `shar-hylton` (Team Lead) |
 
 Closed as not planned (28 Oct 2026, Team Lead): #19 source PDFs and diagram
 titles (NN-23), #20 ER diagram (NN-27), #21 setup verification and #22
