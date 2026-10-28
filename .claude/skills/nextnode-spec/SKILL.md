@@ -269,9 +269,11 @@ The deposit, budget minimum, upload limits and access, team states, one team
 per project, workspace participants and deadline were confirmed on 27 Oct
 2026 (above). Still open:
 
-1. **Source documents missing.** None of the five source PDFs is in
-   `docs/spec/`. Do not claim a conflict with, or invent, a source
-   requirement that cannot be checked; ask.
+1. **Source documents not in the repository.** Adding them is not part of
+   Phase 1 (Team Lead, 28 Oct 2026); the workflow in this skill and
+   `docs/decisions/phase-1-product-decisions.md` is the reference. Do not
+   invent a source requirement that cannot be checked; ask. The ER diagram
+   is reference material only, not a Phase 1 deliverable.
 2. **Activity diagram omission.** No "Close Project Proposal"/"Sign
    Agreement" step in the activity diagram; placed after the team is full,
    before the deposit.
@@ -287,7 +289,7 @@ per project, workspace participants and deadline were confirmed on 27 Oct
 | Hire Lead | `application/use_cases/hiring` | `features/apply-to-lead`, `features/invite-lead`, `features/hire-team-lead` |
 | Hire Devs, roster | `domain/teams`, `application/use_cases/teams` | `features/apply-to-join`, `features/invite-developer`, `features/accept-invitation` |
 | Conversations | `domain/conversations` | `widgets/conversation` |
-| Payments (#7, Team Lead) | `domain/payments`, port `PaymentGateway` | `features/make-deposit`, `features/make-final-payment` |
+| Payments (#7 backend, Team Lead; #26 frontend) | `domain/payments`, port `PaymentGateway` | `features/make-deposit`, `features/make-final-payment` |
 
 Create these only when a backlog item needs them.
 

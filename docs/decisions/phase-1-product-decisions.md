@@ -241,6 +241,24 @@ conflict with them is claimed.
 - **Workspace chat:** project team members only (Team Lead and approved
   members); the client is excluded.
 
+## Decisions of 28 Oct 2026 (fifth review — Phase 1 is the MVP build)
+
+Confirmed by the Team Lead:
+
+- **Phase 1 is the MVP build.** The team works only on coding tasks that
+  implement the workflow recorded in this document (the "correctness" of the
+  UML diagrams means this workflow, not the diagrams' exact drawing).
+- **ER diagram (NN-27): not in Phase 1.** ER diagrams are reference material;
+  the Phase 1 brief does not ask for one. No task is assigned.
+- **Source PDFs and activity-diagram correction (NN-23): not in Phase 1.** The
+  Team Lead is aware the activity diagram is partly inaccurate; this document
+  is the reference for the workflow.
+- **Submission documents (NN-22)** — progress report, setup instructions,
+  task distribution sheet, prototype zip — are written after the build, from
+  merged work, with the Team Lead. They are not team tasks.
+- **CI and Stripe (#7):** CI uses a fake payment gateway; no Stripe secret is
+  stored in GitHub. Webhook tests sign payloads with a generated secret.
+
 ## Open conflicts and decisions still needed
 
 1. **Location-based currency:** wanted in a later phase? If so, from which
@@ -253,11 +271,5 @@ conflict with them is claimed.
    Placed after the team is full, before the deposit.
 4. **CI with Clerk:** authenticated end-to-end tests in CI need Clerk
    development keys stored as GitHub environment secrets (admin action).
-5. **CI with Stripe** (Team Lead's integration decision, #7): the end-to-end
-   deposit run creates a Checkout Session, so CI needs a Stripe **test**
-   secret key as a GitHub environment secret, or a CI-only fake
-   `PaymentGateway` for that job. Webhook tests need neither (they sign
-   payloads with a generated test secret).
-6. **Source documents:** none of the five source PDFs is in `docs/spec/`, so
-   traces, the deadline and the decisions above cannot be checked against
-   the originals in the repository until they are added.
+5. ~~CI with Stripe~~ — decided 28 Oct 2026: fake payment gateway in CI.
+6. ~~Source documents~~ — decided 28 Oct 2026: not required for Phase 1.
