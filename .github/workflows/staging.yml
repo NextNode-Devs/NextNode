@@ -1,0 +1,76 @@
+name: Staging
+
+# Gate for the staging branch. Runs the full CI suite (ci.yml) on every PR
+# into staging and every push to staging, then reports one status check,
+# "Staging gate", to require in staging's branch protection or ruleset.
+#
+# No deployment target exists yet: hosting (AWS per the proposal) is deferred
+# for Phase 1, which is submitted as a runnable zip (docs/backlog.md NN-28).
+# The deploy job is skipped unless the repository variable
+# STAGING_DEPLOY_ENABLED is `true`, and fails until real deploy steps exist.
+# To activate it once a staging target exists:
+#   1. Create the GitHub environment `staging` with required reviewers and
+#      its secrets (never in this file).
+#   2. Replace the "Deploy" step with the provider's real deploy commands.
+#   3. Set the repository variable STAGING_DEPLOY_ENABLED to `true`.
+
+on:
+  pull_request:
+    branches: [staging]
+  push:
+    branches: [staging]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: staging-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+
+  gate:
+    name: Staging gate
+    needs: ci
+    # Always report, so a failed or cancelled CI run fails this check instead
+    # of leaving it skipped (a skipped required check counts as passing).
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Require every CI job to pass
+        env:
+          CI_RESULT: ${{ needs.ci.result }}
+          DEPLOY_ENABLED: ${{ vars.STAGING_DEPLOY_ENABLED }}
+        run: |
+          if [ "$CI_RESULT" != "success" ]; then
+            echo "::error::CI result was '$CI_RESULT'. Staging requires compose, frontend, backend and e2e to pass."
+            exit 1
+          fi
+          {
+            echo "CI passed: compose, frontend, backend and e2e."
+            if [ "$DEPLOY_ENABLED" = "true" ]; then
+              echo "Staging deployment is enabled; the deploy job runs on pushes to staging."
+            else
+              echo "No staging deployment target is configured, so nothing is deployed."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  deploy:
+    needs: gate
+    if: github.event_name == 'push' && vars.STAGING_DEPLOY_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: staging
+    concurrency:
+      group: deploy-staging
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - name: Deploy
+        run: |
+          echo "::error::STAGING_DEPLOY_ENABLED is true but no deploy commands have been added. Add the provider's deploy steps before enabling."
+          exit 1
