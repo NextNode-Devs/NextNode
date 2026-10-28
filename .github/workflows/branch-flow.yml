@@ -1,0 +1,29 @@
+name: Branch flow
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, edited]
+
+permissions: {}
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Enforce feature/* -> develop -> staging -> main
+        # Branch names come from env rather than being interpolated into the
+        # script, so a crafted branch name cannot inject shell commands.
+        env:
+          BASE: ${{ github.base_ref }}
+          HEAD: ${{ github.head_ref }}
+        run: |
+          if [ "$BASE" = "staging" ] && [ "$HEAD" != "develop" ]; then
+            echo "::error::Only develop can merge into staging (got '$HEAD'). Retarget this PR to develop."
+            exit 1
+          fi
+          if [ "$BASE" = "main" ] && [ "$HEAD" != "staging" ]; then
+            echo "::error::Only staging can merge into main (got '$HEAD'). Retarget this PR to staging."
+            exit 1
+          fi
+          echo "Branch flow OK: $HEAD -> $BASE"

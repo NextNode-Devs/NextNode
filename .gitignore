@@ -1,0 +1,12 @@
+# Local secrets and editor/OS noise. App-specific ignores live in frontend/ and backend/.
+.env
+.env.*
+!.env.example
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.log
+
+# Claude Code per-user settings (shared project skills under .claude/skills are committed)
+.claude/settings.local.json

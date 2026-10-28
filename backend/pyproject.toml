@@ -1,0 +1,60 @@
+[project]
+name = "nextnode-backend"
+version = "0.1.0"
+requires-python = ">=3.13"
+dependencies = [
+    "django>=6.1.2",
+    "django-cors-headers>=4.9.0",
+    "djangorestframework>=3.18.3",
+    "psycopg[binary]>=3.3.6",
+    "pyjwt[crypto]>=2.15.1",
+    "python-dotenv>=1.2.4",
+]
+
+[dependency-groups]
+dev = [
+    "import-linter>=2.15",
+    "pytest>=9.1.1",
+    "pytest-django>=4.14.0",
+    "ruff>=0.17.3",
+]
+
+[tool.uv]
+package = false
+
+[tool.ruff]
+line-length = 110
+target-version = "py313"
+extend-exclude = ["nextnode/infrastructure/persistence/migrations"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "S", "DJ", "RUF"]
+ignore = ["S101"]  # assert is how pytest asserts
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S105", "S106"]  # fake secrets in tests
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "config.settings"
+testpaths = ["tests"]
+addopts = "--strict-markers -ra"
+
+[tool.importlinter]
+root_package = "nextnode"
+include_external_packages = true
+
+[[tool.importlinter.contracts]]
+name = "Clean Architecture layers point inward"
+type = "layers"
+layers = [
+    "nextnode.presentation",
+    "nextnode.infrastructure",
+    "nextnode.application",
+    "nextnode.domain",
+]
+
+[[tool.importlinter.contracts]]
+name = "Domain and application use no framework or vendor SDK"
+type = "forbidden"
+source_modules = ["nextnode.domain", "nextnode.application"]
+forbidden_modules = ["django", "rest_framework", "corsheaders", "jwt", "psycopg", "dotenv"]

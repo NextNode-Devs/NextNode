@@ -1,0 +1,50 @@
+name: Deploy (staging) — not configured
+
+# No deployment target exists yet: hosting (AWS per the proposal) is deferred
+# for Phase 1, which is submitted as a runnable zip (docs/backlog.md NN-28).
+# This workflow is a safe placeholder. It never deploys anything and never
+# touches production. To activate it once a staging target exists:
+#   1. Create the GitHub environment `staging` with required reviewers and
+#      its secrets (never in this file).
+#   2. Replace the "Deploy" step with the provider's real deploy commands.
+#   3. Set the repository variable STAGING_DEPLOY_ENABLED to `true`.
+
+on:
+  push:
+    branches: [staging]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: false
+
+jobs:
+  status:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Report deployment status
+        env:
+          ENABLED: ${{ vars.STAGING_DEPLOY_ENABLED }}
+        run: |
+          if [ "$ENABLED" = "true" ]; then
+            echo "Staging deployment is enabled; the deploy job runs next." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "No staging deployment target is configured, so nothing was deployed. See the comments at the top of .github/workflows/deploy-staging.yml." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+  deploy:
+    needs: status
+    if: vars.STAGING_DEPLOY_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+      - name: Deploy
+        run: |
+          echo "::error::STAGING_DEPLOY_ENABLED is true but no deploy commands have been added. Add the provider's deploy steps before enabling."
+          exit 1

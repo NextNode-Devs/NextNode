@@ -1,0 +1,20 @@
+# Local development database only. Credentials are local placeholders, not secrets.
+services:
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: nextnode
+      POSTGRES_USER: nextnode
+      POSTGRES_PASSWORD: nextnode
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - nextnode-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nextnode -d nextnode"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  nextnode-db:
