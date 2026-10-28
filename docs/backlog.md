@@ -1,10 +1,11 @@
 # NextNode product backlog
 
-Revised 27 Oct 2026 (fourth review: the Team Lead's confirmed decisions).
+Revised 28 Oct 2026 (fifth review: Phase 1 is the MVP build only).
+Previous: 27 Oct 2026 (fourth review: the Team Lead's confirmed decisions).
 Sources: project proposal (FR/NFR), use case diagram (UC), class diagram
 (CD), activity diagrams (AD), Phase 1 brief, and
-`decisions/phase-1-product-decisions.md`. The source PDFs are not yet in
-`docs/spec/` (NN-23).
+`decisions/phase-1-product-decisions.md`. The source PDFs are not in
+`docs/spec/`; adding them is not part of Phase 1 (NN-23).
 
 **Phase 1 deadline: 1 November 2026** (confirmed by the Team Lead).
 
@@ -16,6 +17,8 @@ Status key:
 - **In** — Phase 1, approved.
 - **Deferred** — a source requirement scheduled after Phase 1.
 - **Not built** — no confirmed source requirement.
+- **Not in Phase 1** — a source item the Team Lead has excluded from the
+  Phase 1 build; kept here for reference, with no task assigned.
 - **Done** — finished in the setup stage (in the initial commit).
 
 ---
@@ -26,15 +29,15 @@ Status key:
 Frontend/backend skeletons, env validation, `/api/health/`, Clerk token
 verification, JSON errors, CORS, all checks passing locally.
 
-**NN-02 · Activate CI and branch protection** — *CI done (initial commit); branch protection: admin action*
+**NN-02 · Activate CI and branch protection** — *Done; two admin follow-ups*
 Story: every PR is checked; promotion follows feature → develop → staging →
 main. Acceptance: workflows from `proposals/ci.md` (with the Redis service
 added by #1) green on a PR; `develop` and `staging` exist; protections set.
-Remaining: branch protection on `develop`/`staging`/`main` (`staging` is
-the testing branch; `main` is production and requires `Staging gate`); Clerk
-keys as GitHub environment secrets for authenticated E2E; for #7's E2E deposit run, a Stripe
-test secret key as an environment secret or a CI-only gateway fake (the Team
-Lead's decision in #7).
+Rulesets protect `develop`, `staging` (testing) and `main` (production).
+Remaining (admin): add `Staging gate` to `main`'s required checks (it
+currently requires only `check`); Clerk keys as GitHub environment secrets
+for authenticated E2E once #1 lands. CI uses a fake payment gateway for #7,
+so no Stripe secret is needed.
 Trace: proposal Technology; NFR4.
 
 **NN-03 · Clerk sign-in/sign-up (email + Google)** — *In* · #1
@@ -116,8 +119,8 @@ deposit (NN-30) → team `Active` (start conditions met, work begun), project
 Proposal, Sign Agreement; CD `sendOfferToClient`, `reviewOffer`,
 `signAgreement`; AD start gate.
 
-**NN-30 · Stripe test-mode deposit** — *In* · #7, owned by the Team Lead
-(`shar-hylton`)
+**NN-30 · Stripe test-mode deposit** — *In* · #7 backend, owned by the Team
+Lead (`shar-hylton`; foundation merged in #23) · #26 frontend (`AliyaaAli`)
 Stripe test account and keys (environment variables / GitHub environment
 secrets only), Checkout Session, deposit = **20 % of the final accepted offer
 total, CAD**, payable at initiation, computed on the server; minimum budget
@@ -159,16 +162,26 @@ Trace: MVP "squad directory"; FR3.
 one client-project run to `InProgress` (Stripe test mode, signed test webhook
 in CI).
 
-**NN-21 · Accessibility and responsive verification** — *In (shared)*.
+**NN-21 · Accessibility and responsive verification** — *In (shared)* — part
+of every issue's definition of done (375 / 768 / 1280 px, keyboard, visible
+focus); no separate task.
 
-**NN-27 · ER diagram of the schema** — *In* — proposal Deliverables.
+**NN-27 · ER diagram of the schema** — *Not in Phase 1 (reference only)* —
+Team Lead's decision, 28 Oct 2026: ER diagrams are reference material and are
+not a Phase 1 deliverable; the Phase 1 brief does not ask for one. No task is
+assigned (#20 closed as not planned). Trace: proposal Deliverables.
 
 **NN-22 · Phase 1 submission documents** — *In (Phase 1 brief)* — prototype
 zip, progress report with setup instructions, task distribution sheet;
-written from actual work.
+written from actual work **after the MVP build**, prepared with the Team Lead.
+Not a team task (#21, #22 closed as not planned).
 
-**NN-23 · Source documents in `docs/spec/` and diagram title fix** — *In* —
-**blocker:** none of the five source PDFs is in the repository yet.
+**NN-23 · Source documents in `docs/spec/` and diagram title fix** — *Not in
+Phase 1* — Team Lead's decision, 28 Oct 2026: adding the PDFs and correcting
+the activity diagram are not needed for the Phase 1 submission; the Team Lead
+is aware the activity diagram is partly inaccurate. The workflow the team
+builds is the one in `decisions/phase-1-product-decisions.md` and
+`nextnode-spec` (#19 closed as not planned).
 
 **NN-28 · AWS hosting, backups, HTTPS** — *Deferred* — Phase 1 is submitted as
 a runnable zip.
@@ -182,9 +195,14 @@ documents closed to applicants and invited candidates; 10 MB / 10 files;
 `Locked`/`Active` definitions; one team per project; workspace chat for team
 members only.
 
-Still open: source PDFs into `docs/spec/` (NN-23); Clerk keys for CI; Stripe
-test key or gateway fake for the CI deposit E2E (Team Lead, #7);
-per-location currency for a later phase. Details:
+Confirmed by the Team Lead (28 Oct 2026, fifth review): Phase 1 is the MVP
+build; the team works only on coding tasks. Not in Phase 1: the ER diagram
+(NN-27, reference only), the source PDFs and the activity-diagram correction
+(NN-23). The submission documents (NN-22) are written after the build. CI
+uses a fake payment gateway; no Stripe secrets in GitHub (#7).
+
+Still open: Clerk keys for CI; per-location currency for a later phase.
+Details:
 `decisions/phase-1-product-decisions.md`.
 
 ## Out of scope
@@ -195,26 +213,27 @@ co-op auditing portals; ratings/bidding; in-app video.
 
 ---
 
-## GitHub issues (assigned 27 Oct 2026)
+## GitHub issues (rebalanced 28 Oct 2026)
 
 | Issue | Backlog items | Depends on | Size | Owner |
 | --- | --- | --- | --- | --- |
 | [#1](https://github.com/NextNode-Devs/NextNode/issues/1) Clerk authentication, onboarding, dashboard shell, WebSocket auth foundation | NN-03, NN-04, NN-24, NN-14 shell | NN-01 | M | `jayparmarsectionA` |
-| [#2](https://github.com/NextNode-Devs/NextNode/issues/2) Developer portfolios and client-facing directory | NN-05, NN-06, NN-25 | #1 | M | `Kaushalya-123` |
+| [#2](https://github.com/NextNode-Devs/NextNode/issues/2) Developer portfolios and client-facing directory | NN-05, NN-06, NN-25 | #1 | M | `AliyaaAli` |
 | [#3](https://github.com/NextNode-Devs/NextNode/issues/3) Projects: client briefs, developer ideas, search, detail, private documents | NN-07, NN-08, NN-09, NN-18 | #1 | M–L | `Isabella-Enriquez` |
 | [#4](https://github.com/NextNode-Devs/NextNode/issues/4) WebSocket hiring conversations and Hire Lead | NN-10, NN-11 | #1, #2, #3 | L | `Hardik33` |
-| [#5](https://github.com/NextNode-Devs/NextNode/issues/5) Hire Devs and team roster (5–7 incl. Lead) | NN-12 | #3, #4 | M | `Kaushalya-123` (after #2) |
-| [#6](https://github.com/NextNode-Devs/NextNode/issues/6) Start gate: close proposal, offer, agreement acceptance, project start, workspace chat | NN-13, NN-15a | #5 | M | `jayparmarsectionA` (after #1) |
-| [#7](https://github.com/NextNode-Devs/NextNode/issues/7) Stripe test-mode deposit | NN-30 | #6 for the accepted offer; setup and webhook can start now | M | `shar-hylton` (Team Lead) |
+| [#5](https://github.com/NextNode-Devs/NextNode/issues/5) Hire Devs and team roster (5–7 incl. Lead) | NN-12 | #3, #4 | M | `Kaushalya-123` |
+| [#6](https://github.com/NextNode-Devs/NextNode/issues/6) Start gate: close proposal, offer, agreement acceptance, project start, workspace chat | NN-13, NN-15a | #5 | M | `KaiNabea` |
+| [#7](https://github.com/NextNode-Devs/NextNode/issues/7) Stripe test-mode deposit (backend) | NN-30 | #6 for the accepted offer; foundation merged (#23) | M | `shar-hylton` (Team Lead) |
+| [#26](https://github.com/NextNode-Devs/NextNode/issues/26) Deposit UI: Pay deposit action and Stripe return pages | NN-30 (frontend) | #7 checkout endpoint, #6 gate status; mocks until then | S | `AliyaaAli` |
 
-Tasks for the two members not yet onboarded (NN-21, NN-22, NN-23, NN-27 and
-setup verification) are in `onboarding-tasks.md`, unassigned until their
-GitHub identities are verified.
+Closed as not planned (28 Oct 2026, Team Lead): #19 source PDFs and diagram
+titles (NN-23), #20 ER diagram (NN-27), #21 setup verification and #22
+submission pack (NN-22, written after the build).
 
 Critical path: #1 → #3 → #4 → #5 → #6 → #7 (final wiring), with #2 alongside
-#3 and #7's Stripe setup, gateway and webhook built in parallel from the
-start. Shared: NN-20, NN-21. Coordination tasks to delegate separately:
-NN-02, NN-22, NN-23, NN-27.
+#3 and #26 built against mocks from the start. Every issue can begin its
+domain logic and screens against the contracts in its description. Shared:
+NN-20, NN-21 (in each issue's definition of done). Admin: NN-02.
 
-**Schedule:** the 1 Nov 2026 deadline is five days after this revision, for
-seven issues plus the NN-22 submission documents.
+**Schedule:** the 1 Nov 2026 deadline is four days after this revision, for
+eight build issues. The NN-22 submission documents follow the build.
