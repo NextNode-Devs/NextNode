@@ -8,9 +8,9 @@ The original proposal, run locally before activation, lives in git history.
 
 | File | Runs on | What it does |
 | --- | --- | --- |
-| `ci.yml` | push to `develop`, `staging`, `main`, `feature/**`; PRs into `develop`, `staging`, `main`; manual | Jobs `compose`, `frontend`, `backend`, `e2e` (below) |
+| `ci.yml` | push to `develop`, `main`, `feature/**`; PRs into `develop`, `main`; manual; called by `staging.yml` | Jobs `compose`, `frontend`, `backend`, `e2e` (below) |
 | `branch-flow.yml` | every PR | Enforces `feature/*` → `develop` → `staging` → `main`: only `develop` may merge into `staging`, only `staging` into `main` |
-| `deploy-staging.yml` | push to `staging`; manual | **Placeholder, deploys nothing** (see CD below) |
+| `staging.yml` | PRs into `staging`; push to `staging`; manual | Runs `ci.yml` in full, then the **`Staging gate`** check (fails unless every CI job passed); the deploy job is off (see CD below) |
 
 `ci.yml` jobs:
 
@@ -59,8 +59,9 @@ version when it is added.
 ## CD
 
 No deployment target exists. Hosting (AWS per the proposal) is deferred and
-Phase 1 is submitted as a runnable zip (backlog NN-28). `deploy-staging.yml`
-only writes a "nothing deployed" summary; its `deploy` job is skipped unless
+Phase 1 is submitted as a runnable zip (backlog NN-28). In `staging.yml` the
+`Staging gate` job writes a "nothing deployed" summary; the `deploy` job runs
+only on pushes to `staging` and is skipped unless
 the repository variable `STAGING_DEPLOY_ENABLED` is `true`, and even then it
 fails until real deploy steps are added. To activate it: create the `staging`
 environment with required reviewers and its secrets, replace the `Deploy`
@@ -69,11 +70,18 @@ production workflow; production deploys are out of scope for Phase 1.
 
 ## Branches and protection
 
-`develop` is the default branch and receives feature PRs; `staging` and `main`
-were created from the initial commit. Recommended protection (admin action):
-require a pull request with one approving review and the status checks
-`compose`, `frontend`, `backend`, `e2e` and `Branch flow / check` on
-`develop`, `staging` and `main`; block force pushes and deletion.
+Feature PRs target `develop`; `develop` → `staging` → `main` by PR only.
+Recommended protection (admin action), with one approving review, no force
+pushes and no deletion on all three, and these required status checks:
+
+| Branch | Required checks |
+| --- | --- |
+| `develop`, `main` | `Docker Compose config`, `frontend`, `backend`, `e2e`, `check` (Branch flow) |
+| `staging` | `Staging gate`, `check` (Branch flow) |
+
+`Staging gate` already depends on every CI job, so it is the only CI check
+`staging` needs. A check appears in the branch-protection picker only after it
+has run at least once on the repository.
 
 ## Background: what was adapted from PUBLIC
 

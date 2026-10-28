@@ -40,7 +40,9 @@ def test_unknown_routes_answer_with_the_json_error_shape(api):
     assert response.json()["error"]["code"] == "NOT_FOUND"
 
 
-def test_cors_allows_only_the_configured_frontend(api):
+def test_cors_allows_only_the_configured_frontend(api, settings):
+    # Pin the origin so the result does not depend on the machine's .env or CI env.
+    settings.CORS_ALLOWED_ORIGINS = ["http://localhost:3000"]
     allowed = api.options(
         "/api/health/", HTTP_ORIGIN="http://localhost:3000", HTTP_ACCESS_CONTROL_REQUEST_METHOD="GET"
     )
