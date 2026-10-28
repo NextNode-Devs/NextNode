@@ -194,17 +194,21 @@ co-op auditing portals; ratings/bidding; in-app video.
 
 ---
 
-## GitHub issues (#7 assigned to `shar-hylton`; #1–#6 unassigned for shared allocation)
+## GitHub issues (assigned 27 Oct 2026)
 
-| Issue | Backlog items | Depends on | Size |
-| --- | --- | --- | --- |
-| [#1](https://github.com/NextNode-Devs/NextNode/issues/1) Clerk authentication, onboarding, dashboard shell, WebSocket auth foundation | NN-03, NN-04, NN-24, NN-14 shell | NN-01 | M |
-| [#2](https://github.com/NextNode-Devs/NextNode/issues/2) Developer portfolios and client-facing directory | NN-05, NN-06, NN-25 | #1 | M |
-| [#3](https://github.com/NextNode-Devs/NextNode/issues/3) Projects: client briefs, developer ideas, search, detail, private documents | NN-07, NN-08, NN-09, NN-18 | #1 | M–L |
-| [#4](https://github.com/NextNode-Devs/NextNode/issues/4) WebSocket hiring conversations and Hire Lead | NN-10, NN-11 | #1, #2, #3 | L |
-| [#5](https://github.com/NextNode-Devs/NextNode/issues/5) Hire Devs and team roster (5–7 incl. Lead) | NN-12 | #3, #4 | M |
-| [#6](https://github.com/NextNode-Devs/NextNode/issues/6) Start gate: close proposal, offer, agreement acceptance, project start, workspace chat | NN-13, NN-15a | #5 | M |
-| [#7](https://github.com/NextNode-Devs/NextNode/issues/7) Stripe test-mode deposit (assigned `shar-hylton`) | NN-30 | #6 for the accepted offer; setup and webhook can start now | M |
+| Issue | Backlog items | Depends on | Size | Owner |
+| --- | --- | --- | --- | --- |
+| [#1](https://github.com/NextNode-Devs/NextNode/issues/1) Clerk authentication, onboarding, dashboard shell, WebSocket auth foundation | NN-03, NN-04, NN-24, NN-14 shell | NN-01 | M | `jayparmarsectionA` |
+| [#2](https://github.com/NextNode-Devs/NextNode/issues/2) Developer portfolios and client-facing directory | NN-05, NN-06, NN-25 | #1 | M | `Kaushalya-123` |
+| [#3](https://github.com/NextNode-Devs/NextNode/issues/3) Projects: client briefs, developer ideas, search, detail, private documents | NN-07, NN-08, NN-09, NN-18 | #1 | M–L | `Isabella-Enriquez` |
+| [#4](https://github.com/NextNode-Devs/NextNode/issues/4) WebSocket hiring conversations and Hire Lead | NN-10, NN-11 | #1, #2, #3 | L | `Hardik33` |
+| [#5](https://github.com/NextNode-Devs/NextNode/issues/5) Hire Devs and team roster (5–7 incl. Lead) | NN-12 | #3, #4 | M | `Kaushalya-123` (after #2) |
+| [#6](https://github.com/NextNode-Devs/NextNode/issues/6) Start gate: close proposal, offer, agreement acceptance, project start, workspace chat | NN-13, NN-15a | #5 | M | `jayparmarsectionA` (after #1) |
+| [#7](https://github.com/NextNode-Devs/NextNode/issues/7) Stripe test-mode deposit | NN-30 | #6 for the accepted offer; setup and webhook can start now | M | `shar-hylton` (Team Lead) |
+
+Tasks for the two members not yet onboarded (NN-21, NN-22, NN-23, NN-27 and
+setup verification) are in `onboarding-tasks.md`, unassigned until their
+GitHub identities are verified.
 
 Critical path: #1 → #3 → #4 → #5 → #6 → #7 (final wiring), with #2 alongside
 #3 and #7's Stripe setup, gateway and webhook built in parallel from the
