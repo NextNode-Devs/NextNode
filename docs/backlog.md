@@ -30,8 +30,9 @@ verification, JSON errors, CORS, all checks passing locally.
 Story: every PR is checked; promotion follows feature → develop → staging →
 main. Acceptance: workflows from `proposals/ci.md` (with the Redis service
 added by #1) green on a PR; `develop` and `staging` exist; protections set.
-Remaining: branch protection on `develop`/`staging`/`main`; Clerk keys as GitHub
-environment secrets for authenticated E2E; for #7's E2E deposit run, a Stripe
+Remaining: branch protection on `develop`/`staging`/`main` (`staging` is
+the testing branch; `main` is production and requires `Staging gate`); Clerk
+keys as GitHub environment secrets for authenticated E2E; for #7's E2E deposit run, a Stripe
 test secret key as an environment secret or a CI-only gateway fake (the Team
 Lead's decision in #7).
 Trace: proposal Technology; NFR4.
