@@ -29,7 +29,7 @@ NextNode/
 │   ├── decisions/       Approved product and security decisions
 │   ├── proposals/ci.md  How the GitHub Actions workflows work
 │   └── spec/README.md   Source documents and the UML title correction
-├── .github/workflows/    CI (ci.yml), branch-flow guard, staging deploy placeholder
+├── .github/workflows/    CI (ci.yml), branch-flow guard, staging gate (staging.yml)
 ├── docker-compose.yml   Local PostgreSQL
 ├── AGENTS.md / CLAUDE.md
 └── .claude/skills/      Project rules for Claude Code
@@ -137,7 +137,8 @@ uv run pytest
 
 GitHub Actions runs the same checks (plus dependency audits, a production
 settings check and `docker compose config`) on every push to `develop`,
-`staging`, `main` and `feature/**`, and on every pull request. Details:
+`staging`, `main` and `feature/**`, and on every pull request; for `staging`,
+`staging.yml` runs them and reports one `Staging gate` check. Details:
 `docs/proposals/ci.md`. CI needs no real credentials.
 
 ## Branches and contributing
@@ -156,7 +157,7 @@ the frontend health card with loading/ready/error states, and all checks above.
 Not built yet: Clerk sign-in UI, accounts and onboarding, portfolios,
 projects, hiring, team formation, workspaces and payments (see
 `docs/backlog.md`). CI is active; there is no deployment target yet
-(`deploy-staging.yml` is a documented placeholder that deploys nothing).
+(`staging.yml` gates `staging` on CI; its deploy job is off and deploys nothing).
 
 ## Product rules every contributor must know
 
