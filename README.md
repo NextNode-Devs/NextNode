@@ -136,15 +136,17 @@ uv run pytest
 ```
 
 GitHub Actions runs the same checks (plus dependency audits, a production
-settings check and `docker compose config`) on every push to `develop`,
-`staging`, `main` and `feature/**`, and on every pull request; for `staging`,
-`staging.yml` runs them and reports one `Staging gate` check. Details:
+settings check and `docker compose config`) on pushes to `develop` and
+`feature/**` and on PRs into `develop`, as early feedback. **`staging` is
+where testing is completed:** `staging.yml` runs the full suite and reports
+one `Staging gate` check. `main` is production and is not re-tested; it only
+accepts `staging` commits that passed `Staging gate`. Details:
 `docs/proposals/ci.md`. CI needs no real credentials.
 
 ## Branches and contributing
 
-`feature/<issue>-<short-name>` → pull request into `develop` → `staging` →
-`main`. Never push directly to `develop`, `staging` or `main`; a workflow
+`feature/<issue>-<short-name>` → pull request into `develop` → `staging`
+(testing) → `main` (production). Never push directly to `develop`, `staging` or `main`; a workflow
 rejects PRs that skip a step. Each PR must pass CI and get a review.
 
 ## Current status (setup stage)

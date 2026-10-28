@@ -1,8 +1,10 @@
 name: Staging
 
-# Gate for the staging branch. Runs the full CI suite (ci.yml) on every PR
-# into staging and every push to staging, then reports one status check,
-# "Staging gate", to require in staging's branch protection or ruleset.
+# staging is where testing is completed before production (main). Runs the
+# full CI suite (ci.yml) on every PR into staging and every push to staging,
+# then reports one status check, "Staging gate". Require it on staging and on
+# main: a staging -> main PR's head is the staging commit, which already
+# carries this check, so main needs no separate test run or production.yml.
 #
 # No deployment target exists yet: hosting (AWS per the proposal) is deferred
 # for Phase 1, which is submitted as a runnable zip (docs/backlog.md NN-28).
