@@ -10,7 +10,9 @@ from django.http import Http404
 from rest_framework import exceptions as drf
 from rest_framework.response import Response
 
+from nextnode.application.payments.ports import InvalidWebhookError, PaymentsUnavailableError
 from nextnode.domain import errors as domain
+from nextnode.domain.payments import PaymentMismatchError
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +22,7 @@ DOMAIN_STATUS = {
     domain.NotFoundError: 404,
     domain.ConflictError: 409,
     domain.InvalidStateTransitionError: 409,
+    PaymentMismatchError: 400,
 }
 
 
@@ -44,6 +47,12 @@ def handle_exception(exc: Exception, context: dict) -> Response:
         status = DOMAIN_STATUS.get(type(exc), 400)
         fields = exc.fields if isinstance(exc, domain.ValidationError) else None
         return Response(error_body(exc.code, exc.message, fields), status=status)
+
+    if isinstance(exc, InvalidWebhookError):
+        return Response(error_body("INVALID_WEBHOOK", str(exc)), status=400)
+
+    if isinstance(exc, PaymentsUnavailableError):
+        return Response(error_body("PAYMENTS_UNAVAILABLE", str(exc)), status=503)
 
     if isinstance(exc, Http404):
         exc = drf.NotFound()
