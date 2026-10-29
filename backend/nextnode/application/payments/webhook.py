@@ -2,7 +2,9 @@
 
 A browser redirect never confirms a payment; only a verified provider event
 does. Each event is processed once (its id is stored in the same transaction
-as the payment change), and a completed payment never goes back.
+as the payment change), and a completed payment never goes back. A newly
+completed deposit starts the project (#6) in that same transaction, and this
+is the only code path that starts a client-funded project.
 """
 
 from __future__ import annotations
@@ -18,6 +20,7 @@ from nextnode.application.payments.ports import (
     PaymentEvent,
     PaymentGateway,
     PaymentRepository,
+    ProjectStarter,
     UnitOfWork,
     WebhookEventLog,
 )
@@ -49,12 +52,14 @@ class HandlePaymentWebhook:
         payments: PaymentRepository,
         events: WebhookEventLog,
         uow: UnitOfWork,
+        starter: ProjectStarter,
         now: Callable[[], datetime] = lambda: datetime.now(UTC),
     ) -> None:
         self._gateway = gateway
         self._payments = payments
         self._events = events
         self._uow = uow
+        self._starter = starter
         self._now = now
 
     def execute(self, payload: bytes, signature: str | None) -> WebhookOutcome:
@@ -65,8 +70,11 @@ class HandlePaymentWebhook:
             if event.type not in HANDLED:
                 return WebhookOutcome(event.event_id, "ignored")
             payment = self._payment_for(event)
+            was_completed = payment.status is PaymentStatus.COMPLETED
             result = self._apply(event, payment)
             self._payments.save(payment)
+            if result == "completed" and not was_completed:
+                self._starter.start_client_project(payment.project_id, payment.offer_version_id)
         return WebhookOutcome(event.event_id, result, str(payment.id))
 
     def _payment_for(self, event: PaymentEvent) -> Payment:
