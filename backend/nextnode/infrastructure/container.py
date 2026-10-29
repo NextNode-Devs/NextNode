@@ -14,15 +14,20 @@ from typing import Any
 from django.conf import settings
 
 from nextnode.application.health import CheckHealth
+from nextnode.application.payments.checkout import StartDepositCheckout
 from nextnode.application.payments.ports import (
+    DepositTermsSource,
     PaymentGateway,
     PaymentRepository,
+    ProjectStarter,
     UnitOfWork,
     WebhookEventLog,
 )
+from nextnode.application.payments.status import DepositStatusQuery
 from nextnode.application.payments.webhook import HandlePaymentWebhook
 from nextnode.application.ports import DatabaseProbe, TokenVerifier
 from nextnode.infrastructure.auth.clerk import ClerkTokenVerifier, UnconfiguredTokenVerifier
+from nextnode.infrastructure.payments.pending_dependencies import ProjectsNotReady
 from nextnode.infrastructure.payments.stripe_gateway import StripeGateway, UnconfiguredPaymentGateway
 from nextnode.infrastructure.persistence.database_probe import DjangoDatabaseProbe
 from nextnode.infrastructure.persistence.payments import (
@@ -40,6 +45,8 @@ class Container:
     payments: PaymentRepository
     webhook_events: WebhookEventLog
     uow: UnitOfWork
+    deposit_terms: DepositTermsSource
+    project_starter: ProjectStarter
 
     @property
     def check_health(self) -> CheckHealth:
@@ -47,7 +54,24 @@ class Container:
 
     @property
     def handle_payment_webhook(self) -> HandlePaymentWebhook:
-        return HandlePaymentWebhook(self.payment_gateway, self.payments, self.webhook_events, self.uow)
+        return HandlePaymentWebhook(
+            self.payment_gateway, self.payments, self.webhook_events, self.uow, self.project_starter
+        )
+
+    @property
+    def start_deposit_checkout(self) -> StartDepositCheckout:
+        return StartDepositCheckout(
+            self.deposit_terms,
+            self.payments,
+            self.payment_gateway,
+            self.uow,
+            deposit_percent=settings.ENV.deposit_percent,
+            frontend_origin=settings.ENV.frontend_origins[0],
+        )
+
+    @property
+    def deposit_status(self) -> DepositStatusQuery:
+        return DepositStatusQuery(self.payments)
 
 
 def build_container() -> Container:
@@ -72,6 +96,9 @@ def build_container() -> Container:
         payments=DjangoPaymentRepository(),
         webhook_events=DjangoWebhookEventLog(),
         uow=DjangoUnitOfWork(),
+        # #6 replaces these with its project adapters.
+        deposit_terms=ProjectsNotReady(),
+        project_starter=ProjectsNotReady(),
     )
 
 

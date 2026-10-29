@@ -34,6 +34,7 @@ class CheckoutRequest:
 class CheckoutSession:
     id: str
     url: str
+    status: str = "open"  # Stripe's session status: open | complete | expired
 
 
 @dataclass(frozen=True)
@@ -52,6 +53,12 @@ class PaymentEvent:
 class PaymentGateway(Protocol):
     def create_checkout_session(self, request: CheckoutRequest) -> CheckoutSession: ...
 
+    def retrieve_checkout_session(self, session_id: str) -> CheckoutSession: ...
+
+    def expire_checkout_session(self, session_id: str) -> None:
+        """Close an open session so it can no longer be paid."""
+        ...
+
     def parse_event(self, payload: bytes, signature: str | None) -> PaymentEvent:
         """Verify the signature, then parse. Raises ``InvalidWebhookError``."""
         ...
@@ -64,6 +71,10 @@ class PaymentRepository(Protocol):
 
     def has_other_completed_deposit(self, project_id: int, exclude: UUID) -> bool: ...
 
+    def current_deposit(self, project_id: int) -> Payment | None:
+        """The completed deposit if there is one, otherwise the most recent."""
+        ...
+
 
 class WebhookEventLog(Protocol):
     def record(self, event_id: str, event_type: str) -> bool:
@@ -74,4 +85,33 @@ class WebhookEventLog(Protocol):
 class UnitOfWork(Protocol):
     def atomic(self) -> AbstractContextManager[None]:
         """Everything inside commits together or not at all."""
+        ...
+
+
+@dataclass(frozen=True)
+class DepositTerms:
+    """What checkout needs to know about a project. Provided by #6 (accepted
+    offer, ``Assigned``) on top of #3 (``Project``)."""
+
+    project_id: int
+    title: str
+    client_user_id: str  # the owning client's Clerk user id
+    is_client_project: bool
+    is_assigned: bool  # the client accepted the Team Lead's offer
+    offer_version_id: int | None
+    accepted_total_cents: int | None
+
+
+class DepositTermsSource(Protocol):
+    def get_for_update(self, project_id: int) -> DepositTerms | None:
+        """Locks the project until the transaction ends, so two checkouts for
+        the same project run one after the other."""
+        ...
+
+
+class ProjectStarter(Protocol):
+    def start_client_project(self, project_id: int, offer_version_id: int) -> None:
+        """#6's start use case: team ``Locked -> Active``, project
+        ``Assigned -> InProgress``, workspace chat created. Runs inside the
+        webhook's transaction; raising rolls the payment change back."""
         ...

@@ -56,6 +56,15 @@ class DjangoPaymentRepository:
             .exists()
         )
 
+    def current_deposit(self, project_id: int) -> Payment | None:
+        rows = PaymentModel.objects.filter(
+            project_id=project_id, type=PaymentModel.Type.DEPOSIT, deleted_at__isnull=True
+        )
+        row = (
+            rows.filter(status=PaymentModel.Status.COMPLETED).first() or rows.order_by("-created_at").first()
+        )
+        return _to_entity(row) if row else None
+
 
 class DjangoWebhookEventLog:
     def record(self, event_id: str, event_type: str) -> bool:
