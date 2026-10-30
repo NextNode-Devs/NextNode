@@ -7,6 +7,8 @@ import type { NextConfig } from "next";
 const root = path.resolve(import.meta.dirname);
 
 const nextConfig: NextConfig = {
+  // E2E_DEV runs get their own output folder so they never clash with a `next dev` you already have open.
+  distDir: process.env.NEXT_DIST_DIR ?? ".next",
   cacheComponents: true,
   partialPrefetching: true,
   outputFileTracingRoot: root,
