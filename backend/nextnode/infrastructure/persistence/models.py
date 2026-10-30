@@ -129,3 +129,121 @@ class StripeEventModel(models.Model):
 
     def __str__(self) -> str:
         return self.event_id
+
+
+class ConversationModel(models.Model):
+    """A hiring conversation (#4): one per lead application, lead invitation
+    or team candidacy (#5). ``subject_id`` becomes a foreign key per kind once
+    those records exist."""
+
+    class Status(models.TextChoices):
+        OPEN = "open"
+        CLOSED = "closed"
+
+    class SubjectKind(models.TextChoices):
+        LEAD_APPLICATION = "lead_application"
+        LEAD_INVITATION = "lead_invitation"
+        TEAM_CANDIDACY = "team_candidacy"
+        PROJECT_WORKSPACE = "project_workspace"
+        DEV_TEST = "dev_test"  # development only
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    subject_kind = models.CharField(max_length=32, choices=SubjectKind.choices)
+    subject_id = models.CharField(max_length=64)
+    status = models.CharField(max_length=16, choices=Status.choices, default=Status.OPEN)
+    close_reason = models.CharField(max_length=200, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    closed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = "conversation"
+        constraints = (
+            models.UniqueConstraint(
+                fields=["subject_kind", "subject_id"], name="conversation_one_per_subject"
+            ),
+            models.CheckConstraint(
+                condition=Q(status="open", closed_at__isnull=True)
+                | Q(status="closed", closed_at__isnull=False),
+                name="conversation_closed_at_matches_status",
+            ),
+        )
+
+    def __str__(self) -> str:
+        return f"{self.subject_kind} {self.subject_id} ({self.status})"
+
+
+class ConversationParticipantModel(models.Model):
+    """Who takes part, and how far each has read."""
+
+    conversation = models.ForeignKey(ConversationModel, on_delete=models.CASCADE, related_name="participants")
+    account = models.ForeignKey(AccountModel, on_delete=models.CASCADE, related_name="conversations")
+    position = models.PositiveSmallIntegerField()
+    last_read_message_id = models.BigIntegerField(null=True, blank=True)
+
+    class Meta:
+        db_table = "conversation_participant"
+        constraints = (
+            models.UniqueConstraint(fields=["conversation", "account"], name="conversation_participant_once"),
+        )
+
+    def __str__(self) -> str:
+        return f"{self.account_id} in {self.conversation_id}"
+
+
+class MessageModel(models.Model):
+    conversation = models.ForeignKey(ConversationModel, on_delete=models.CASCADE, related_name="messages")
+    author = models.ForeignKey(AccountModel, on_delete=models.PROTECT, related_name="messages")
+    body = models.TextField(max_length=4000)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "message"
+        indexes = (models.Index(fields=["conversation", "id"], name="message_conversation_id_idx"),)
+        constraints = (models.CheckConstraint(condition=~Q(body=""), name="message_body_not_empty"),)
+
+    def __str__(self) -> str:
+        return f"message {self.id}"
+
+
+class LeadCandidacyModel(models.Model):
+    """A lead application or invitation (#4). ``project_id`` becomes a foreign
+    key when #3's Project model exists."""
+
+    class Kind(models.TextChoices):
+        APPLICATION = "application"
+        INVITATION = "invitation"
+
+    class Status(models.TextChoices):
+        INVITED = "invited"
+        CANDIDATE = "candidate"
+        HIRED = "hired"
+        DECLINED = "declined"
+        WITHDRAWN = "withdrawn"
+        CLOSED = "closed"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    project_id = models.BigIntegerField(db_index=True)
+    client = models.ForeignKey(AccountModel, on_delete=models.PROTECT, related_name="lead_invitations_sent")
+    developer = models.ForeignKey(AccountModel, on_delete=models.PROTECT, related_name="lead_candidacies")
+    kind = models.CharField(max_length=16, choices=Kind.choices)
+    status = models.CharField(max_length=16, choices=Status.choices)
+    note = models.TextField(max_length=1000, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    decided_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = "lead_candidacy"
+        constraints = (
+            # Two concurrent hires cannot both be stored: the second one fails here.
+            models.UniqueConstraint(
+                fields=["project_id"], condition=Q(status="hired"), name="lead_candidacy_one_hire_per_project"
+            ),
+            models.UniqueConstraint(
+                fields=["project_id", "developer"],
+                condition=Q(status__in=["invited", "candidate"]),
+                name="lead_candidacy_one_open_per_developer",
+            ),
+        )
+
+    def __str__(self) -> str:
+        return f"{self.kind} {self.id} ({self.status})"

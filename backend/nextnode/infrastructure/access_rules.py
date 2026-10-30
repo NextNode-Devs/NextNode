@@ -3,16 +3,21 @@ rule when an issue needs it; anything unregistered stays denied."""
 
 from nextnode.application.access import AccessPolicy, ResourceRef
 from nextnode.application.ports import Actor
+from nextnode.infrastructure.persistence.conversations import is_participant
 
 
 def own_account(actor: Actor, resource: ResourceRef) -> bool:
     return str(actor.account_id) == str(resource.id)
 
 
+def conversation_participant(actor: Actor, resource: ResourceRef) -> bool:
+    return is_participant(resource.id, actor.account_id)
+
+
 def build_access_policy() -> AccessPolicy:
     policy = AccessPolicy()
     policy.register("account", "read", own_account)
     # #3: policy.register("project_document", "read", ...)
-    # #4: policy.register("conversation", "subscribe", ...)
+    policy.register("conversation", "post", conversation_participant)
     # #5: policy.register("team", "read", ...)
     return policy

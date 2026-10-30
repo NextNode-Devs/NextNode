@@ -27,7 +27,7 @@ def test_health_endpoint_reaches_the_real_database(api):
 
 
 def test_health_endpoint_uses_the_container(api):
-    with override_container(database=FakeProbe(False)):
+    with override_container(database=FakeProbe(False), token_verifier=UnconfiguredTokenVerifier()):
         response = api.get("/api/health/")
     assert response.json() == {
         "data": {"status": "degraded", "database": "unavailable", "auth": "unconfigured"}
