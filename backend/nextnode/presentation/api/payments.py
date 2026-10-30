@@ -1,4 +1,4 @@
-"""Payment endpoints. The deposit checkout route arrives with #6."""
+"""Payment endpoints: the client's deposit checkout and Stripe's webhook."""
 
 from dataclasses import asdict
 
@@ -23,3 +23,12 @@ class StripeWebhookView(APIView):
             request.body, request.headers.get("Stripe-Signature")
         )
         return Response({"data": asdict(outcome)})
+
+
+class DepositCheckoutView(APIView):
+    """The project's client opens Stripe Checkout for the deposit. The body is
+    ignored: the amount comes from the accepted offer on the server."""
+
+    def post(self, request: Request, project_id: int) -> Response:
+        checkout = get_container().start_deposit_checkout.execute(request.user.actor, project_id)
+        return Response({"data": asdict(checkout)})

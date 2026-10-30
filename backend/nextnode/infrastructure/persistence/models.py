@@ -48,6 +48,75 @@ class PaymentModel(models.Model):
         return f"{self.type} {self.id} ({self.status})"
 
 
+class AccountModel(models.Model):
+    """One per Clerk user (#1). NextNode stores no credentials."""
+
+    class Role(models.TextChoices):
+        DEVELOPER = "developer"
+        CLIENT = "client"
+
+    clerk_user_id = models.CharField(max_length=255, unique=True)
+    role = models.CharField(max_length=16, choices=Role.choices)
+    display_name = models.CharField(max_length=80)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "account"
+        constraints = (
+            models.CheckConstraint(condition=Q(role__in=["developer", "client"]), name="account_role_valid"),
+        )
+
+    def __str__(self) -> str:
+        return f"{self.display_name} ({self.role})"
+
+
+class ClientProfileModel(models.Model):
+    account = models.OneToOneField(
+        AccountModel, on_delete=models.CASCADE, primary_key=True, related_name="client_profile"
+    )
+    company_name = models.CharField(max_length=120)
+    industry = models.CharField(max_length=80)
+
+    class Meta:
+        db_table = "client_profile"
+
+    def __str__(self) -> str:
+        return self.company_name
+
+
+class SkillModel(models.Model):
+    """A skill a developer typed, stored once per case-folded ``key``."""
+
+    key = models.CharField(max_length=40, unique=True)
+    label = models.CharField(max_length=40)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "skill"
+
+    def __str__(self) -> str:
+        return self.label
+
+
+class DeveloperProfileModel(models.Model):
+    """Seeded at onboarding; #2 extends it into the portfolio."""
+
+    account = models.OneToOneField(
+        AccountModel, on_delete=models.CASCADE, primary_key=True, related_name="developer_profile"
+    )
+    headline = models.CharField(max_length=120)
+    bio = models.TextField(max_length=2000, blank=True)
+    github_username = models.CharField(max_length=39, blank=True)
+    skills = models.ManyToManyField(SkillModel, related_name="developers", db_table="developer_profile_skill")
+
+    class Meta:
+        db_table = "developer_profile"
+
+    def __str__(self) -> str:
+        return self.headline
+
+
 class StripeEventModel(models.Model):
     """Every processed Stripe event id, so a redelivered event changes nothing."""
 

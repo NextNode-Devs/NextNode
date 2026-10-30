@@ -11,11 +11,12 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Callable
+from datetime import UTC, datetime
 from typing import Any
 
 import jwt
 
-from nextnode.application.ports import Actor, InvalidTokenError
+from nextnode.application.ports import InvalidTokenError, VerifiedSession
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +43,7 @@ class ClerkTokenVerifier:
         self._authorized_parties = frozenset(authorized_parties)
         self._resolve_key = key_resolver
 
-    def verify(self, token: str) -> Actor:
+    def verify(self, token: str) -> VerifiedSession:
         try:
             key = self._resolve_key(token)
             claims = jwt.decode(
@@ -69,7 +70,11 @@ class ClerkTokenVerifier:
         if status is not None and status != "active":
             raise InvalidTokenError("Your session is not active. Finish signing in first.")
 
-        return Actor(clerk_user_id=str(claims["sub"]), session_id=claims.get("sid"))
+        return VerifiedSession(
+            clerk_user_id=str(claims["sub"]),
+            session_id=claims.get("sid"),
+            expires_at=datetime.fromtimestamp(int(claims["exp"]), UTC),
+        )
 
 
 class UnconfiguredTokenVerifier:
@@ -77,5 +82,5 @@ class UnconfiguredTokenVerifier:
 
     configured = False
 
-    def verify(self, token: str) -> Actor:
+    def verify(self, token: str) -> VerifiedSession:
         raise InvalidTokenError("Authentication is not configured on this server.")

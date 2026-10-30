@@ -23,6 +23,7 @@ env:
   # Placeholders, not credentials: the throwaway CI database and a per-run key.
   # CI needs no Clerk or Stripe credentials.
   DATABASE_URL: postgres://nextnode:nextnode@localhost:5432/nextnode
+  REDIS_URL: redis://localhost:6379/0
   DJANGO_SECRET_KEY: ci-only-not-secret-${{ github.run_id }}-0123456789abcdefghijklmnopqrstuvwxyz
   DJANGO_ENV: test
   FRONTEND_ORIGIN: http://localhost:3100
@@ -70,6 +71,12 @@ jobs:
         ports: ["5432:5432"]
         options: >-
           --health-cmd "pg_isready -U nextnode -d nextnode"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+      redis:
+        image: redis:7.4.2-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
           --health-interval 5s --health-timeout 3s --health-retries 10
     defaults:
       run:
@@ -119,6 +126,12 @@ jobs:
         ports: ["5432:5432"]
         options: >-
           --health-cmd "pg_isready -U nextnode -d nextnode"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+      redis:
+        image: redis:7.4.2-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
           --health-interval 5s --health-timeout 3s --health-retries 10
     steps:
       - uses: actions/checkout@v4
