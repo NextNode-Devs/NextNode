@@ -128,10 +128,12 @@ async def test_a_user_who_has_not_onboarded_is_refused_4403(make_token):
 
 
 async def test_refreshing_before_expiry_keeps_the_socket_open(make_token):
-    communicator = await authed(make_token, exp=int(time.time()) + 1)
+    # +2, not +1: int() truncates, so +1 can expire before the refresh is verified.
+    first_exp = int(time.time()) + 2
+    communicator = await authed(make_token, exp=first_exp)
     await communicator.send_json_to({"type": "auth.refresh", "token": make_token(exp=int(time.time()) + 60)})
     assert (await communicator.receive_json_from(timeout=2))["type"] == "auth.ok"
-    await asyncio.sleep(1.5)  # past the first token's expiry
+    await asyncio.sleep(first_exp - time.time() + 0.5)  # past the first token's expiry
     await communicator.send_json_to({"type": "ping"})
     assert await communicator.receive_json_from(timeout=2) == {"type": "pong"}
     await communicator.disconnect()

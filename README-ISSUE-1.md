@@ -38,7 +38,7 @@ Team Lead is **not** a role you can choose; it is a responsibility on a single p
 
 ```powershell
 docker compose up -d db redis                    # PostgreSQL :5432 and Redis :6379
-cd backend;  uv sync; uv run python manage.py migrate; uv run python manage.py runserver
+cd backend;  uv sync; uv run python manage.py migrate; uv run uvicorn config.asgi:application --reload --port 8000
 cd frontend; npm ci;  npm run dev                 # http://localhost:3000
 ```
 
@@ -57,7 +57,7 @@ The Clerk development instance is created and configured as described in `docs/e
 
 ## 4. Backend implementation
 
-The backend keeps the existing Clean Architecture layering (`domain` ← `application` ← `infrastructure` ← `presentation`). `import-linter` now also forbids `channels`, `channels_redis`, `daphne` and `redis` in `domain` and `application`.
+The backend keeps the existing Clean Architecture layering (`domain` ← `application` ← `infrastructure` ← `presentation`). `import-linter` now also forbids `channels`, `channels_redis`, `uvicorn` and `redis` in `domain` and `application`.
 
 ### 4.1 Domain: `nextnode/domain/accounts/` (standard library only)
 | File | What it holds |
@@ -102,7 +102,7 @@ The backend keeps the existing Clean Architecture layering (`domain` ← `applic
 `exception_handler.py` now maps a domain error by its **nearest mapped parent class**, so a subclass such as `AlreadyOnboardedError` keeps its parent's status (409). Before this, subclasses fell through to 400.
 
 ### 4.5 Presentation: WebSocket (`nextnode/presentation/realtime/`)
-`config/asgi.py` routes `ws/` through Channels' `OriginValidator`, which only accepts `FRONTEND_ORIGIN`. `daphne` comes first in `INSTALLED_APPS`, so `runserver` serves WebSockets too. `CHANNEL_LAYERS` uses Redis at `REDIS_URL`.
+`config/asgi.py` routes `ws/` through Channels' `OriginValidator`, which only accepts `FRONTEND_ORIGIN`. Uvicorn serves HTTP and WebSockets (`runserver` is HTTP only). `CHANNEL_LAYERS` uses Redis at `REDIS_URL`.
 
 The full protocol is in `docs/proposals/realtime-messaging.md` → "As built in #1". In short:
 
@@ -116,7 +116,7 @@ The full protocol is in `docs/proposals/realtime-messaging.md` → "As built in 
 | Extension | `registry.register_handler(type, handler, access=Access(resource_type, action, id_from_frame))`. The consumer asks the **shared `AccessPolicy`** before calling the handler; if the policy refuses, the socket closes `4403`. A handler can't be registered without an `Access` check. |
 
 ### 4.6 Config, dependencies, CI
-- `pyproject.toml`: adds `channels`, `channels-redis` and `daphne`, plus `pytest-asyncio` for tests (`asyncio_mode = "auto"`, and a `redis` marker).
+- `pyproject.toml`: adds `channels`, `channels-redis` and `uvicorn[standard]` (not Daphne: its `twisted` dependency fails the audit; Daphne stays a dev dependency only because `channels.testing` imports it), plus `pytest-asyncio` for tests (`asyncio_mode = "auto"`, and a `redis` marker).
 - `config/env.py`: adds `REDIS_URL`. `backend/.env.example`: adds `REDIS_URL`.
 - `docker-compose.yml`: adds a `redis` service (`redis:7.4.2-alpine`, with a healthcheck).
 - `.github/workflows/ci.yml`: adds a `redis` service to the `backend` and `e2e` jobs, and `REDIS_URL` for the whole workflow.

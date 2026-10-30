@@ -33,7 +33,7 @@ export default defineConfig({
   ],
   webServer: [
     {
-      command: `uv run python manage.py runserver 127.0.0.1:${BACKEND_PORT} --noreload`,
+      command: `uv run uvicorn config.asgi:application --host 127.0.0.1 --port ${BACKEND_PORT}`,
       cwd: "../backend",
       url: `http://127.0.0.1:${BACKEND_PORT}/api/health/`,
       reuseExistingServer: !process.env.CI,
