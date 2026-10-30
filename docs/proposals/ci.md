@@ -30,12 +30,14 @@ failure names the check that failed.
 
 ## Secrets and credentials
 
-CI uses no real credentials. `DATABASE_URL` points at the throwaway service
-container and `DJANGO_SECRET_KEY` is generated per run; both are placeholders.
-No Clerk or Stripe key is needed for any current job.
+`DATABASE_URL` points at the throwaway service container and
+`DJANGO_SECRET_KEY` is generated per run; both are placeholders. The only real
+credentials are the Clerk development keys, and only the e2e step receives them.
 
-- **Clerk (from #1):** authenticated E2E tests will need a Clerk development
-  instance's keys as GitHub **environment** secrets.
+- **Clerk (#1):** repository secrets `CLERK_SECRET_KEY`,
+  `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` and `CLERK_ISSUER` from the **development**
+  instance (never production), passed to the e2e step only, so the signed-in
+  journeys run. Pull requests from forks get no secrets; those specs then skip.
 - **Stripe (#7):** webhook tests use payloads signed with a generated test
   secret, so they need no Stripe secret. The end-to-end deposit run uses a
   CI-only fake `PaymentGateway` (Team Lead's decision, 28 Oct 2026), so **no

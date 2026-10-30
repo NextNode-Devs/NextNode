@@ -286,7 +286,7 @@ Confirmed by the Team Lead:
 3. **Activity diagram omission:** no "Close Project Proposal"/"Sign
    Agreement" step in the activity diagram (the use case diagram has them).
    Placed after the team is full, before the deposit.
-4. **CI with Clerk:** authenticated end-to-end tests in CI need Clerk
-   development keys stored as GitHub environment secrets (admin action).
+4. ~~CI with Clerk~~ — done 30 Oct 2026: Clerk development keys are
+   repository secrets passed to the e2e step only (`docs/proposals/ci.md`).
 5. ~~CI with Stripe~~ — decided 28 Oct 2026: fake payment gateway in CI.
 6. ~~Source documents~~ — decided 28 Oct 2026: not required for Phase 1.
