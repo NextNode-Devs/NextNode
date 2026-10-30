@@ -1,5 +1,10 @@
 /** Mirrors `/api/conversations/` (#4). Ids are UUID strings; message ids are numbers. */
-export type SubjectKind = "lead_application" | "lead_invitation" | "team_candidacy" | "dev_test";
+export type SubjectKind =
+  | "lead_application"
+  | "lead_invitation"
+  | "team_candidacy"
+  | "project_workspace"
+  | "dev_test";
 
 export type Participant = { account_id: number; display_name: string };
 
@@ -31,6 +36,7 @@ export const SUBJECT_LABEL: Record<SubjectKind, string> = {
   lead_application: "Application to lead",
   lead_invitation: "Invitation to lead",
   team_candidacy: "Joining a team",
+  project_workspace: "Team workspace",
   dev_test: "Test conversation (development)",
 };
 

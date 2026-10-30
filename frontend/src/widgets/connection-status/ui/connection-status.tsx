@@ -46,7 +46,8 @@ export function ConnectionStatus() {
         )}
         aria-hidden
       />
-      <span>{LABEL[state.status]}</span>
+      {/* Icon only on phones, where the header is tight; the words stay for screen readers. */}
+      <span className="sr-only sm:not-sr-only">{LABEL[state.status]}</span>
       <span className="sr-only">: {reason}</span>
     </span>
   );

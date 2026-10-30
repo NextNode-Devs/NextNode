@@ -1,7 +1,8 @@
 """Hiring conversations (spec Workflows A and B; docs/proposals/realtime-messaging.md).
 
 Every lead application, lead invitation (#4) and team candidacy (#5) opens one
-private conversation between its two people. The hiring decision happens
+private conversation between its two people; the workspace chat (#6) reuses the
+same model for the whole team. The hiring decision happens
 there, and a decision elsewhere (another candidate hired, the team filled)
 closes it with a reason. A closed conversation stays readable but refuses new
 messages.
@@ -31,6 +32,7 @@ class SubjectKind(StrEnum):
     LEAD_APPLICATION = "lead_application"  # a developer applied to lead (#4)
     LEAD_INVITATION = "lead_invitation"  # a client invited a developer to lead (#4)
     TEAM_CANDIDACY = "team_candidacy"  # applied to / invited to join a team (#5)
+    PROJECT_WORKSPACE = "project_workspace"  # the team's workspace chat (#6), all members
     # Development only: lets two local accounts chat before Hire Lead (#4) and
     # Hire Devs (#5) can open real conversations. Refused outside development.
     DEV_TEST = "dev_test"
@@ -63,8 +65,8 @@ class Conversation:
     @classmethod
     def start(cls, conversation_id: UUID, subject: Subject, participant_ids: list[int]) -> Conversation:
         people = tuple(dict.fromkeys(participant_ids))  # de-duplicated, order kept
-        if len(people) != 2:
-            raise ValidationError("A hiring conversation is between exactly two different people.")
+        if len(people) < 2:
+            raise ValidationError("A conversation needs at least two different people.")
         return cls(id=conversation_id, subject=subject, participant_ids=people)
 
     @property

@@ -35,6 +35,17 @@ from nextnode.application.conversations.ports import (
 )
 from nextnode.application.conversations.queries import GetConversation, ListConversations, ListMessages
 from nextnode.application.health import CheckHealth
+from nextnode.application.hiring.lead import (
+    AcceptLeadInvitation,
+    ApplyToLead,
+    DeclineLeadInvitation,
+    GetLeadCandidacy,
+    HireLeadDeps,
+    HireTeamLead,
+    InviteToLead,
+    WithdrawLeadApplication,
+)
+from nextnode.application.hiring.ports import HiringAccounts, LeadCandidacies, LeadProjects
 from nextnode.application.payments.checkout import StartDepositCheckout
 from nextnode.application.payments.ports import (
     DepositTermsSource,
@@ -49,6 +60,7 @@ from nextnode.application.payments.webhook import HandlePaymentWebhook
 from nextnode.application.ports import DatabaseProbe, RealtimePublisher, TokenVerifier
 from nextnode.infrastructure.access_rules import build_access_policy
 from nextnode.infrastructure.auth.clerk import ClerkTokenVerifier, UnconfiguredTokenVerifier
+from nextnode.infrastructure.hiring.pending_projects import ProjectsNotReadyForHiring
 from nextnode.infrastructure.payments.pending_dependencies import ProjectsNotReady
 from nextnode.infrastructure.payments.stripe_gateway import StripeGateway, UnconfiguredPaymentGateway
 from nextnode.infrastructure.persistence.accounts import (
@@ -65,6 +77,7 @@ from nextnode.infrastructure.persistence.conversations import (
     SystemClock,
 )
 from nextnode.infrastructure.persistence.database_probe import DjangoDatabaseProbe
+from nextnode.infrastructure.persistence.hiring import DjangoHiringAccounts, DjangoLeadCandidacies
 from nextnode.infrastructure.persistence.payments import (
     DjangoPaymentRepository,
     DjangoUnitOfWork,
@@ -96,6 +109,9 @@ class Container:
     conversation_events: ConversationEvents
     clock: Clock
     test_partners: TestPartners
+    lead_projects: LeadProjects
+    lead_candidacies: LeadCandidacies
+    hiring_accounts: HiringAccounts
 
     @property
     def get_account(self) -> GetAccount:
@@ -159,6 +175,50 @@ class Container:
         return CandidacyConversations(
             self.open_conversation, self.close_conversation, self.conversations, self.account_names
         )
+
+    # --- Hire Lead (#4) -----------------------------------------------------------
+
+    @property
+    def _hire_lead(self) -> HireLeadDeps:
+        return HireLeadDeps(
+            projects=self.lead_projects,
+            candidacies=self.lead_candidacies,
+            accounts=self.hiring_accounts,
+            conversations=self.conversations,
+            open_conversation=self.open_conversation,
+            close_conversation=self.close_conversation,
+            events=self.conversation_events,
+            clock=self.clock,
+            uow=self.uow,
+        )
+
+    @property
+    def apply_to_lead(self) -> ApplyToLead:
+        return ApplyToLead(self._hire_lead)
+
+    @property
+    def invite_to_lead(self) -> InviteToLead:
+        return InviteToLead(self._hire_lead)
+
+    @property
+    def accept_lead_invitation(self) -> AcceptLeadInvitation:
+        return AcceptLeadInvitation(self._hire_lead)
+
+    @property
+    def decline_lead_invitation(self) -> DeclineLeadInvitation:
+        return DeclineLeadInvitation(self._hire_lead)
+
+    @property
+    def withdraw_lead_application(self) -> WithdrawLeadApplication:
+        return WithdrawLeadApplication(self._hire_lead)
+
+    @property
+    def hire_team_lead(self) -> HireTeamLead:
+        return HireTeamLead(self._hire_lead)
+
+    @property
+    def get_lead_candidacy(self) -> GetLeadCandidacy:
+        return GetLeadCandidacy(self._hire_lead)
 
     @property
     def list_test_partners(self) -> ListTestPartners:
@@ -230,6 +290,10 @@ def build_container() -> Container:
         conversation_events=OnCommitConversationEvents(publisher),
         clock=SystemClock(),
         test_partners=DjangoTestPartners(),
+        # #3 replaces this stand-in with its project adapter.
+        lead_projects=ProjectsNotReadyForHiring(),
+        lead_candidacies=DjangoLeadCandidacies(),
+        hiring_accounts=DjangoHiringAccounts(),
     )
 
 

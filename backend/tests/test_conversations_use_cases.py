@@ -78,11 +78,13 @@ def conv_id(uc) -> UUID:
 # --- domain ---------------------------------------------------------------------
 
 
-def test_a_conversation_is_between_exactly_two_different_people():
+def test_a_conversation_needs_at_least_two_different_people():
     with pytest.raises(ValidationError):
         Conversation.start(uuid4(), SUBJECT, [CLIENT, CLIENT])
-    with pytest.raises(ValidationError):
-        Conversation.start(uuid4(), SUBJECT, [CLIENT, DEV, OTHER])
+    # The workspace chat (#6) has the whole team in one conversation.
+    team = Subject(SubjectKind.PROJECT_WORKSPACE, "7")
+    everyone = Conversation.start(uuid4(), team, [CLIENT, DEV, OTHER, DEV])
+    assert everyone.participant_ids == (CLIENT, DEV, OTHER)
 
 
 def test_closing_twice_is_an_illegal_transition():
