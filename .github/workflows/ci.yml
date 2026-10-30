@@ -21,7 +21,8 @@ concurrency:
 
 env:
   # Placeholders, not credentials: the throwaway CI database and a per-run key.
-  # CI needs no Clerk or Stripe credentials.
+  # No Stripe credentials. Clerk development keys reach only the e2e step,
+  # from repository secrets.
   DATABASE_URL: postgres://nextnode:nextnode@localhost:5432/nextnode
   REDIS_URL: redis://localhost:6379/0
   DJANGO_SECRET_KEY: ci-only-not-secret-${{ github.run_id }}-0123456789abcdefghijklmnopqrstuvwxyz
@@ -172,6 +173,13 @@ jobs:
         working-directory: frontend
         env:
           CI: "true"
+          # Clerk development instance (never production), so the signed-in
+          # journeys (#1) run instead of skipping. Playwright passes these on to
+          # the Django and Next.js servers it starts. Empty when secrets are
+          # unavailable (e.g. fork PRs); those specs then skip.
+          CLERK_ISSUER: ${{ secrets.CLERK_ISSUER }}
+          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
         run: npm run test:e2e
       - uses: actions/upload-artifact@v4
         if: failure()
