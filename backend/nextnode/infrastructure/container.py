@@ -24,6 +24,7 @@ from nextnode.application.conversations.commands import (
     OpenConversation,
     PostMessage,
 )
+from nextnode.application.conversations.dev import ListTestPartners, StartTestConversation, TestPartners
 from nextnode.application.conversations.ports import (
     AccountNames,
     Clock,
@@ -60,6 +61,7 @@ from nextnode.infrastructure.persistence.conversations import (
     DjangoConversationRepository,
     DjangoMessageRepository,
     DjangoReadMarkers,
+    DjangoTestPartners,
     SystemClock,
 )
 from nextnode.infrastructure.persistence.database_probe import DjangoDatabaseProbe
@@ -93,6 +95,7 @@ class Container:
     account_names: AccountNames
     conversation_events: ConversationEvents
     clock: Clock
+    test_partners: TestPartners
 
     @property
     def get_account(self) -> GetAccount:
@@ -158,6 +161,16 @@ class Container:
         )
 
     @property
+    def list_test_partners(self) -> ListTestPartners:
+        """Development only."""
+        return ListTestPartners(self.test_partners)
+
+    @property
+    def start_test_conversation(self) -> StartTestConversation:
+        """Development only."""
+        return StartTestConversation(self.test_partners, self.open_conversation)
+
+    @property
     def handle_payment_webhook(self) -> HandlePaymentWebhook:
         return HandlePaymentWebhook(
             self.payment_gateway, self.payments, self.webhook_events, self.uow, self.project_starter
@@ -216,6 +229,7 @@ def build_container() -> Container:
         account_names=DjangoAccountNames(),
         conversation_events=OnCommitConversationEvents(publisher),
         clock=SystemClock(),
+        test_partners=DjangoTestPartners(),
     )
 
 

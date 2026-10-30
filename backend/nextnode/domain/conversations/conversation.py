@@ -31,6 +31,9 @@ class SubjectKind(StrEnum):
     LEAD_APPLICATION = "lead_application"  # a developer applied to lead (#4)
     LEAD_INVITATION = "lead_invitation"  # a client invited a developer to lead (#4)
     TEAM_CANDIDACY = "team_candidacy"  # applied to / invited to join a team (#5)
+    # Development only: lets two local accounts chat before Hire Lead (#4) and
+    # Hire Devs (#5) can open real conversations. Refused outside development.
+    DEV_TEST = "dev_test"
 
 
 @dataclass(frozen=True)

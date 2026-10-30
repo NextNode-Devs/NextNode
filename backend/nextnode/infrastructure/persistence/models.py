@@ -144,6 +144,7 @@ class ConversationModel(models.Model):
         LEAD_APPLICATION = "lead_application"
         LEAD_INVITATION = "lead_invitation"
         TEAM_CANDIDACY = "team_candidacy"
+        DEV_TEST = "dev_test"  # development only
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     subject_kind = models.CharField(max_length=32, choices=SubjectKind.choices)

@@ -7,6 +7,7 @@ from nextnode.presentation.api.conversations import (
     ConversationMessagesView,
     ConversationReadView,
 )
+from nextnode.presentation.api.dev_conversations import DevTestConversationView, DevTestPartnersView
 from nextnode.presentation.api.payments import DepositCheckoutView, StripeWebhookView
 from nextnode.presentation.api.views import HealthView
 
@@ -28,6 +29,9 @@ urlpatterns = [
         ConversationReadView.as_view(),
         name="conversation-read",
     ),
+    # Development only (404 elsewhere): try the chat before Hire Lead exists.
+    path("dev/test-partners/", DevTestPartnersView.as_view(), name="dev-test-partners"),
+    path("dev/test-conversations/", DevTestConversationView.as_view(), name="dev-test-conversations"),
     path(
         "projects/<int:project_id>/deposit/checkout/",
         DepositCheckoutView.as_view(),
