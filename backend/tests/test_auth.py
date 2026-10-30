@@ -4,6 +4,7 @@ import pytest
 from cryptography.hazmat.primitives.asymmetric import rsa
 
 from nextnode.application.ports import InvalidTokenError
+from nextnode.infrastructure.auth.clerk import UnconfiguredTokenVerifier
 from nextnode.infrastructure.container import override_container
 
 
@@ -89,7 +90,9 @@ def test_protected_endpoint_explains_a_rejected_token(api, verifier, make_token)
 
 
 def test_unconfigured_server_refuses_every_token(api, make_token):
-    response = api.get("/api/me/", HTTP_AUTHORIZATION=f"Bearer {make_token()}")
+    # Pinned, so a developer's own CLERK_ISSUER in backend/.env can't change the result.
+    with override_container(token_verifier=UnconfiguredTokenVerifier()):
+        response = api.get("/api/me/", HTTP_AUTHORIZATION=f"Bearer {make_token()}")
     assert response.status_code == 401
     assert "not configured" in response.json()["error"]["message"]
 
