@@ -17,11 +17,3 @@ class HealthView(APIView):
     def get(self, request: Request) -> Response:
         report = get_container().check_health.execute()
         return Response({"data": asdict(report)})
-
-
-class MeView(APIView):
-    """Who the verified Clerk session belongs to. Requires a valid token."""
-
-    def get(self, request: Request) -> Response:
-        actor = request.user.actor
-        return Response({"data": {"clerk_user_id": actor.clerk_user_id}})

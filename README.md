@@ -58,8 +58,8 @@ allows only `FRONTEND_ORIGIN`.
 git clone https://github.com/NextNode-Devs/NextNode.git   # checks out develop (default branch)
 cd NextNode
 
-# 1. Database
-docker compose up -d db              # PostgreSQL on localhost:5432 (POSTGRES_PORT to change)
+# 1. Database and Redis
+docker compose up -d db redis        # PostgreSQL on :5432, Redis on :6379 (POSTGRES_PORT / REDIS_PORT to change)
 
 # 2. Backend
 cd backend
@@ -70,7 +70,7 @@ cd ..
 
 # 3. Frontend
 cd frontend
-cp .env.example .env.local
+cp .env.example .env.local           # add the Clerk development keys (docs/external-accounts.md)
 npm ci
 npx playwright install chromium      # only needed for end-to-end tests
 cd ..
@@ -90,9 +90,14 @@ Templates hold placeholders only; never commit `.env` or `.env.local`.
 | | `DATABASE_URL` | `postgres://nextnode:nextnode@localhost:5432/nextnode` locally |
 | | `CLERK_ISSUER` | Clerk Frontend API URL. Empty = auth off (every token refused); required in production |
 | | `CLERK_JWKS_URL`, `CLERK_AUTHORIZED_PARTIES` | Optional overrides |
+| | `REDIS_URL` | Channels layer for the authenticated socket. Default `redis://localhost:6379/0`; required in production |
 | | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` | Stripe **test mode** (`sk_test_…`, `whsec_…`); both or neither. Empty = payments off (webhook answers 503). Live keys are refused outside production |
 | | `DEPOSIT_PERCENT` | Deposit as a % of the accepted offer total; default `20` |
 | `frontend/.env.local` | `API_BASE_URL` | Where the Next.js server reaches Django (server-only) |
+| | `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Clerk development publishable key (`pk_test_…`, public by design). Empty = sign-in off |
+| | `CLERK_SECRET_KEY` | Clerk secret key (`sk_test_…`). **Server-only**; required whenever the publishable key is set |
+| | `NEXT_PUBLIC_API_BASE_URL` | Django as reached from the browser; default `http://localhost:8000` |
+| | `NEXT_PUBLIC_WS_URL` | The authenticated socket; default `ws://localhost:8000/ws` |
 
 Both apps validate configuration at startup and stop with a message naming the
 missing or invalid variable.
@@ -123,15 +128,22 @@ uv run python manage.py makemigrations --check --dry-run   # CI-style "nothing f
 
 ## Running
 
-Two terminals (with `docker compose up -d db` already running):
+Two terminals (with `docker compose up -d db redis` already running):
 
 ```bash
 cd backend  && uv run python manage.py runserver        # http://localhost:8000/api/health/
 cd frontend && npm run dev                              # http://localhost:3000
 ```
 
-The home page shows a live **Backend connection** card (API, database, Clerk
-verification). It is the only screen so far.
+Sign up at `/sign-up` (email or Google), choose **Developer** or **Client**
+once at `/onboarding`, and land on the role-aware `/dashboard`. The home page
+also shows a live **Backend connection** card (API, database, Clerk
+verification). Without Clerk keys, protected pages redirect to `/sign-in`,
+which says sign-in isn't set up.
+
+To see a socket event cross backend processes through Redis, run a second
+`runserver 8001`, point a browser at it (`NEXT_PUBLIC_WS_URL`), and from the
+first process run `uv run python manage.py send_realtime_test_event <account_id>`.
 
 ## Testing and checks
 
@@ -173,7 +185,11 @@ Built and verified locally: both app skeletons, configuration validation,
 (`GET /api/me/`, tested with locally signed tokens), JSON error envelope, CORS,
 the frontend health card with loading/ready/error states, and all checks above.
 
-Not built yet: Clerk sign-in UI, accounts and onboarding, portfolios,
+Built by #1: Clerk sign-in/sign-up, accounts with a role chosen once,
+onboarding, `GET /api/me/`, `GET /api/skills/`, the dashboard shell, the shared
+deny-by-default access policy and the authenticated WebSocket on Redis.
+
+Not built yet: portfolios,
 projects, hiring, team formation, workspaces and payments (see
 `docs/backlog.md`). CI is active; there is no deployment target yet
 (`staging.yml` gates `staging` on CI; its deploy job is off and deploys nothing).
@@ -205,10 +221,9 @@ Details and remaining conflicts: `docs/decisions/phase-1-product-decisions.md`.
   `docs/spec/` — see `docs/spec/README.md`.
 - `manage.py check --deploy` warns that HSTS preload is off; that is a
   deliberate opt-in once a production domain exists.
-- Real-time chat is not set up yet. Hiring conversations will use WebSockets
-  (Django Channels with a Redis channel layer) from Phase 1 — design in
-  `docs/proposals/realtime-messaging.md`. Redis is added to
-  `docker-compose.yml` by #1.
+- The authenticated socket (Django Channels on a Redis channel layer) exists
+  (#1); conversations on it arrive with #4 — design in
+  `docs/proposals/realtime-messaging.md`.
 - Phase 1 ends at project initiation (direction approved) and is due
   **1 November 2026**: `docs/phase-1-scope-review.md`.
 - Clerk and Stripe accounts do not exist yet; `.env.example` files hold

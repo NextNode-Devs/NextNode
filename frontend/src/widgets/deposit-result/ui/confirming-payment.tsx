@@ -4,7 +4,7 @@ import { Loader2Icon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
-import { RefreshButton } from "./refresh-button";
+import { RefreshButton } from "@/shared/ui/refresh-button";
 
 export const POLL_MS = 3_000;
 export const STILL_WAITING_AFTER_MS = 60_000;

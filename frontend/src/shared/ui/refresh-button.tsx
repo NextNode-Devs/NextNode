@@ -6,7 +6,7 @@ import { useTransition } from "react";
 
 import { Button } from "@/shared/ui/shadcn/button";
 
-/** Re-asks the server for the deposit status; the page re-renders with it. */
+/** Re-renders the current page with fresh server data (a retry for loading errors). */
 export function RefreshButton({ label = "Check again" }: { label?: string }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();

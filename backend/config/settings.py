@@ -10,6 +10,9 @@ DEBUG = ENV.debug
 ALLOWED_HOSTS = list(ENV.allowed_hosts)
 
 INSTALLED_APPS = [
+    # First, so `runserver` serves the ASGI app (HTTP + WebSockets).
+    "daphne",
+    "channels",
     "django.contrib.contenttypes",
     "django.contrib.staticfiles",
     "corsheaders",
@@ -66,6 +69,16 @@ REST_FRAMEWORK = {
     "DEFAULT_PARSER_CLASSES": ["rest_framework.parsers.JSONParser"],
     "EXCEPTION_HANDLER": "nextnode.presentation.api.exception_handler.handle_exception",
     "UNAUTHENTICATED_USER": None,
+}
+
+# --- Real time (#1) ----------------------------------------------------------
+# Redis carries socket events between backend processes. Unit tests swap in
+# the in-memory layer (tests/conftest.py); docs/proposals/realtime-messaging.md.
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {"hosts": [ENV.redis_url]},
+    }
 }
 
 # --- CORS / CSRF -----------------------------------------------------------

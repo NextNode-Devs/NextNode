@@ -117,3 +117,42 @@ masquerading as real-time.
 (`daphne` in `INSTALLED_APPS`); production runs an ASGI server. The
 reverse proxy must pass `Upgrade`/`Connection` headers. TLS (`wss://`) in any
 non-local environment.
+
+## As built in #1 (contract for #4)
+
+- **Endpoint:** `ws(s)://<api>/ws/` (`NEXT_PUBLIC_WS_URL` without the
+  trailing slash). `config/asgi.py` wraps it in Channels' `OriginValidator`
+  with `FRONTEND_ORIGIN`: a foreign `Origin` is refused **at the handshake**
+  (HTTP 403, before any close code exists). No cookies are read.
+- **Handshake:** the server accepts, then expects
+  `{"type": "auth", "token": "<Clerk session token>"}` within 5 s and answers
+  `{"type": "auth.ok", "expires_at": "<ISO 8601>"}`. A `token` query parameter
+  closes `4401`. A signed-in user without an account closes `4403`.
+- **Re-auth:** `{"type": "auth.refresh", "token": …}` for the **same** user
+  (another `sub` closes `4401`), before `expires_at` + 5 s. The frontend sends
+  it 15 s before expiry.
+- **Limits:** frames over 16 KB close `1009`; more than 20 frames in 10 s
+  closes `4429`. `{"type": "ping"}` answers `{"type": "pong"}`.
+- **Groups:** every authenticated socket joins `account.<account_id>`.
+  `RealtimePublisher.publish_to_account(account_id, event)` (container:
+  `get_container().realtime`) sends `event` to all of that account's sockets
+  on any process, via Redis. `manage.py send_realtime_test_event <id>` sends
+  a `realtime.test` frame.
+- **Extension point:** `nextnode.presentation.realtime.registry.register_handler(
+  frame_type, handler, *, access=Access(resource_type, action, resource_id))`.
+  The consumer resolves `resource_id(frame)`, then asks the shared
+  `AccessPolicy` (`application/access.py`) before calling
+  `handler(ctx, frame)`; `ctx` has `actor`, `send_json`, `group_add`,
+  `group_discard`. Refused → close `4403`. No rule registered for the resource
+  type → refused (deny by default). A handler cannot be registered without an
+  `Access`. Rules are registered in `infrastructure/access_rules.py`.
+- **Unknown frame type:** `{"type": "error", "code": "UNKNOWN_TYPE"}`;
+  malformed JSON or a missing id: `{"type": "error", "code": "BAD_FRAME"}`.
+- **Frontend:** `@/shared/api/realtime` — `RealtimeProvider`, `useRealtime()`
+  → `{connection, state}` with `connection.on(type, cb)` / `send(frame)`;
+  states `connecting | connected | reconnecting(attempt) | offline(reason)`;
+  backoff 1 s → 30 s with jitter; 4401 gets a fresh token (gives up after 3);
+  4403 stops; 4429/1009 retry later.
+
+Open for #4 to confirm with #1: whether a refused `subscribe` should close
+`4403` (current) or send an error frame and keep the socket open.

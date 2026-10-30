@@ -11,7 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/sha
 import { Skeleton } from "@/shared/ui/shadcn/skeleton";
 
 import { ConfirmingPayment } from "./confirming-payment";
-import { RefreshButton } from "./refresh-button";
+import { RefreshButton } from "@/shared/ui/refresh-button";
 
 export type Mode = "return" | "cancelled";
 export type Outcome =

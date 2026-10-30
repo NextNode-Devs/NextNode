@@ -13,6 +13,10 @@ from typing import Any
 
 from django.conf import settings
 
+from nextnode.application.access import AccessPolicy
+from nextnode.application.accounts.onboarding import CompleteOnboarding
+from nextnode.application.accounts.ports import AccountDirectory, AccountRepository, SkillRepository
+from nextnode.application.accounts.queries import GetAccount, GetMe, ListSkills, ResolveActor
 from nextnode.application.health import CheckHealth
 from nextnode.application.payments.checkout import StartDepositCheckout
 from nextnode.application.payments.ports import (
@@ -25,16 +29,23 @@ from nextnode.application.payments.ports import (
 )
 from nextnode.application.payments.status import DepositStatusQuery
 from nextnode.application.payments.webhook import HandlePaymentWebhook
-from nextnode.application.ports import DatabaseProbe, TokenVerifier
+from nextnode.application.ports import DatabaseProbe, RealtimePublisher, TokenVerifier
+from nextnode.infrastructure.access_rules import build_access_policy
 from nextnode.infrastructure.auth.clerk import ClerkTokenVerifier, UnconfiguredTokenVerifier
 from nextnode.infrastructure.payments.pending_dependencies import ProjectsNotReady
 from nextnode.infrastructure.payments.stripe_gateway import StripeGateway, UnconfiguredPaymentGateway
+from nextnode.infrastructure.persistence.accounts import (
+    DjangoAccountDirectory,
+    DjangoAccountRepository,
+    DjangoSkillRepository,
+)
 from nextnode.infrastructure.persistence.database_probe import DjangoDatabaseProbe
 from nextnode.infrastructure.persistence.payments import (
     DjangoPaymentRepository,
     DjangoUnitOfWork,
     DjangoWebhookEventLog,
 )
+from nextnode.infrastructure.realtime.publisher import ChannelsEventPublisher
 
 
 @dataclass(frozen=True)
@@ -47,10 +58,35 @@ class Container:
     uow: UnitOfWork
     deposit_terms: DepositTermsSource
     project_starter: ProjectStarter
+    accounts: AccountRepository
+    skills: SkillRepository
+    account_directory: AccountDirectory
+    access_policy: AccessPolicy
+    realtime: RealtimePublisher
+
+    @property
+    def get_account(self) -> GetAccount:
+        return GetAccount(self.accounts, self.access_policy)
 
     @property
     def check_health(self) -> CheckHealth:
         return CheckHealth(self.database, self.token_verifier)
+
+    @property
+    def resolve_actor(self) -> ResolveActor:
+        return ResolveActor(self.accounts)
+
+    @property
+    def get_me(self) -> GetMe:
+        return GetMe(self.accounts)
+
+    @property
+    def complete_onboarding(self) -> CompleteOnboarding:
+        return CompleteOnboarding(self.accounts, self.skills, self.uow)
+
+    @property
+    def list_skills(self) -> ListSkills:
+        return ListSkills(self.skills)
 
     @property
     def handle_payment_webhook(self) -> HandlePaymentWebhook:
@@ -99,6 +135,11 @@ def build_container() -> Container:
         # #6 replaces these with its project adapters.
         deposit_terms=ProjectsNotReady(),
         project_starter=ProjectsNotReady(),
+        accounts=DjangoAccountRepository(),
+        skills=DjangoSkillRepository(),
+        account_directory=DjangoAccountDirectory(),
+        access_policy=build_access_policy(),
+        realtime=ChannelsEventPublisher(),
     )
 
 
