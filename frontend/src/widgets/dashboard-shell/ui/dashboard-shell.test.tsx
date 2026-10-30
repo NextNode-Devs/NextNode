@@ -27,15 +27,15 @@ function sectionTitles() {
 }
 
 describe("DashboardShell", () => {
-  it("gives developers invitations, applications, projects and conversations", () => {
+  it("gives developers invitations, applications, projects, conversations and their portfolio", () => {
     render(<DashboardShell account={developer} />);
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Welcome, Ada");
-    expect(sectionTitles()).toEqual(["Invitations", "Applications", "My projects", "Conversations"]);
+    expect(sectionTitles()).toEqual(["Invitations", "Applications", "My projects", "Conversations", "Your portfolio"]);
   });
 
   it("gives clients no invitations section", () => {
     render(<DashboardShell account={client} />);
-    expect(sectionTitles()).toEqual(["My projects", "Applications", "Conversations"]);
+    expect(sectionTitles()).toEqual(["My projects", "Applications", "Conversations", "Find developers"]);
     expect(screen.getByRole("navigation", { name: "Dashboard sections" })).not.toHaveTextContent("Invitations");
   });
 

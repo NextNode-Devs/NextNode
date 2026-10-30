@@ -6,13 +6,14 @@ import { isAuthConfigured } from "@/shared/config/env.public";
 
 type Props = {
   /** The current top-level page, marked with `aria-current`. */
-  current?: "dashboard" | "conversations";
+  current?: "dashboard" | "developers" | "conversations";
   /** Extra status shown before the account menu (e.g. the connection badge). */
   status?: ReactNode;
 };
 
 const NAV = [
   { id: "dashboard", href: "/dashboard", label: "Dashboard" },
+  { id: "developers", href: "/developers", label: "Developers" },
   { id: "conversations", href: "/conversations", label: "Conversations" },
 ] as const;
 

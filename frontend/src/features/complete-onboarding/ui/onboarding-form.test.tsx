@@ -6,9 +6,9 @@ import type { OnboardingState } from "../model/onboarding-state";
 import { OnboardingForm } from "./onboarding-form";
 
 vi.mock("../api/complete-onboarding", () => ({ completeOnboarding: vi.fn() }));
-vi.mock("@/entities/skill", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@/entities/skill")>()),
-  useSkillSuggestions: () => [],
+// Skill suggestions call the API through the browser client; no Clerk session in tests.
+vi.mock("@/shared/api/browser-client", () => ({
+  useApiClient: () => ({ get: async () => ({ ok: true, data: [] }) }),
 }));
 
 describe("OnboardingForm", () => {

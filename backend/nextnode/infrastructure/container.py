@@ -14,8 +14,15 @@ from typing import Any
 from django.conf import settings
 
 from nextnode.application.access import AccessPolicy
+from nextnode.application.accounts.directory import DeveloperSearch, SearchDevelopers
 from nextnode.application.accounts.onboarding import CompleteOnboarding
-from nextnode.application.accounts.ports import AccountDirectory, AccountRepository, SkillRepository
+from nextnode.application.accounts.portfolio import GetPortfolio, UpdatePortfolio
+from nextnode.application.accounts.ports import (
+    AccountDirectory,
+    AccountRepository,
+    PortfolioRepository,
+    SkillRepository,
+)
 from nextnode.application.accounts.queries import GetAccount, GetMe, ListSkills, ResolveActor
 from nextnode.application.conversations.candidacies import CandidacyConversations
 from nextnode.application.conversations.commands import (
@@ -83,6 +90,7 @@ from nextnode.infrastructure.persistence.payments import (
     DjangoUnitOfWork,
     DjangoWebhookEventLog,
 )
+from nextnode.infrastructure.persistence.portfolios import DjangoDeveloperSearch, DjangoPortfolioRepository
 from nextnode.infrastructure.realtime.conversation_events import OnCommitConversationEvents
 from nextnode.infrastructure.realtime.publisher import ChannelsEventPublisher
 
@@ -99,6 +107,8 @@ class Container:
     project_starter: ProjectStarter
     accounts: AccountRepository
     skills: SkillRepository
+    portfolios: PortfolioRepository
+    developer_search: DeveloperSearch
     account_directory: AccountDirectory
     access_policy: AccessPolicy
     realtime: RealtimePublisher
@@ -136,6 +146,20 @@ class Container:
     @property
     def list_skills(self) -> ListSkills:
         return ListSkills(self.skills)
+
+    # --- portfolios (#2) ----------------------------------------------------------
+
+    @property
+    def get_portfolio(self) -> GetPortfolio:
+        return GetPortfolio(self.portfolios, self.access_policy)
+
+    @property
+    def update_portfolio(self) -> UpdatePortfolio:
+        return UpdatePortfolio(self.portfolios, self.skills, self.access_policy, self.uow)
+
+    @property
+    def search_developers(self) -> SearchDevelopers:
+        return SearchDevelopers(self.developer_search, self.access_policy)
 
     # --- hiring conversations (#4) ---------------------------------------------
 
@@ -280,6 +304,8 @@ def build_container() -> Container:
         project_starter=ProjectsNotReady(),
         accounts=DjangoAccountRepository(),
         skills=DjangoSkillRepository(),
+        portfolios=DjangoPortfolioRepository(),
+        developer_search=DjangoDeveloperSearch(),
         account_directory=DjangoAccountDirectory(),
         access_policy=build_access_policy(),
         realtime=publisher,
