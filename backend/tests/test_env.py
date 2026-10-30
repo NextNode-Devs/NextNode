@@ -26,6 +26,12 @@ def test_required_variables_fail_fast_with_their_name(missing):
         parse(source)
 
 
+def test_redis_defaults_to_local_and_must_be_a_redis_url():
+    assert parse(BASE).redis_url == "redis://localhost:6379/0"
+    with pytest.raises(ImproperlyConfiguredEnv, match="REDIS_URL"):
+        parse({**BASE, "REDIS_URL": "http://localhost:6379"})
+
+
 def test_only_postgres_is_accepted():
     with pytest.raises(ImproperlyConfiguredEnv, match="PostgreSQL"):
         parse({**BASE, "DATABASE_URL": "sqlite:///db.sqlite3"})
@@ -38,8 +44,11 @@ def test_production_rejects_debug_weak_secret_and_missing_clerk():
         "DJANGO_ALLOWED_HOSTS": "api.example.com",
         "FRONTEND_ORIGIN": "https://app.example.com",
         "CLERK_ISSUER": "https://clerk.example.com",
+        "REDIS_URL": "rediss://cache.example.com:6380/0",
     }
     assert parse(prod).is_production
+    with pytest.raises(ImproperlyConfiguredEnv, match="REDIS_URL"):
+        parse({**prod, "REDIS_URL": ""})
     with pytest.raises(ImproperlyConfiguredEnv, match="DJANGO_DEBUG"):
         parse({**prod, "DJANGO_DEBUG": "true"})
     with pytest.raises(ImproperlyConfiguredEnv, match="DJANGO_SECRET_KEY"):

@@ -44,7 +44,8 @@ def _flatten(detail) -> dict[str, list[str]]:
 
 def handle_exception(exc: Exception, context: dict) -> Response:
     if isinstance(exc, domain.DomainError):
-        status = DOMAIN_STATUS.get(type(exc), 400)
+        # Nearest mapped ancestor: AlreadyOnboardedError → ConflictError → 409.
+        status = next((DOMAIN_STATUS[cls] for cls in type(exc).__mro__ if cls in DOMAIN_STATUS), 400)
         fields = exc.fields if isinstance(exc, domain.ValidationError) else None
         return Response(error_body(exc.code, exc.message, fields), status=status)
 

@@ -7,17 +7,26 @@ import pytest
 from django.db import IntegrityError, transaction
 
 from nextnode.infrastructure.container import override_container
+from nextnode.infrastructure.payments.pending_dependencies import ProjectsNotReady
 from nextnode.infrastructure.payments.stripe_gateway import StripeGateway, UnconfiguredPaymentGateway
 from nextnode.infrastructure.persistence.models import PaymentModel, StripeEventModel
+from tests.payment_fakes import FakeProjects
 from tests.stripe_helpers import TEST_WEBHOOK_SECRET, checkout_event, sign
 
 URL = "/api/payments/stripe/webhook/"
 pytestmark = pytest.mark.django_db
 
 
+@pytest.fixture
+def projects() -> FakeProjects:
+    return FakeProjects()
+
+
 @pytest.fixture(autouse=True)
-def stripe_gateway():
-    with override_container(payment_gateway=StripeGateway("sk_test_unused", TEST_WEBHOOK_SECRET)):
+def stripe_gateway(projects):
+    with override_container(
+        payment_gateway=StripeGateway("sk_test_unused", TEST_WEBHOOK_SECRET), project_starter=projects
+    ):
         yield
 
 
@@ -52,6 +61,22 @@ def test_signed_paid_event_completes_the_payment(api, payment):
     }
     payment.refresh_from_db()
     assert payment.status == "completed" and payment.completed_at is not None
+
+
+def test_confirmed_deposit_starts_the_project(api, payment, projects):
+    post(api, checkout_event(str(payment.id)))
+    assert projects.started == [(7, 3)]
+
+
+def test_without_the_start_gate_a_paid_event_is_refused_and_changes_nothing(api, payment):
+    """Until #6 merges, nothing can mark a deposit paid without starting the
+    project; Stripe keeps retrying the event."""
+    with override_container(project_starter=ProjectsNotReady()):
+        response = post(api, checkout_event(str(payment.id)))
+    assert response.status_code == 503
+    payment.refresh_from_db()
+    assert payment.status == "pending"
+    assert not StripeEventModel.objects.exists()
 
 
 def test_no_clerk_token_or_csrf_token_is_needed(api, payment):

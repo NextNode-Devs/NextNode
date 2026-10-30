@@ -1,9 +1,7 @@
 """HandlePaymentWebhook with in-memory fakes: no database, no Stripe."""
 
-import copy
-from contextlib import contextmanager
 from datetime import UTC, datetime
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 import pytest
 
@@ -11,75 +9,16 @@ from nextnode.application.payments.ports import InvalidWebhookError, PaymentEven
 from nextnode.application.payments.webhook import HandlePaymentWebhook
 from nextnode.domain.errors import ConflictError, InvalidStateTransitionError
 from nextnode.domain.payments import Payment, PaymentMismatchError, PaymentStatus, PaymentType
+from tests.payment_fakes import (
+    FakeEvents,
+    FakeGateway,
+    FakePayments,
+    FakeProjects,
+    FakeUnitOfWork,
+    InMemoryStore,
+)
 
 NOW = datetime(2026, 10, 28, 12, tzinfo=UTC)
-
-
-class FakeGateway:
-    """Returns the event it is given; a bad signature raises like the real one."""
-
-    def __init__(self) -> None:
-        self.next_event: PaymentEvent | None = None
-
-    def parse_event(self, payload: bytes, signature: str | None) -> PaymentEvent:
-        if signature != "valid":
-            raise InvalidWebhookError("The Stripe signature is missing or invalid.")
-        assert self.next_event is not None
-        return self.next_event
-
-    def create_checkout_session(self, request):
-        raise NotImplementedError
-
-
-class InMemoryStore:
-    def __init__(self) -> None:
-        self.payments: dict[UUID, Payment] = {}
-        self.events: set[str] = set()
-
-
-class FakePayments:
-    def __init__(self, store: InMemoryStore) -> None:
-        self.store = store
-
-    def get_for_update(self, payment_id: UUID) -> Payment | None:
-        payment = self.store.payments.get(payment_id)
-        return copy.deepcopy(payment) if payment else None
-
-    def save(self, payment: Payment) -> None:
-        self.store.payments[payment.id] = copy.deepcopy(payment)
-
-    def has_other_completed_deposit(self, project_id: int, exclude: UUID) -> bool:
-        return any(
-            p.project_id == project_id and p.status is PaymentStatus.COMPLETED and p.id != exclude
-            for p in self.store.payments.values()
-        )
-
-
-class FakeEvents:
-    def __init__(self, store: InMemoryStore) -> None:
-        self.store = store
-
-    def record(self, event_id: str, event_type: str) -> bool:
-        if event_id in self.store.events:
-            return False
-        self.store.events.add(event_id)
-        return True
-
-
-class FakeUnitOfWork:
-    """Rolls the store back when the block raises, like a database transaction."""
-
-    def __init__(self, store: InMemoryStore) -> None:
-        self.store = store
-
-    @contextmanager
-    def atomic(self):
-        snapshot = copy.deepcopy(self.store.__dict__)
-        try:
-            yield
-        except BaseException:
-            self.store.__dict__ = snapshot
-            raise
 
 
 @pytest.fixture
@@ -93,9 +32,14 @@ def gateway() -> FakeGateway:
 
 
 @pytest.fixture
-def handle(store, gateway) -> HandlePaymentWebhook:
+def projects() -> FakeProjects:
+    return FakeProjects()
+
+
+@pytest.fixture
+def handle(store, gateway, projects) -> HandlePaymentWebhook:
     return HandlePaymentWebhook(
-        gateway, FakePayments(store), FakeEvents(store), FakeUnitOfWork(store), now=lambda: NOW
+        gateway, FakePayments(store), FakeEvents(store), FakeUnitOfWork(store), projects, now=lambda: NOW
     )
 
 
@@ -231,3 +175,44 @@ def test_unhandled_event_types_are_recorded_and_ignored(handle, store, gateway):
     gateway.next_event = event(None, type="customer.created")
     assert handle.execute(b"{}", "valid").result == "ignored"
     assert store.events == {"evt_1"}
+
+
+def test_confirmed_deposit_starts_the_project_once(handle, store, gateway, projects):
+    payment = add_payment(store)
+    gateway.next_event = event(payment)
+    handle.execute(b"{}", "valid")
+    assert projects.started == [(7, 3)]
+
+    handle.execute(b"{}", "valid")  # replay
+    gateway.next_event = event(payment, event_id="evt_2", type="checkout.session.async_payment_succeeded")
+    handle.execute(b"{}", "valid")  # a second success event for the same payment
+    assert projects.started == [(7, 3)]
+
+
+@pytest.mark.parametrize(
+    "overrides",
+    [
+        {"paid": False},
+        {"type": "checkout.session.async_payment_failed", "paid": False},
+        {"type": "checkout.session.expired", "paid": False},
+    ],
+)
+def test_unpaid_failed_or_expired_events_start_nothing(handle, store, gateway, projects, overrides):
+    payment = add_payment(store)
+    gateway.next_event = event(payment, **overrides)
+    handle.execute(b"{}", "valid")
+    assert projects.started == []
+
+
+def test_a_failed_start_rolls_the_payment_back_so_stripe_retries(handle, store, gateway, projects):
+    payment = add_payment(store)
+    gateway.next_event = event(payment)
+    projects.fail_start = True
+    with pytest.raises(RuntimeError):
+        handle.execute(b"{}", "valid")
+    assert status_of(store, payment) is PaymentStatus.PENDING
+    assert store.events == set()
+
+    projects.fail_start = False
+    assert handle.execute(b"{}", "valid").result == "completed"  # Stripe's retry
+    assert projects.started == [(7, 3)]
