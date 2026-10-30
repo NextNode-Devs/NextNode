@@ -1,6 +1,7 @@
 "use client";
 
 import { BriefcaseIcon, CodeIcon } from "lucide-react";
+import { useSyncExternalStore } from "react";
 
 import type { Role } from "@/entities/viewer";
 import { cn } from "@/shared/lib/utils";
@@ -21,10 +22,20 @@ const OPTIONS: { value: Role; title: string; description: string; icon: typeof C
   },
 ];
 
+const subscribeNever = () => () => {};
+
+/** False while the server-rendered HTML is still being hydrated, true afterwards. */
+function useHydrated(): boolean {
+  return useSyncExternalStore(subscribeNever, () => true, () => false);
+}
+
 type Props = { value: Role | null; onChange: (role: Role) => void; error?: string };
 
 /** The one-time role choice. Team Lead isn't offered: it is per project. */
 export function RoleChoice({ value, onChange, error }: Props) {
+  // A click before hydration reaches no handler and is lost, so the choice stays
+  // disabled until React is attached (slow on `next dev`, which compiles on demand).
+  const hydrated = useHydrated();
   return (
     <fieldset className="space-y-3" aria-describedby={error ? "role-error" : "role-hint"}>
       <legend className="text-sm font-medium">
@@ -43,6 +54,7 @@ export function RoleChoice({ value, onChange, error }: Props) {
           if (next) onChange(next as Role);
         }}
         required
+        disabled={!hydrated}
         aria-invalid={Boolean(error)}
         className="grid gap-3 sm:grid-cols-2"
       >

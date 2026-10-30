@@ -61,6 +61,26 @@ def test_protected_endpoint_accepts_a_verified_token(api, verifier, make_token):
     assert response.json() == {"data": {"clerk_user_id": "user_123", "account": None}}
 
 
+@pytest.mark.django_db
+def test_me_succeeds_when_the_first_signing_key_fetch_is_slow(api, signing_key, make_token):
+    """The first call fetches Clerk's JWKS (up to 5 s); the frontend waits 10 s for /api/me/."""
+    from nextnode.infrastructure.auth.clerk import ClerkTokenVerifier
+    from tests.conftest import FRONTEND, ISSUER
+
+    public_key = signing_key.public_key()
+
+    def slow_resolver(token):
+        time.sleep(3.5)
+        return public_key
+
+    slow = ClerkTokenVerifier(ISSUER, (FRONTEND,), key_resolver=slow_resolver)
+    started = time.monotonic()
+    with override_container(token_verifier=slow):
+        response = api.get("/api/me/", HTTP_AUTHORIZATION=f"Bearer {make_token()}")
+    assert response.status_code == 200
+    assert time.monotonic() - started > 3
+
+
 def test_protected_endpoint_explains_a_rejected_token(api, verifier, make_token):
     with override_container(token_verifier=verifier):
         response = api.get("/api/me/", HTTP_AUTHORIZATION=f"Bearer {make_token(azp='https://evil.example')}")
