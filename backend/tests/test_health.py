@@ -26,7 +26,7 @@ def test_health_endpoint_reaches_the_real_database(api):
     assert response.json()["data"]["status"] == "ok"
 
 
-def test_health_endpoint_uses_the_container(api):
+def test_health_endpoint_uses_the_container(api, clerk_off):
     with override_container(database=FakeProbe(False)):
         response = api.get("/api/health/")
     assert response.json() == {

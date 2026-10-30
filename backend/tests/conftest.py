@@ -60,3 +60,14 @@ def in_memory_channel_layer(request, settings):
     channel_layers.backends = {}
     yield
     channel_layers.backends = {}
+
+
+@pytest.fixture
+def clerk_off():
+    """Clerk not set up, whatever the developer's .env says. For tests of the
+    "no Clerk configured" behaviour; every other test signs its own tokens."""
+    from nextnode.infrastructure.auth.clerk import UnconfiguredTokenVerifier
+    from nextnode.infrastructure.container import override_container
+
+    with override_container(token_verifier=UnconfiguredTokenVerifier()):
+        yield

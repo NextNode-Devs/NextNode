@@ -88,7 +88,7 @@ def test_protected_endpoint_explains_a_rejected_token(api, verifier, make_token)
     assert "different site" in response.json()["error"]["message"]
 
 
-def test_unconfigured_server_refuses_every_token(api, make_token):
+def test_unconfigured_server_refuses_every_token(api, make_token, clerk_off):
     response = api.get("/api/me/", HTTP_AUTHORIZATION=f"Bearer {make_token()}")
     assert response.status_code == 401
     assert "not configured" in response.json()["error"]["message"]
