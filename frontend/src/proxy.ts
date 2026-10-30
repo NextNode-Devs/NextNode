@@ -7,7 +7,7 @@ import { isAuthConfigured } from "@/shared/config/env.public";
  * Next.js 16 Proxy. It only redirects signed-out visitors away from protected
  * pages; who may do what is decided by the backend use cases, never here.
  */
-const PROTECTED = ["/dashboard(.*)", "/onboarding(.*)", "/projects(.*)"];
+const PROTECTED = ["/dashboard(.*)", "/onboarding(.*)", "/projects(.*)", "/conversations(.*)"];
 const isProtected = createRouteMatcher(PROTECTED);
 
 const SIGN_IN_PATH = "/sign-in";

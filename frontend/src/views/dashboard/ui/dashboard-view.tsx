@@ -1,3 +1,5 @@
+import { ArrowRightIcon } from "lucide-react";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
@@ -7,6 +9,7 @@ import { isAuthConfigured } from "@/shared/config/env.public";
 import { LoadError, LoadingCards } from "@/shared/ui/load-states";
 import { AppHeader } from "@/widgets/app-header";
 import { ConnectionStatus } from "@/widgets/connection-status";
+import { ConversationList } from "@/widgets/conversation-list";
 import { DashboardShell } from "@/widgets/dashboard-shell";
 
 /** The signed-in home. Users without an account are sent to onboarding first. */
@@ -37,5 +40,31 @@ async function Dashboard() {
       </>
     );
   }
-  return <DashboardShell account={route.viewer.account} />;
+  const account = route.viewer.account;
+  return (
+    <DashboardShell
+      account={account}
+      sections={{
+        conversations: (
+          <div className="space-y-3">
+            <ConversationList
+              myAccountId={account.id}
+              limit={3}
+              emptyText={
+                account.role === "client"
+                  ? "Conversations with Team Lead candidates will appear here, with unread counts."
+                  : "Hiring and team conversations will appear here, with unread counts."
+              }
+            />
+            <Link
+              href="/conversations"
+              className="inline-flex items-center gap-1 text-sm font-medium underline-offset-4 hover:underline"
+            >
+              Open conversations <ArrowRightIcon className="size-4" aria-hidden />
+            </Link>
+          </div>
+        ),
+      }}
+    />
+  );
 }
