@@ -259,6 +259,23 @@ Confirmed by the Team Lead:
 - **CI and Stripe (#7):** CI uses a fake payment gateway; no Stripe secret is
   stored in GitHub. Webhook tests sign payloads with a generated secret.
 
+## Decisions of 29 Oct 2026 (#1 implementation, issue owner)
+
+- **Skills are typed by developers**, not chosen from a predefined list. This
+  replaces "skills from a fixed list" in #1 and the `ui-ux` guideline that
+  skill tags are not free text. To keep one spelling per skill, the backend
+  trims and collapses whitespace, compares case-insensitively (`react` =
+  `React`; the first spelling saved is kept), allows letters, digits, spaces
+  and `+ # . - /`, at most 40 characters per skill and 1–20 per developer, and
+  refuses duplicates. Every saved skill is listed by `GET /api/skills/?q=` and
+  the onboarding form suggests them while typing. #2 (portfolio, directory
+  filter) and #3 (tech stack) read from that endpoint rather than defining
+  their own list. Limits live in `nextnode.domain.accounts`.
+- **Onboarding fields:** both roles give a display name. Client: company name
+  and industry (free text). Developer: headline, optional bio, optional GitHub
+  username (accepted as provided, never "verified") and skills. #2 extends the
+  developer profile into the portfolio (URLs, availability).
+
 ## Open conflicts and decisions still needed
 
 1. **Location-based currency:** wanted in a later phase? If so, from which

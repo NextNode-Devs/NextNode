@@ -13,6 +13,7 @@ PRODUCTION = {
     "DJANGO_ALLOWED_HOSTS": "api.example.com",
     "FRONTEND_ORIGIN": "https://app.example.com",
     "CLERK_ISSUER": "https://clerk.example.com",
+    "REDIS_URL": "rediss://cache.example.com:6380/0",
 }
 
 

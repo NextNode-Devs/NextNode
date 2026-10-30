@@ -3,6 +3,8 @@ name = "nextnode-backend"
 version = "0.1.0"
 requires-python = ">=3.13"
 dependencies = [
+    "channels>=4.3.2",
+    "channels-redis>=4.3.0",
     "django>=6.1.2",
     "django-cors-headers>=4.9.0",
     "djangorestframework>=3.18.3",
@@ -10,12 +12,15 @@ dependencies = [
     "pyjwt[crypto]>=2.15.1",
     "python-dotenv>=1.2.4",
     "stripe>=16.0.1",
+    "uvicorn[standard]>=0.40",
 ]
 
 [dependency-groups]
 dev = [
+    "daphne>=4.2.3",
     "import-linter>=2.15",
     "pytest>=9.1.1",
+    "pytest-asyncio>=1.4.1",
     "pytest-django>=4.14.0",
     "ruff>=0.17.3",
 ]
@@ -39,6 +44,9 @@ ignore = ["S101"]  # assert is how pytest asserts
 DJANGO_SETTINGS_MODULE = "config.settings"
 testpaths = ["tests"]
 addopts = "--strict-markers -ra"
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+markers = ["redis: needs Redis at REDIS_URL; keeps the real channel layer"]
 
 [tool.importlinter]
 root_package = "nextnode"
@@ -58,4 +66,16 @@ layers = [
 name = "Domain and application use no framework or vendor SDK"
 type = "forbidden"
 source_modules = ["nextnode.domain", "nextnode.application"]
-forbidden_modules = ["django", "rest_framework", "corsheaders", "jwt", "psycopg", "dotenv"]
+forbidden_modules = [
+    "django",
+    "rest_framework",
+    "corsheaders",
+    "jwt",
+    "psycopg",
+    "dotenv",
+    "channels",
+    "channels_redis",
+    "daphne",
+    "uvicorn",
+    "redis",
+]

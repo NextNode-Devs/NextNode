@@ -26,11 +26,12 @@ class ClerkBearerAuthentication(BaseAuthentication):
             return None
         if len(parts) != 2:
             raise AuthenticationFailed("The Authorization header must be 'Bearer <token>'.")
+        container = get_container()
         try:
-            actor = get_container().token_verifier.verify(parts[1].decode("ascii"))
+            session = container.token_verifier.verify(parts[1].decode("ascii"))
         except (InvalidTokenError, UnicodeDecodeError) as error:
             raise AuthenticationFailed(str(error) or "The session token is invalid.") from None
-        return ApiUser(actor), None
+        return ApiUser(container.resolve_actor.execute(session)), None
 
     def authenticate_header(self, request: Request) -> str:
         return 'Bearer realm="api"'

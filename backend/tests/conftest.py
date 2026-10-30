@@ -48,3 +48,15 @@ def verifier(signing_key) -> ClerkTokenVerifier:
 @pytest.fixture
 def api() -> APIClient:
     return APIClient()
+
+
+@pytest.fixture(autouse=True)
+def in_memory_channel_layer(request, settings):
+    """Unit tests never need Redis. Tests marked ``redis`` keep the real layer."""
+    from channels.layers import channel_layers
+
+    if "redis" not in request.keywords:
+        settings.CHANNEL_LAYERS = {"default": {"BACKEND": "channels.layers.InMemoryChannelLayer"}}
+    channel_layers.backends = {}
+    yield
+    channel_layers.backends = {}
