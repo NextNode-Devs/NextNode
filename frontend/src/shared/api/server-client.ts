@@ -5,10 +5,9 @@ import { connection } from "next/server";
 import { getServerEnv } from "@/shared/config/env.server";
 
 import { getSessionToken } from "./session";
+import { readEnvelope, UNREACHABLE, type ApiResult, type HttpMethod } from "./types";
 
-/** Mirrors the backend envelope: `{ data }` on success, `{ error }` on failure. */
-export type ApiError = { code: string; message: string; fields?: Record<string, string[]> };
-export type ApiResult<T> = { ok: true; data: T } | { ok: false; error: ApiError };
+export type { ApiError, ApiResult } from "./types";
 
 type RequestOptions = {
   timeoutMs?: number;
@@ -19,7 +18,7 @@ type RequestOptions = {
 const DEFAULT_TIMEOUT_MS = 3000;
 
 async function apiRequest<T>(
-  method: "GET" | "POST",
+  method: HttpMethod,
   path: string,
   init: RequestOptions & { body?: unknown } = {},
 ): Promise<ApiResult<T>> {
@@ -39,22 +38,9 @@ async function apiRequest<T>(
       body: init.body === undefined ? undefined : JSON.stringify(init.body),
       signal: AbortSignal.timeout(init.timeoutMs ?? DEFAULT_TIMEOUT_MS),
     });
-    const body = (await response.json().catch(() => null)) as
-      | { data: T }
-      | { error: ApiError }
-      | null;
-
-    if (response.ok && body && "data" in body) return { ok: true, data: body.data };
-    if (body && "error" in body) return { ok: false, error: body.error };
-    return {
-      ok: false,
-      error: { code: "BAD_RESPONSE", message: `The API answered ${response.status} without a readable body.` },
-    };
+    return await readEnvelope<T>(response);
   } catch {
-    return {
-      ok: false,
-      error: { code: "UNREACHABLE", message: "The API could not be reached." },
-    };
+    return { ok: false, error: UNREACHABLE };
   }
 }
 
@@ -69,4 +55,14 @@ export function apiGet<T>(path: string, init?: RequestOptions): Promise<ApiResul
 /** POST to the Django API from the Next.js server. Never throws, like `apiGet`. */
 export function apiPost<T>(path: string, body?: unknown, init?: RequestOptions): Promise<ApiResult<T>> {
   return apiRequest<T>("POST", path, { ...init, body });
+}
+
+/** PUT, for whole-resource updates (e.g. #2's portfolio). Never throws. */
+export function apiPut<T>(path: string, body?: unknown, init?: RequestOptions): Promise<ApiResult<T>> {
+  return apiRequest<T>("PUT", path, { ...init, body });
+}
+
+/** PATCH, for partial updates. Never throws. */
+export function apiPatch<T>(path: string, body?: unknown, init?: RequestOptions): Promise<ApiResult<T>> {
+  return apiRequest<T>("PATCH", path, { ...init, body });
 }

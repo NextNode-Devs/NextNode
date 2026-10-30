@@ -30,12 +30,14 @@ failure names the check that failed.
 
 ## Secrets and credentials
 
-CI uses no real credentials. `DATABASE_URL` points at the throwaway service
-container and `DJANGO_SECRET_KEY` is generated per run; both are placeholders.
-No Clerk or Stripe key is needed for any current job.
+`DATABASE_URL` points at the throwaway service container and
+`DJANGO_SECRET_KEY` is generated per run; both are placeholders. The only real
+credentials are the Clerk development keys, and only the e2e step receives them.
 
-- **Clerk (from #1):** authenticated E2E tests will need a Clerk development
-  instance's keys as GitHub **environment** secrets.
+- **Clerk (#1):** repository secrets `CLERK_SECRET_KEY`,
+  `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` and `CLERK_ISSUER` from the **development**
+  instance (never production), passed to the e2e step only, so the signed-in
+  journeys run. Pull requests from forks get no secrets; those specs then skip.
 - **Stripe (#7):** webhook tests use payloads signed with a generated test
   secret, so they need no Stripe secret. The end-to-end deposit run uses a
   CI-only fake `PaymentGateway` (Team Lead's decision, 28 Oct 2026), so **no
@@ -43,21 +45,14 @@ No Clerk or Stripe key is needed for any current job.
   the Team Lead (`shar-hylton`) in #7. Never live keys; never a key in YAML,
   docs or issues.
 
-## Additions planned with #1
+## Redis (added by #1)
 
-The WebSocket foundation needs Redis. When #1 lands, add this service to the
-`backend` and `e2e` jobs next to `db`, and `REDIS_URL:
-redis://localhost:6379/0` to their environment. Pin the image to an exact
-version when it is added.
-
-```yaml
-      redis:
-        image: redis:7-alpine
-        ports: ["6379:6379"]
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 5s --health-timeout 3s --health-retries 10
-```
+The `backend` and `e2e` jobs run a `redis:7.4.2-alpine` service next to `db`
+(health-checked with `redis-cli ping`), and the workflow sets `REDIS_URL:
+redis://localhost:6379/0`. Unit tests use Channels' in-memory layer; only
+`tests/test_realtime_redis.py` (marked `redis`) talks to Redis, and it skips
+when Redis is unreachable locally. The production deploy check also needs
+`REDIS_URL`, which the workflow-level value provides.
 
 ## CD
 

@@ -58,6 +58,7 @@ class Env:
     clerk: Clerk | None
     stripe: Stripe | None
     deposit_percent: int
+    redis_url: str
 
     @property
     def is_production(self) -> bool:
@@ -144,6 +145,19 @@ def _stripe(source: dict[str, str], production: bool) -> Stripe | None:
     return Stripe(secret_key=secret_key, webhook_secret=webhook_secret)
 
 
+def _redis_url(source: dict[str, str], production: bool) -> str:
+    """The Channels layer (#1). Local Redis from docker-compose.yml by default."""
+    url = source.get("REDIS_URL", "").strip()
+    if not url:
+        if production:
+            raise ImproperlyConfiguredEnv("REDIS_URL is required in production.")
+        return "redis://localhost:6379/0"
+    parts = urlsplit(url)
+    if parts.scheme not in ("redis", "rediss") or not parts.hostname:
+        raise ImproperlyConfiguredEnv("REDIS_URL must look like redis://host:6379/0.")
+    return url
+
+
 def _percent(source: dict[str, str], name: str, default: int) -> int:
     raw = source.get(name, "").strip()
     if not raw:
@@ -186,6 +200,7 @@ def parse(source: dict[str, str]) -> Env:
         clerk=_clerk(source, frontend_origins, production),
         stripe=_stripe(source, production),
         deposit_percent=_percent(source, "DEPOSIT_PERCENT", default=20),
+        redis_url=_redis_url(source, production),
     )
 
 

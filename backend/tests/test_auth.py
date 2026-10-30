@@ -4,12 +4,15 @@ import pytest
 from cryptography.hazmat.primitives.asymmetric import rsa
 
 from nextnode.application.ports import InvalidTokenError
+from nextnode.infrastructure.auth.clerk import UnconfiguredTokenVerifier
 from nextnode.infrastructure.container import override_container
 
 
-def test_valid_token_becomes_an_actor(verifier, make_token):
-    actor = verifier.verify(make_token())
-    assert (actor.clerk_user_id, actor.session_id) == ("user_123", "sess_1")
+def test_valid_token_becomes_a_verified_session(verifier, make_token):
+    expires = int(time.time()) + 60
+    session = verifier.verify(make_token(exp=expires))
+    assert (session.clerk_user_id, session.session_id) == ("user_123", "sess_1")
+    assert int(session.expires_at.timestamp()) == expires
 
 
 @pytest.mark.parametrize(
@@ -51,11 +54,32 @@ def test_protected_endpoint_requires_a_token(api):
     assert response["WWW-Authenticate"].startswith("Bearer")
 
 
+@pytest.mark.django_db
 def test_protected_endpoint_accepts_a_verified_token(api, verifier, make_token):
     with override_container(token_verifier=verifier):
         response = api.get("/api/me/", HTTP_AUTHORIZATION=f"Bearer {make_token()}")
     assert response.status_code == 200
-    assert response.json() == {"data": {"clerk_user_id": "user_123"}}
+    assert response.json() == {"data": {"clerk_user_id": "user_123", "account": None}}
+
+
+@pytest.mark.django_db
+def test_me_succeeds_when_the_first_signing_key_fetch_is_slow(api, signing_key, make_token):
+    """The first call fetches Clerk's JWKS (up to 5 s); the frontend waits 10 s for /api/me/."""
+    from nextnode.infrastructure.auth.clerk import ClerkTokenVerifier
+    from tests.conftest import FRONTEND, ISSUER
+
+    public_key = signing_key.public_key()
+
+    def slow_resolver(token):
+        time.sleep(3.5)
+        return public_key
+
+    slow = ClerkTokenVerifier(ISSUER, (FRONTEND,), key_resolver=slow_resolver)
+    started = time.monotonic()
+    with override_container(token_verifier=slow):
+        response = api.get("/api/me/", HTTP_AUTHORIZATION=f"Bearer {make_token()}")
+    assert response.status_code == 200
+    assert time.monotonic() - started > 3
 
 
 def test_protected_endpoint_explains_a_rejected_token(api, verifier, make_token):
@@ -66,7 +90,9 @@ def test_protected_endpoint_explains_a_rejected_token(api, verifier, make_token)
 
 
 def test_unconfigured_server_refuses_every_token(api, make_token):
-    response = api.get("/api/me/", HTTP_AUTHORIZATION=f"Bearer {make_token()}")
+    # Pinned, so a developer's own CLERK_ISSUER in backend/.env can't change the result.
+    with override_container(token_verifier=UnconfiguredTokenVerifier()):
+        response = api.get("/api/me/", HTTP_AUTHORIZATION=f"Bearer {make_token()}")
     assert response.status_code == 401
     assert "not configured" in response.json()["error"]["message"]
 
