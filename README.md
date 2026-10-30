@@ -141,6 +141,20 @@ also shows a live **Backend connection** card (API, database, Clerk
 verification). Without Clerk keys, protected pages redirect to `/sign-in`,
 which says sign-in isn't set up.
 
+To run the frontend on another port (e.g. `npx next dev --port 3001` while 3000
+is taken), add that origin to `FRONTEND_ORIGIN` in `backend/.env`
+(comma-separated, e.g. `http://localhost:3000,http://localhost:3001`) and
+restart the backend. Otherwise Django refuses the browser's requests and Clerk
+tokens, and signed-in pages bounce between `/onboarding` and `/sign-in`. Only
+one `next dev` can run per checkout.
+
+**Windows:** stopping `uvicorn --reload` (closing the terminal, or killing it
+from Task Manager) can leave its worker process running and still holding port
+8000 with the old settings. If changes to `backend/.env` seem to have no effect,
+or sign-in loops, run `Get-NetTCPConnection -LocalPort 8000 -State Listen` in
+PowerShell, stop any leftover `python.exe` processes, and start the backend
+again. Stopping it with Ctrl+C in its own terminal avoids this.
+
 To see a socket event cross backend processes through Redis, run a second
 backend with `--port 8001`, point a browser at it (`NEXT_PUBLIC_WS_URL`), and from the
 first process run `uv run python manage.py send_realtime_test_event <account_id>`.
