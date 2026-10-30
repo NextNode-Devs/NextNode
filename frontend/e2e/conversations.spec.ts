@@ -72,6 +72,17 @@ test.describe("hiring conversations", () => {
   let people: Person[] = [];
 
   test.afterEach(async () => {
+    if (people.length === 0) return;
+    // The e2e backend shares the local database: remove the test accounts and their conversations too.
+    const ids = people.map((p) => `"${p.userId}"`).join(", ");
+    django(
+      [
+        "from nextnode.infrastructure.persistence.models import AccountModel, ConversationModel",
+        `accounts = AccountModel.objects.filter(clerk_user_id__in=[${ids}])`,
+        "ConversationModel.objects.filter(participants__account__in=accounts).delete()",
+        "accounts.delete()",
+      ].join("\n"),
+    );
     for (const person of people) await clerkApi().users.deleteUser(person.userId);
     people = [];
   });
