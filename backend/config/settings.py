@@ -10,8 +10,6 @@ DEBUG = ENV.debug
 ALLOWED_HOSTS = list(ENV.allowed_hosts)
 
 INSTALLED_APPS = [
-    # First, so `runserver` serves the ASGI app (HTTP + WebSockets).
-    "daphne",
     "channels",
     "django.contrib.contenttypes",
     "django.contrib.staticfiles",

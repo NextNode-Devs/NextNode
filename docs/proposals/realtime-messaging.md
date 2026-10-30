@@ -113,8 +113,10 @@ masquerading as real-time.
 
 ## Deployment notes
 
-`runserver` serves WebSockets once Channels' ASGI app is configured
-(`daphne` in `INSTALLED_APPS`); production runs an ASGI server. The
+The backend runs on Uvicorn (`uv run uvicorn config.asgi:application
+--reload`) locally and in production; `runserver` serves HTTP only. Daphne
+was dropped because its `twisted` dependency fails the CI audit; it remains a
+dev dependency only because `channels.testing` imports it. The
 reverse proxy must pass `Upgrade`/`Connection` headers. TLS (`wss://`) in any
 non-local environment.
 

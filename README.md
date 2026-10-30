@@ -110,7 +110,7 @@ Only needed when working on payments (#7). Install the
 ```bash
 stripe login                     # test mode
 stripe listen --forward-to localhost:8000/api/payments/stripe/webhook/
-# copy the printed whsec_… into STRIPE_WEBHOOK_SECRET in backend/.env, restart runserver
+# copy the printed whsec_… into STRIPE_WEBHOOK_SECRET in backend/.env, restart the backend
 ```
 
 Payment status changes only when a signed webhook arrives; returning from
@@ -131,7 +131,7 @@ uv run python manage.py makemigrations --check --dry-run   # CI-style "nothing f
 Two terminals (with `docker compose up -d db redis` already running):
 
 ```bash
-cd backend  && uv run python manage.py runserver        # http://localhost:8000/api/health/
+cd backend  && uv run uvicorn config.asgi:application --reload --port 8000   # http://localhost:8000/api/health/
 cd frontend && npm run dev                              # http://localhost:3000
 ```
 
@@ -142,7 +142,7 @@ verification). Without Clerk keys, protected pages redirect to `/sign-in`,
 which says sign-in isn't set up.
 
 To see a socket event cross backend processes through Redis, run a second
-`runserver 8001`, point a browser at it (`NEXT_PUBLIC_WS_URL`), and from the
+backend with `--port 8001`, point a browser at it (`NEXT_PUBLIC_WS_URL`), and from the
 first process run `uv run python manage.py send_realtime_test_event <account_id>`.
 
 ## Testing and checks
