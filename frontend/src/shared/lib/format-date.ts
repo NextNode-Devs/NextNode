@@ -40,3 +40,25 @@ export function formatMessageTime(iso: string | null | undefined, reference?: st
   }
   return dayAndTime.format(date);
 }
+
+const isoDay = new Intl.DateTimeFormat(LOCALE, {
+  timeZone: DISPLAY_TIME_ZONE,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+
+const longDay = new Intl.DateTimeFormat(LOCALE, { timeZone: "UTC", year: "numeric", month: "short", day: "numeric" });
+
+/** Today's date in Toronto as `yyyy-mm-dd` (the `<input type="date">` format). Call in effects or
+ * handlers, never during render. */
+export function todayIso(now: Date = new Date()): string {
+  return isoDay.format(now);
+}
+
+/** A calendar date (`yyyy-mm-dd`, no time) as "Feb 1, 2027". Read as UTC so it never shifts a day. */
+export function formatCalendarDate(day: string | null | undefined): string {
+  if (!day || !/^\d{4}-\d{2}-\d{2}$/.test(day)) return "";
+  const date = new Date(`${day}T00:00:00Z`);
+  return Number.isNaN(date.getTime()) ? "" : longDay.format(date);
+}

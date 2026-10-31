@@ -23,6 +23,15 @@ from nextnode.presentation.api.portfolios import (
     DeveloperPortfolioView,
     MyPortfolioView,
 )
+from nextnode.presentation.api.projects import (
+    DocumentLinkView,
+    FileDownloadView,
+    MyProjectsView,
+    ProjectDetailView,
+    ProjectDocumentsView,
+    ProjectIdeasView,
+    ProjectsView,
+)
 from nextnode.presentation.api.views import HealthView
 
 urlpatterns = [
@@ -47,6 +56,18 @@ urlpatterns = [
         ConversationReadView.as_view(),
         name="conversation-read",
     ),
+    # Projects and requirement documents (#3). "mine/" comes first so it isn't read as an id.
+    path("projects/", ProjectsView.as_view(), name="projects"),
+    path("projects/mine/", MyProjectsView.as_view(), name="my-projects"),
+    path("project-ideas/", ProjectIdeasView.as_view(), name="project-ideas"),
+    path("projects/<int:project_id>/", ProjectDetailView.as_view(), name="project"),
+    path("projects/<int:project_id>/documents/", ProjectDocumentsView.as_view(), name="project-documents"),
+    path(
+        "projects/<int:project_id>/documents/<uuid:document_id>/link/",
+        DocumentLinkView.as_view(),
+        name="project-document-link",
+    ),
+    path("files/<str:token>/", FileDownloadView.as_view(), name="file-download"),
     # Hire Lead (#4)
     path("projects/<int:project_id>/lead-applications/", LeadApplicationsView.as_view(), name="lead-apply"),
     path("projects/<int:project_id>/lead-invitations/", LeadInvitationsView.as_view(), name="lead-invite"),
