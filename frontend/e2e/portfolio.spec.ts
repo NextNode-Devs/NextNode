@@ -62,6 +62,13 @@ function call(page: Page, method: string, path: string, body?: object): Promise<
   );
 }
 
+/** Opens a page and waits until it is interactive: Clerk's user button only
+ * mounts after React hydrates, so clicks never land on half-hydrated markup. */
+async function openReady(page: Page, path: string) {
+  await page.goto(path);
+  await expect(page.locator(".cl-userButtonTrigger")).toBeVisible();
+}
+
 /** Nothing pokes out sideways: the page never needs a horizontal scroll. */
 async function fitsWidth(page: Page) {
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
@@ -103,7 +110,7 @@ test.describe("portfolios and the developer directory", () => {
     people = [ada, grace];
 
     // --- The developer edits their portfolio, starting from the dashboard ---
-    await ada.page.goto("/dashboard");
+    await openReady(ada.page, "/dashboard");
     await ada.page.getByRole("region", { name: "Your portfolio" }).getByRole("link", { name: "Edit portfolio" }).click();
     await expect(ada.page.getByRole("heading", { level: 1, name: "Edit your portfolio" })).toBeVisible();
 
@@ -144,7 +151,7 @@ test.describe("portfolios and the developer directory", () => {
     await expect(ada.page.getByRole("link", { name: "Edit portfolio" })).toBeVisible();
 
     // --- The client finds the developer with the skill filter ---
-    await grace.page.goto("/dashboard");
+    await openReady(grace.page, "/dashboard");
     await grace.page.getByRole("region", { name: "Find developers" }).getByRole("link", { name: "Browse developers" }).click();
     await expect(grace.page.getByRole("heading", { level: 1, name: "Developers" })).toBeVisible();
     await grace.page.getByLabel(/^Skills/).fill(skill);
