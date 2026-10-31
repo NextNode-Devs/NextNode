@@ -93,6 +93,8 @@ Templates hold placeholders only; never commit `.env` or `.env.local`.
 | | `REDIS_URL` | Channels layer for the authenticated socket. Default `redis://localhost:6379/0`; required in production |
 | | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` | Stripe **test mode** (`sk_test_…`, `whsec_…`); both or neither. Empty = payments off (webhook answers 503). Live keys are refused outside production |
 | | `DEPOSIT_PERCENT` | Deposit as a % of the accepted offer total; default `20` |
+| | `PRIVATE_MEDIA_ROOT` | Folder for private requirement documents (#3); default `backend/private_media`, git-ignored and served by nothing |
+| | `UPLOAD_MAX_BYTES`, `UPLOAD_MAX_FILES_PER_PROJECT` | Document limits; default 10 MB and 10 files (confirmed) |
 | `frontend/.env.local` | `API_BASE_URL` | Where the Next.js server reaches Django (server-only) |
 | | `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Clerk development publishable key (`pk_test_…`, public by design). Empty = sign-in off |
 | | `CLERK_SECRET_KEY` | Clerk secret key (`sk_test_…`). **Server-only**; required whenever the publishable key is set |
@@ -208,9 +210,20 @@ Built by #2: developer portfolios (edit at `/developers/me/edit`, view at
 and availability filters, all in the URL); clients have no portfolio and never
 appear in it. Links are shown as entered; nothing is labelled "verified".
 
+Built by #3: client project briefs (proposed budget, minimum CAD 1,500
+enforced by the backend) and developer project ideas (the creator is the Team
+Lead; no budget or payments), each with one team; project search at
+`/projects` (kind, tech stack, "needs a Lead", "has open spots", all in the
+URL), detail at `/projects/[id]` with the one applicable action ("Apply to
+lead" from #4), editing by the owner while allowed, and "My projects" on the
+dashboard. Clients upload private PDF/DOCX requirement documents (checked by
+extension and file signature; 10 MB, 10 per project) that only the client, the
+Team Lead and approved members can list or download, through links that expire
+after 15 minutes and re-check access. Hire Lead (#4) now runs on real projects.
+
 Not built yet:
-projects, hiring, team formation, workspaces and payments (see
-`docs/backlog.md`). CI is active; there is no deployment target yet
+team size and recruiting (#5), offers and the project start (#6),
+workspaces and the deposit wiring (see `docs/backlog.md`). CI is active; there is no deployment target yet
 (`staging.yml` gates `staging` on CI; its deploy job is off and deploys nothing).
 
 ## Product rules every contributor must know

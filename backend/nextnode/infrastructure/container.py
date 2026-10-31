@@ -65,9 +65,24 @@ from nextnode.application.payments.ports import (
 from nextnode.application.payments.status import DepositStatusQuery
 from nextnode.application.payments.webhook import HandlePaymentWebhook
 from nextnode.application.ports import DatabaseProbe, RealtimePublisher, TokenVerifier
+from nextnode.application.projects.commands import (
+    EditProject,
+    ProjectDeps,
+    ProposeProjectIdea,
+    PublishClientBrief,
+)
+from nextnode.application.projects.documents import (
+    DocumentDeps,
+    DownloadDocument,
+    GetDocumentLink,
+    ListRequirementDocuments,
+    UploadRequirementDocument,
+)
+from nextnode.application.projects.ports import DocumentRepository, FileStorage, LinkSigner, ProjectRepository
+from nextnode.application.projects.queries import GetProject, ListMyProjects, SearchProjects
+from nextnode.domain.projects import UploadLimits
 from nextnode.infrastructure.access_rules import build_access_policy
 from nextnode.infrastructure.auth.clerk import ClerkTokenVerifier, UnconfiguredTokenVerifier
-from nextnode.infrastructure.hiring.pending_projects import ProjectsNotReadyForHiring
 from nextnode.infrastructure.payments.pending_dependencies import ProjectsNotReady
 from nextnode.infrastructure.payments.stripe_gateway import StripeGateway, UnconfiguredPaymentGateway
 from nextnode.infrastructure.persistence.accounts import (
@@ -91,8 +106,15 @@ from nextnode.infrastructure.persistence.payments import (
     DjangoWebhookEventLog,
 )
 from nextnode.infrastructure.persistence.portfolios import DjangoDeveloperSearch, DjangoPortfolioRepository
+from nextnode.infrastructure.persistence.projects import (
+    DjangoDocumentRepository,
+    DjangoLeadProjects,
+    DjangoProjectRepository,
+)
 from nextnode.infrastructure.realtime.conversation_events import OnCommitConversationEvents
 from nextnode.infrastructure.realtime.publisher import ChannelsEventPublisher
+from nextnode.infrastructure.storage.links import DjangoLinkSigner
+from nextnode.infrastructure.storage.local import LocalPrivateStorage
 
 
 @dataclass(frozen=True)
@@ -122,6 +144,11 @@ class Container:
     lead_projects: LeadProjects
     lead_candidacies: LeadCandidacies
     hiring_accounts: HiringAccounts
+    projects: ProjectRepository
+    documents: DocumentRepository
+    file_storage: FileStorage
+    link_signer: LinkSigner
+    upload_limits: UploadLimits
 
     @property
     def get_account(self) -> GetAccount:
@@ -254,6 +281,65 @@ class Container:
         """Development only."""
         return StartTestConversation(self.test_partners, self.open_conversation)
 
+    # --- projects and requirement documents (#3) ------------------------------------
+
+    @property
+    def _project(self) -> ProjectDeps:
+        return ProjectDeps(self.projects, self.skills, self.access_policy, self.clock, self.uow)
+
+    @property
+    def publish_client_brief(self) -> PublishClientBrief:
+        return PublishClientBrief(self._project)
+
+    @property
+    def propose_project_idea(self) -> ProposeProjectIdea:
+        return ProposeProjectIdea(self._project)
+
+    @property
+    def edit_project(self) -> EditProject:
+        return EditProject(self._project)
+
+    @property
+    def get_project(self) -> GetProject:
+        return GetProject(self._project)
+
+    @property
+    def search_projects(self) -> SearchProjects:
+        return SearchProjects(self.projects, self.access_policy)
+
+    @property
+    def list_my_projects(self) -> ListMyProjects:
+        return ListMyProjects(self.projects)
+
+    @property
+    def _documents(self) -> DocumentDeps:
+        return DocumentDeps(
+            projects=self.projects,
+            documents=self.documents,
+            storage=self.file_storage,
+            signer=self.link_signer,
+            policy=self.access_policy,
+            clock=self.clock,
+            uow=self.uow,
+            limits=self.upload_limits,
+        )
+
+    @property
+    def upload_requirement_document(self) -> UploadRequirementDocument:
+        return UploadRequirementDocument(self._documents)
+
+    @property
+    def list_requirement_documents(self) -> ListRequirementDocuments:
+        return ListRequirementDocuments(self._documents)
+
+    @property
+    def get_document_link(self) -> GetDocumentLink:
+        return GetDocumentLink(self._documents)
+
+    @property
+    def download_document(self) -> DownloadDocument:
+        return DownloadDocument(self._documents)
+
     @property
     def handle_payment_webhook(self) -> HandlePaymentWebhook:
         return HandlePaymentWebhook(
@@ -292,6 +378,8 @@ def build_container() -> Container:
         StripeGateway(stripe.secret_key, stripe.webhook_secret) if stripe else UnconfiguredPaymentGateway()
     )
     publisher = ChannelsEventPublisher()
+    projects = DjangoProjectRepository()
+    uploads = settings.ENV.uploads
     return Container(
         token_verifier=verifier,
         database=DjangoDatabaseProbe(),
@@ -316,10 +404,14 @@ def build_container() -> Container:
         conversation_events=OnCommitConversationEvents(publisher),
         clock=SystemClock(),
         test_partners=DjangoTestPartners(),
-        # #3 replaces this stand-in with its project adapter.
-        lead_projects=ProjectsNotReadyForHiring(),
+        lead_projects=DjangoLeadProjects(projects),
         lead_candidacies=DjangoLeadCandidacies(),
         hiring_accounts=DjangoHiringAccounts(),
+        projects=projects,
+        documents=DjangoDocumentRepository(),
+        file_storage=LocalPrivateStorage(uploads.private_media_root),
+        link_signer=DjangoLinkSigner(),
+        upload_limits=UploadLimits(uploads.max_bytes, uploads.max_files_per_project),
     )
 
 

@@ -113,10 +113,10 @@ def test_decline_and_withdraw_close_their_conversations(api, auth, people):
 
 
 @pytest.mark.django_db
-def test_without_projects_from_3_nothing_can_be_hired(api, auth, people):
-    from nextnode.infrastructure.hiring.pending_projects import ProjectsNotReadyForHiring
+def test_with_real_projects_from_3_an_unknown_project_is_404(api, auth, people):
+    from nextnode.infrastructure.persistence.projects import DjangoLeadProjects
 
-    with override_container(lead_projects=ProjectsNotReadyForHiring()):
+    with override_container(lead_projects=DjangoLeadProjects()):
         assert apply(api, auth, "user_ada").status_code == 404
 
 
