@@ -100,7 +100,8 @@ class SkillModel(models.Model):
 
 
 class DeveloperProfileModel(models.Model):
-    """Seeded at onboarding; #2 extends it into the portfolio."""
+    """Seeded at onboarding; #2 extends it into the portfolio. Links are stored
+    as the developer typed them: never checked, never "verified"."""
 
     account = models.OneToOneField(
         AccountModel, on_delete=models.CASCADE, primary_key=True, related_name="developer_profile"
@@ -109,12 +110,36 @@ class DeveloperProfileModel(models.Model):
     bio = models.TextField(max_length=2000, blank=True)
     github_username = models.CharField(max_length=39, blank=True)
     skills = models.ManyToManyField(SkillModel, related_name="developers", db_table="developer_profile_skill")
+    resume_url = models.CharField(max_length=200, blank=True)
+    is_available = models.BooleanField(default=False, db_index=True)
 
     class Meta:
         db_table = "developer_profile"
 
     def __str__(self) -> str:
         return self.headline
+
+
+class PortfolioProjectModel(models.Model):
+    """One project link on a developer's portfolio (#2), shown by ``position``."""
+
+    developer = models.ForeignKey(DeveloperProfileModel, on_delete=models.CASCADE, related_name="projects")
+    position = models.PositiveSmallIntegerField()
+    title = models.CharField(max_length=80)
+    repository_url = models.CharField(max_length=200)
+    demo_url = models.CharField(max_length=200, blank=True)
+
+    class Meta:
+        db_table = "portfolio_project"
+        ordering = ("position",)
+        constraints = (
+            models.UniqueConstraint(
+                fields=["developer", "position"], name="portfolio_project_position_unique"
+            ),
+        )
+
+    def __str__(self) -> str:
+        return self.title
 
 
 class StripeEventModel(models.Model):

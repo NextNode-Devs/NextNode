@@ -51,17 +51,26 @@ class DeveloperProfile:
 
     @classmethod
     def create(
-        cls, headline: str, bio: str, github_username: str | None, skills: list[str]
+        cls,
+        headline: str,
+        bio: str,
+        github_username: str | None,
+        skills: list[str],
+        *,
+        field_prefix: str = "developer.",
     ) -> DeveloperProfile:
+        """``field_prefix`` names the form the errors belong to: onboarding nests
+        these fields under ``developer.``; the portfolio form (#2) does not."""
+        p = field_prefix
         username = (github_username or "").strip().removeprefix("@") or None
         if username is not None and not _GITHUB_USERNAME.match(username):
             raise ValidationError(
                 "That isn't a valid GitHub username.",
-                {"developer.github_username": ["Use 1-39 letters, numbers or single hyphens."]},
+                {f"{p}github_username": ["Use 1-39 letters, numbers or single hyphens."]},
             )
         return cls(
-            headline=clean_text(headline, "developer.headline", "Headline", maximum=HEADLINE_MAX),
-            bio=clean_text(bio, "developer.bio", "Bio", maximum=BIO_MAX, required=False),
+            headline=clean_text(headline, f"{p}headline", "Headline", maximum=HEADLINE_MAX),
+            bio=clean_text(bio, f"{p}bio", "Bio", maximum=BIO_MAX, required=False),
             github_username=username,
-            skills=tuple(normalize_skills(skills, "developer.skills")),
+            skills=tuple(normalize_skills(skills, f"{p}skills")),
         )

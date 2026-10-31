@@ -1,4 +1,4 @@
-import { ArrowRightIcon } from "lucide-react";
+import { ArrowRightIcon, PencilIcon } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
@@ -7,6 +7,7 @@ import { getViewer, routeFor } from "@/entities/viewer";
 import { RealtimeProvider } from "@/shared/api/realtime";
 import { isAuthConfigured } from "@/shared/config/env.public";
 import { LoadError, LoadingCards } from "@/shared/ui/load-states";
+import { Button } from "@/shared/ui/shadcn/button";
 import { AppHeader } from "@/widgets/app-header";
 import { ConnectionStatus } from "@/widgets/connection-status";
 import { ConversationList } from "@/widgets/conversation-list";
@@ -64,7 +65,44 @@ async function Dashboard() {
             </Link>
           </div>
         ),
+        portfolio: account.role === "developer" ? <PortfolioSection /> : <FindDevelopersSection />,
       }}
     />
+  );
+}
+
+function PortfolioSection() {
+  return (
+    <div className="space-y-3">
+      <p className="text-sm text-muted-foreground">
+        What clients see when they find you in the developer directory: your projects, skills, links and whether
+        you&apos;re available for work.
+      </p>
+      <div className="flex flex-wrap gap-2">
+        <Button asChild size="sm">
+          <Link href="/developers/me/edit">
+            <PencilIcon aria-hidden /> Edit portfolio
+          </Link>
+        </Button>
+        <Button asChild size="sm" variant="outline">
+          <Link href="/developers/me">View portfolio</Link>
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function FindDevelopersSection() {
+  return (
+    <div className="space-y-3">
+      <p className="text-sm text-muted-foreground">
+        Search developers by skill, see who&apos;s available for work, and open their portfolios.
+      </p>
+      <Button asChild size="sm" variant="outline">
+        <Link href="/developers">
+          Browse developers <ArrowRightIcon aria-hidden />
+        </Link>
+      </Button>
+    </div>
   );
 }

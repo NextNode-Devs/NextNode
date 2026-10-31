@@ -3,17 +3,12 @@
 import { XIcon } from "lucide-react";
 import { useId, useState, type KeyboardEvent } from "react";
 
-import {
-  cleanSkill,
-  MAX_SKILLS,
-  SKILL_MAX_LENGTH,
-  SKILL_PATTERN,
-  skillKey,
-  useSkillSuggestions,
-} from "@/entities/skill";
 import { Badge } from "@/shared/ui/shadcn/badge";
 import { Button } from "@/shared/ui/shadcn/button";
 import { Input } from "@/shared/ui/shadcn/input";
+
+import { useSkillSuggestions } from "../api/use-skill-suggestions";
+import { cleanSkill, MAX_SKILLS, SKILL_MAX_LENGTH, SKILL_PATTERN, skillKey } from "../model/skill";
 
 type Props = {
   id: string;
@@ -21,14 +16,25 @@ type Props = {
   onChange: (skills: string[]) => void;
   "aria-invalid"?: boolean;
   "aria-describedby"?: string;
+  /** Placeholder while no skill is added yet. */
+  placeholder?: string;
+  /** Also submit each skill as a hidden form field with this name (onboarding). */
+  name?: string;
 };
 
 /**
  * Developers type their own skills (decided 29 Oct 2026). Enter or comma adds
  * one; suggestions from skills already on NextNode keep spellings consistent.
- * Each skill is also submitted as a hidden `skills` field.
+ * Used by onboarding (#1), the portfolio form and the directory filter (#2).
  */
-export function SkillsInput({ id, value, onChange, ...aria }: Props) {
+export function SkillsInput({
+  id,
+  value,
+  onChange,
+  placeholder = "e.g. React, Django, PostgreSQL",
+  name,
+  ...aria
+}: Props) {
   const [draft, setDraft] = useState("");
   const [problem, setProblem] = useState<string | null>(null);
   const suggestions = useSkillSuggestions(draft).filter((s) => !value.some((v) => skillKey(v) === s.key));
@@ -63,7 +69,7 @@ export function SkillsInput({ id, value, onChange, ...aria }: Props) {
         <ul className="flex flex-wrap gap-2" aria-label="Added skills">
           {value.map((skill) => (
             <li key={skillKey(skill)}>
-              <input type="hidden" name="skills" value={skill} />
+              {name ? <input type="hidden" name={name} value={skill} /> : null}
               <Badge variant="secondary" className="gap-1 py-1 pr-1 pl-2.5 text-sm">
                 {skill}
                 <button
@@ -90,7 +96,7 @@ export function SkillsInput({ id, value, onChange, ...aria }: Props) {
           onKeyDown={onKeyDown}
           list={listId}
           autoComplete="off"
-          placeholder={value.length ? "Add another skill" : "e.g. React, Django, PostgreSQL"}
+          placeholder={value.length ? "Add another skill" : placeholder}
           maxLength={SKILL_MAX_LENGTH}
           aria-invalid={aria["aria-invalid"] || Boolean(problem)}
           aria-describedby={[aria["aria-describedby"], problem ? `${id}-problem` : null].filter(Boolean).join(" ") || undefined}
