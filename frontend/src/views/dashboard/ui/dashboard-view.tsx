@@ -12,6 +12,7 @@ import { AppHeader } from "@/widgets/app-header";
 import { ConnectionStatus } from "@/widgets/connection-status";
 import { ConversationList } from "@/widgets/conversation-list";
 import { DashboardShell } from "@/widgets/dashboard-shell";
+import { MyProjects } from "@/widgets/my-projects";
 
 /** The signed-in home. Users without an account are sent to onboarding first. */
 export function DashboardView() {
@@ -46,6 +47,11 @@ async function Dashboard() {
     <DashboardShell
       account={account}
       sections={{
+        "my-projects": (
+          <Suspense fallback={<LoadingCards count={1} label="Loading your projects" />}>
+            <MyProjects role={account.role} />
+          </Suspense>
+        ),
         conversations: (
           <div className="space-y-3">
             <ConversationList

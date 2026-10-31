@@ -32,8 +32,8 @@ export const SECTIONS: Record<Role, SectionSpec[]> = {
     {
       id: "my-projects",
       title: "My projects",
-      empty: "Projects you lead or have joined will appear here.",
-      filledBy: "#3, #5",
+      empty: "Your project ideas, and projects you lead or have joined, will appear here.",
+      filledBy: "#3",
     },
     {
       id: "conversations",
