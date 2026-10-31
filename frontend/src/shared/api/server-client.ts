@@ -66,3 +66,8 @@ export function apiPut<T>(path: string, body?: unknown, init?: RequestOptions): 
 export function apiPatch<T>(path: string, body?: unknown, init?: RequestOptions): Promise<ApiResult<T>> {
   return apiRequest<T>("PATCH", path, { ...init, body });
 }
+
+/** `{ get }` with the signed-in user's token, for slice API functions that take a client. */
+export const authedServerApi = {
+  get: <T,>(path: string): Promise<ApiResult<T>> => apiGet<T>(path, { auth: true }),
+};

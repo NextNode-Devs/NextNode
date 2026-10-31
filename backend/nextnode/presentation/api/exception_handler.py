@@ -33,13 +33,23 @@ def error_body(code: str, message: str, fields: dict | None = None) -> dict:
     return {"error": error}
 
 
-def _flatten(detail) -> dict[str, list[str]]:
+def _flatten(detail, prefix: str = "") -> dict[str, list[str]]:
+    """DRF error detail → ``{"field": [messages]}``. Nested serializers and
+    list items use dotted names (``developer.headline``, ``projects.0.title``),
+    the same names the domain puts on its own errors."""
     if isinstance(detail, dict):
-        return {
-            key: [str(item) for item in (value if isinstance(value, list) else [value])]
-            for key, value in detail.items()
-        }
-    return {"non_field_errors": [str(item) for item in (detail if isinstance(detail, list) else [detail])]}
+        fields: dict[str, list[str]] = {}
+        for key, value in detail.items():
+            fields.update(_flatten(value, f"{prefix}{key}."))
+        return fields
+    if isinstance(detail, list) and any(isinstance(item, dict) for item in detail):
+        fields = {}
+        for index, item in enumerate(detail):
+            if item:
+                fields.update(_flatten(item, f"{prefix}{index}."))
+        return fields
+    name = prefix.removesuffix(".") or "non_field_errors"
+    return {name: [str(item) for item in (detail if isinstance(detail, list) else [detail])]}
 
 
 def handle_exception(exc: Exception, context: dict) -> Response:
