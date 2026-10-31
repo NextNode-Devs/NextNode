@@ -203,7 +203,12 @@ Built by #1: Clerk sign-in/sign-up, accounts with a role chosen once,
 onboarding, `GET /api/me/`, `GET /api/skills/`, the dashboard shell, the shared
 deny-by-default access policy and the authenticated WebSocket on Redis.
 
-Not built yet: portfolios,
+Built by #2: developer portfolios (edit at `/developers/me/edit`, view at
+`/developers/[id]`) and the developer directory at `/developers` (search, skill
+and availability filters, all in the URL); clients have no portfolio and never
+appear in it. Links are shown as entered; nothing is labelled "verified".
+
+Not built yet:
 projects, hiring, team formation, workspaces and payments (see
 `docs/backlog.md`). CI is active; there is no deployment target yet
 (`staging.yml` gates `staging` on CI; its deploy job is off and deploys nothing).
