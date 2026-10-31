@@ -121,15 +121,17 @@ test.describe("portfolios and the developer directory", () => {
     // A mistake is refused with the message on the field, and nothing is saved.
     const repository = ada.page.getByLabel("Repository link");
     await expect(repository).toHaveAttribute("aria-invalid", "true");
-    await expect(ada.page.getByText("Enter a full link starting with https://")).toBeVisible();
-    await expect(ada.page.getByRole("alert")).toContainText("Your portfolio wasn't saved");
+    await expect(ada.page.getByText("Enter a full link starting with https://").filter({ visible: true })).toBeVisible();
+    // Next.js adds its own hidden role="alert" route announcer to every page; pick the form's alert.
+    await expect(ada.page.getByRole("alert").filter({ hasText: "Your portfolio wasn't saved" })).toBeVisible();
 
     await repository.fill("https://github.com/ada/engine");
     await ada.page.getByRole("button", { name: "Save portfolio" }).click();
     await expect(ada.page.getByRole("status").filter({ hasText: "Portfolio saved" })).toBeVisible();
     await expect(ada.page.getByRole("heading", { level: 1, name: "Ada E2E" })).toBeVisible();
-    await expect(ada.page.getByText("Full-stack developer")).toBeVisible();
-    await expect(ada.page.getByText("Available for work")).toBeVisible();
+    // Next.js 16 keeps the previous page hidden after navigating, so text checks look at visible text only.
+    await expect(ada.page.getByText("Full-stack developer", { exact: true }).filter({ visible: true })).toBeVisible();
+    await expect(ada.page.getByText("Available for work", { exact: true }).filter({ visible: true })).toBeVisible();
     await expect(ada.page.getByRole("link", { name: /Repository/ })).toHaveAttribute(
       "href",
       "https://github.com/ada/engine",
@@ -138,7 +140,7 @@ test.describe("portfolios and the developer directory", () => {
 
     // Saved for real: a reload shows the same portfolio.
     await ada.page.goto(adaUrl);
-    await expect(ada.page.getByText("Analytical Engine")).toBeVisible();
+    await expect(ada.page.getByText("Analytical Engine", { exact: true }).filter({ visible: true })).toBeVisible();
     await expect(ada.page.getByRole("link", { name: "Edit portfolio" })).toBeVisible();
 
     // --- The client finds the developer with the skill filter ---
@@ -149,7 +151,8 @@ test.describe("portfolios and the developer directory", () => {
     await grace.page.getByLabel(/^Skills/).press("Enter");
     await expect(grace.page).toHaveURL(new RegExp(`skills=${skill}`));
     const results = grace.page.getByRole("list").filter({ has: grace.page.getByRole("link", { name: "Ada E2E" }) });
-    await expect(results.getByRole("listitem")).toHaveCount(1);
+    // Only the result cards: each card nests its own list of skill tags.
+    await expect(results.locator(":scope > li")).toHaveCount(1);
     await expect(grace.page.getByRole("link", { name: "Grace E2E" })).toHaveCount(0); // clients never appear
 
     // The URL reproduces the view, and the availability filter keeps her.
@@ -163,13 +166,21 @@ test.describe("portfolios and the developer directory", () => {
     await grace.page.getByRole("link", { name: "Ada E2E" }).click();
     await expect(grace.page).toHaveURL(adaUrl);
     await expect(grace.page.getByRole("heading", { level: 1, name: "Ada E2E" })).toBeVisible();
-    await expect(grace.page.getByText("Analytical Engine")).toBeVisible();
+    await expect(grace.page.getByText("Analytical Engine", { exact: true }).filter({ visible: true })).toBeVisible();
     await expect(grace.page.getByRole("link", { name: "Edit portfolio" })).toHaveCount(0);
     await expect(grace.page.locator("body")).not.toContainText(/verified/i);
 
     // Editing someone else's portfolio through the API is refused.
     const adaId = adaUrl.split("/").pop();
-    expect(await call(grace.page, "PUT", `/api/developers/${adaId}/`, { headline: "x", skills: ["x"], projects: [], is_available: false })).toBe(403);
+    // Sent from the test runner, not the page: the browser logs every refused request as a console error.
+    const graceToken = await grace.page.evaluate(() =>
+      (window as unknown as { Clerk: { session: { getToken(): Promise<string> } } }).Clerk.session.getToken(),
+    );
+    const refused = await grace.page.request.put(`${API}/api/developers/${adaId}/`, {
+      headers: { Authorization: `Bearer ${graceToken}` },
+      data: { headline: "x", skills: ["x"], projects: [], is_available: false },
+    });
+    expect(refused.status()).toBe(403);
 
     // Turning availability off takes her out of the "available" filter.
     await ada.page.getByRole("link", { name: "Edit portfolio" }).click();
