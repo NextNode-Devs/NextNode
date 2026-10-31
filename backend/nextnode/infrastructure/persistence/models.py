@@ -272,3 +272,137 @@ class LeadCandidacyModel(models.Model):
 
     def __str__(self) -> str:
         return f"{self.kind} {self.id} ({self.status})"
+
+
+class ProjectModel(models.Model):
+    """A client brief or a developer idea (#3). The budget is a proposal, in
+    whole CAD cents, and exists only on client projects."""
+
+    class Kind(models.TextChoices):
+        CLIENT = "client"
+        DEVELOPER = "developer"
+
+    class Status(models.TextChoices):
+        POSTED = "Posted"
+        OFFER_SENT = "OfferSent"
+        ASSIGNED = "Assigned"
+        IN_PROGRESS = "InProgress"
+        COMPLETED = "Completed"
+        ARCHIVED = "Archived"
+
+    kind = models.CharField(max_length=16, choices=Kind.choices)
+    owner = models.ForeignKey(AccountModel, on_delete=models.PROTECT, related_name="owned_projects")
+    status = models.CharField(max_length=16, choices=Status.choices, default=Status.POSTED, db_index=True)
+    title = models.CharField(max_length=100)
+    description = models.TextField(max_length=5000)
+    tech_stack = models.ManyToManyField(SkillModel, related_name="projects", db_table="project_skill")
+    target_delivery_date = models.DateField()
+    proposed_budget_cents = models.PositiveIntegerField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    deleted_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = "project"
+        constraints = (
+            models.CheckConstraint(condition=Q(kind__in=["client", "developer"]), name="project_kind_valid"),
+            # Ideas never carry a budget; briefs always do, at least CAD 1,500.00.
+            models.CheckConstraint(
+                condition=Q(kind="developer", proposed_budget_cents__isnull=True)
+                | Q(kind="client", proposed_budget_cents__gte=150_000),
+                name="project_budget_matches_kind",
+            ),
+            models.CheckConstraint(
+                condition=Q(kind="client") | ~Q(status__in=["OfferSent", "Assigned"]),
+                name="project_idea_never_offered",
+            ),
+        )
+
+    def __str__(self) -> str:
+        return f"{self.kind} project {self.id}: {self.title}"
+
+
+class TeamModel(models.Model):
+    """One team per project and one project per team (#3). #5 sets the size
+    and adds members."""
+
+    class Status(models.TextChoices):
+        OPEN = "open"
+        LOCKED = "locked"
+        ACTIVE = "active"
+        ARCHIVED = "archived"
+
+    project = models.OneToOneField(ProjectModel, on_delete=models.PROTECT, related_name="team")
+    status = models.CharField(max_length=16, choices=Status.choices, default=Status.OPEN)
+    team_size = models.PositiveSmallIntegerField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    deleted_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = "team"
+        constraints = (
+            models.CheckConstraint(
+                condition=Q(team_size__isnull=True) | Q(team_size__gte=5, team_size__lte=7),
+                name="team_size_5_to_7",
+            ),
+        )
+
+    def __str__(self) -> str:
+        return f"team {self.id} ({self.status})"
+
+
+class TeamMembershipModel(models.Model):
+    """Who is on a team (class diagram ``TeamMembership``). Only ``approved``
+    rows count; the Lead's row has role ``lead``."""
+
+    class Role(models.TextChoices):
+        LEAD = "lead"
+        MEMBER = "member"
+
+    class Status(models.TextChoices):
+        PENDING = "pending"
+        APPROVED = "approved"
+        REJECTED = "rejected"
+
+    team = models.ForeignKey(TeamModel, on_delete=models.CASCADE, related_name="memberships")
+    account = models.ForeignKey(AccountModel, on_delete=models.PROTECT, related_name="team_memberships")
+    role = models.CharField(max_length=16, choices=Role.choices)
+    status = models.CharField(max_length=16, choices=Status.choices, default=Status.APPROVED)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "team_membership"
+        constraints = (
+            models.UniqueConstraint(fields=["team", "account"], name="team_membership_once"),
+            models.UniqueConstraint(
+                fields=["team"], condition=Q(role="lead"), name="team_membership_one_lead"
+            ),
+        )
+
+    def __str__(self) -> str:
+        return f"{self.account_id} {self.role} of team {self.team_id} ({self.status})"
+
+
+class RequirementDocumentModel(models.Model):
+    """A private PDF/DOCX on a client project (#3). The bytes live in
+    ``FileStorage`` under ``storage_key``; ``filename`` is for display only."""
+
+    class Type(models.TextChoices):
+        PDF = "pdf"
+        DOCX = "docx"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    project = models.ForeignKey(ProjectModel, on_delete=models.PROTECT, related_name="documents")
+    storage_key = models.CharField(max_length=64, unique=True)
+    filename = models.CharField(max_length=200)
+    type = models.CharField(max_length=8, choices=Type.choices)
+    size_bytes = models.PositiveIntegerField()
+    uploaded_by = models.ForeignKey(AccountModel, on_delete=models.PROTECT, related_name="uploaded_documents")
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "requirement_document"
+        ordering = ("uploaded_at", "id")
+
+    def __str__(self) -> str:
+        return self.filename

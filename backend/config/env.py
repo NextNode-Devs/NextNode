@@ -48,6 +48,15 @@ class Stripe:
 
 
 @dataclass(frozen=True)
+class Uploads:
+    """Private requirement documents (#3). Limits confirmed: 10 MB, 10 files."""
+
+    private_media_root: Path
+    max_bytes: int
+    max_files_per_project: int
+
+
+@dataclass(frozen=True)
 class Env:
     environment: str
     debug: bool
@@ -59,6 +68,7 @@ class Env:
     stripe: Stripe | None
     deposit_percent: int
     redis_url: str
+    uploads: Uploads
 
     @property
     def is_production(self) -> bool:
@@ -167,6 +177,25 @@ def _percent(source: dict[str, str], name: str, default: int) -> int:
     return int(raw)
 
 
+def _positive(source: dict[str, str], name: str, default: int) -> int:
+    raw = source.get(name, "").strip()
+    if not raw:
+        return default
+    if not raw.isdigit() or int(raw) < 1:
+        raise ImproperlyConfiguredEnv(f"{name} must be a whole number of 1 or more, got {raw!r}.")
+    return int(raw)
+
+
+def _uploads(source: dict[str, str]) -> Uploads:
+    raw_root = source.get("PRIVATE_MEDIA_ROOT", "").strip()
+    root = Path(raw_root) if raw_root else BASE_DIR / "private_media"
+    return Uploads(
+        private_media_root=root if root.is_absolute() else BASE_DIR / root,
+        max_bytes=_positive(source, "UPLOAD_MAX_BYTES", default=10 * 1024 * 1024),
+        max_files_per_project=_positive(source, "UPLOAD_MAX_FILES_PER_PROJECT", default=10),
+    )
+
+
 def parse(source: dict[str, str]) -> Env:
     environment = source.get("DJANGO_ENV", "development").strip() or "development"
     if environment not in ENVIRONMENTS:
@@ -201,6 +230,7 @@ def parse(source: dict[str, str]) -> Env:
         stripe=_stripe(source, production),
         deposit_percent=_percent(source, "DEPOSIT_PERCENT", default=20),
         redis_url=_redis_url(source, production),
+        uploads=_uploads(source),
     )
 
 

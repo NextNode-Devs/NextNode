@@ -16,9 +16,12 @@ export type BrowserApi = {
   post<T>(path: string, body?: unknown): Promise<ApiResult<T>>;
   put<T>(path: string, body?: unknown): Promise<ApiResult<T>>;
   patch<T>(path: string, body?: unknown): Promise<ApiResult<T>>;
+  /** POST a multipart form (file uploads). The browser sets the boundary header. */
+  postForm<T>(path: string, form: FormData): Promise<ApiResult<T>>;
 };
 
 const TIMEOUT_MS = 8000;
+const UPLOAD_TIMEOUT_MS = 60_000;
 
 /** A Django API client for client components. Exported for tests; use `useApiClient`. */
 export function createBrowserApi(getToken: GetToken, baseUrl = publicEnv.apiBaseUrl): BrowserApi {
@@ -26,13 +29,14 @@ export function createBrowserApi(getToken: GetToken, baseUrl = publicEnv.apiBase
     const headers: Record<string, string> = { Accept: "application/json" };
     const token = await getToken().catch(() => null);
     if (token) headers.Authorization = `Bearer ${token}`;
-    if (body !== undefined) headers["Content-Type"] = "application/json";
+    const isForm = body instanceof FormData;
+    if (body !== undefined && !isForm) headers["Content-Type"] = "application/json";
     try {
       const response = await fetch(`${baseUrl}${path}`, {
         method,
         headers,
-        body: body === undefined ? undefined : JSON.stringify(body),
-        signal: AbortSignal.timeout(TIMEOUT_MS),
+        body: body === undefined ? undefined : isForm ? body : JSON.stringify(body),
+        signal: AbortSignal.timeout(isForm ? UPLOAD_TIMEOUT_MS : TIMEOUT_MS),
       });
       return await readEnvelope<T>(response);
     } catch {
@@ -44,6 +48,7 @@ export function createBrowserApi(getToken: GetToken, baseUrl = publicEnv.apiBase
     post: (path, body) => request("POST", path, body),
     put: (path, body) => request("PUT", path, body),
     patch: (path, body) => request("PATCH", path, body),
+    postForm: (path, form) => request("POST", path, form),
   };
 }
 
