@@ -7,3 +7,4 @@ export {
   skillKey,
   type SkillOption,
 } from "./model/skill";
+export { SkillsInput } from "./ui/skills-input";

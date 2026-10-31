@@ -18,6 +18,11 @@ from nextnode.presentation.api.hiring import (
     WithdrawApplicationView,
 )
 from nextnode.presentation.api.payments import DepositCheckoutView, StripeWebhookView
+from nextnode.presentation.api.portfolios import (
+    DeveloperDirectoryView,
+    DeveloperPortfolioView,
+    MyPortfolioView,
+)
 from nextnode.presentation.api.views import HealthView
 
 urlpatterns = [
@@ -26,6 +31,10 @@ urlpatterns = [
     path("accounts/<int:account_id>/", AccountView.as_view(), name="account"),
     path("onboarding/", OnboardingView.as_view(), name="onboarding"),
     path("skills/", SkillsView.as_view(), name="skills"),
+    # Portfolios (#2). "me/" comes first so it isn't read as an id.
+    path("developers/", DeveloperDirectoryView.as_view(), name="developers"),
+    path("developers/me/portfolio/", MyPortfolioView.as_view(), name="my-portfolio"),
+    path("developers/<int:account_id>/", DeveloperPortfolioView.as_view(), name="developer"),
     path("conversations/", ConversationListView.as_view(), name="conversations"),
     path("conversations/<uuid:conversation_id>/", ConversationDetailView.as_view(), name="conversation"),
     path(
