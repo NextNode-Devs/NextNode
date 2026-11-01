@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 
 import type { Portfolio } from "@/entities/developer";
 import type { Role } from "@/entities/viewer";
+import { InviteToTeam } from "@/features/invite-developer";
 import { InviteToLead } from "@/features/invite-to-lead";
 
 type Props = {
@@ -13,8 +14,8 @@ type Props = {
  * What a viewer in this role may start from someone else's portfolio:
  * - #4 (Hire Lead): "Invite to lead…" for `client`, shown only when they have a
  *   posted project that still needs a Team Lead (the feature checks).
- * - #5 (Hire Devs) adds "Invite to my team…" for `developer`, shown only to
- *   Team Leads with open spots (Team Lead is per project, never a role).
+ * - #5 (Hire Devs): "Invite to my team…" for `developer`, shown only to Team
+ *   Leads with open spots (Team Lead is per project, never a role; the feature checks).
  * They are separate actions with separate labels.
  */
 export function actionsFor(portfolio: Portfolio, viewerRole: Role): ReactNode[] {
@@ -26,7 +27,13 @@ export function actionsFor(portfolio: Portfolio, viewerRole: Role): ReactNode[] 
         developerName={portfolio.display_name}
       />,
     ],
-    developer: [], // #5: <InviteToTeam key="invite-to-team" developerId={portfolio.account_id} />
+    developer: [
+      <InviteToTeam
+        key="invite-to-team"
+        developerId={portfolio.account_id}
+        developerName={portfolio.display_name}
+      />,
+    ],
   };
   return actions[viewerRole];
 }

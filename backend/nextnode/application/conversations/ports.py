@@ -63,11 +63,9 @@ class ReadMarkers(Protocol):
 
 
 class AccountNames(Protocol):
-    """Display names and Clerk-id lookups, so conversations never import #1's internals."""
+    """Display names, so conversations never import #1's internals."""
 
     def names(self, account_ids: list[int]) -> dict[int, str]: ...
-
-    def account_id_for(self, clerk_user_id: str) -> int | None: ...
 
 
 class ConversationEvents(Protocol):

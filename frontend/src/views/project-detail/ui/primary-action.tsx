@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 
+import { ApplyToJoin } from "@/features/apply-to-join";
 import { ApplyToLead } from "@/features/apply-to-lead";
 import type { Project, ViewerAction } from "@/entities/project";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/shadcn/card";
@@ -7,16 +8,22 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/sha
 /**
  * The detail page's action slot (#3's contract with #4 and #5). The API's
  * `viewer_actions` decides which one applies; "Apply to lead" is never offered
- * on a developer idea. "Apply to join" arrives with #5: until it is mounted
- * here, nothing is shown, so there is no control that does nothing.
+ * on a developer idea.
  */
-const ACTIONS: Record<ViewerAction, ((project: Project) => ReactNode) | null> = {
+const ACTIONS: Record<ViewerAction, (project: Project) => ReactNode> = {
   apply_to_lead: (project) => (
     <ActionCard title="Lead this project" description="Apply to be its Team Lead. The client picks one Team Lead.">
       <ApplyToLead projectId={project.id} />
     </ActionCard>
   ),
-  apply_to_join: null, // #5: <ApplyToJoin projectId={project.id} />
+  apply_to_join: (project) => (
+    <ActionCard
+      title="Join this team"
+      description={`${project.team.open_spots} open ${project.team.open_spots === 1 ? "spot" : "spots"}. The Team Lead decides who joins.`}
+    >
+      <ApplyToJoin projectId={project.id} />
+    </ActionCard>
+  ),
 };
 
 export function PrimaryAction({ project }: { project: Project }) {
