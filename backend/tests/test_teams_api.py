@@ -6,7 +6,12 @@ import pytest
 
 from nextnode.domain.projects import Project, ProjectDetails, ProjectKind, Team
 from nextnode.infrastructure.container import get_container, override_container
-from nextnode.infrastructure.persistence.models import TeamModel
+from nextnode.infrastructure.persistence.models import (
+    ConversationModel,
+    TeamCandidacyModel,
+    TeamMembershipModel,
+    TeamModel,
+)
 from tests.conversation_fakes import make_account
 
 
@@ -95,3 +100,80 @@ def test_a_developer_idea_is_sized_by_its_creator(api, auth, people):
 def test_a_client_project_without_a_lead_refuses_everyone(api, auth, people):
     posted = make_project(people["client"], None)
     assert set_size(api, auth, posted, 5, sub="user_client").status_code == 403
+
+
+# --- applications ---------------------------------------------------------------
+
+
+def apply(api, auth, project_id, sub):
+    return api.post(f"/api/projects/{project_id}/team/applications/", **auth(sub))
+
+
+def decide(api, auth, candidacy_id, action, sub):
+    return api.post(f"/api/team-applications/{candidacy_id}/{action}/", **auth(sub))
+
+
+def test_apply_opens_the_conversation_and_a_second_application_is_409(api, auth, project, people):
+    set_size(api, auth, project, 5)
+    response = apply(api, auth, project, "user_dev0")
+    assert response.status_code == 201
+    data = response.json()["data"]
+    assert (data["kind"], data["status"]) == ("application", "pending")
+    assert (data["lead_account_id"], data["developer_account_id"]) == (people["lead"], people["dev0"])
+    conversation = ConversationModel.objects.get(pk=data["conversation_id"])
+    assert (conversation.subject_kind, conversation.subject_id) == ("team_candidacy", data["id"])
+    participants = set(conversation.participants.values_list("account_id", flat=True))
+    assert participants == {people["lead"], people["dev0"]}
+
+    second = apply(api, auth, project, "user_dev0")
+    assert second.status_code == 409
+    assert second.json()["error"]["code"] == "DUPLICATE_CANDIDACY"
+
+
+def test_clients_and_the_lead_cannot_apply_and_missing_projects_are_404(api, auth, project):
+    set_size(api, auth, project, 5)
+    assert apply(api, auth, project, "user_client").status_code == 403
+    assert apply(api, auth, project, "user_lead").status_code == 409
+    assert apply(api, auth, 99999, "user_dev0").status_code == 404
+
+
+def test_accepting_an_application_adds_the_member(api, auth, project, people):
+    set_size(api, auth, project, 5)
+    candidacy = apply(api, auth, project, "user_dev0").json()["data"]["id"]
+    assert decide(api, auth, candidacy, "accept", "user_dev0").status_code == 403  # not their call
+    assert not TeamMembershipModel.objects.filter(account_id=people["dev0"]).exists()
+
+    response = decide(api, auth, candidacy, "accept", "user_lead")
+    assert response.status_code == 200
+    membership = TeamMembershipModel.objects.get(account_id=people["dev0"])
+    assert (membership.role, membership.status) == ("member", "approved")
+    assert decide(api, auth, candidacy, "accept", "user_lead").status_code == 409  # only once
+    assert TeamCandidacyModel.objects.get(pk=candidacy).status == "accepted"
+
+
+@pytest.mark.parametrize(
+    ("action", "sub", "status", "reason"),
+    [
+        ("reject", "user_lead", "rejected", "The Team Lead turned down this application"),
+        ("withdraw", "user_dev0", "withdrawn", "The developer withdrew their application"),
+    ],
+)
+def test_rejecting_or_withdrawing_closes_the_conversation(api, auth, project, action, sub, status, reason):
+    set_size(api, auth, project, 5)
+    data = apply(api, auth, project, "user_dev0").json()["data"]
+    response = decide(api, auth, data["id"], action, sub)
+    assert response.status_code == 200
+    assert response.json()["data"]["status"] == status
+    conversation = ConversationModel.objects.get(pk=data["conversation_id"])
+    assert (conversation.status, conversation.close_reason) == ("closed", reason)
+
+
+def test_wrong_people_get_403_or_404_on_a_decision(api, auth, project):
+    set_size(api, auth, project, 5)
+    candidacy = apply(api, auth, project, "user_dev0").json()["data"]["id"]
+    assert decide(api, auth, candidacy, "reject", "user_dev0").status_code == 403
+    assert decide(api, auth, candidacy, "withdraw", "user_lead").status_code == 403
+    for action in ("accept", "reject", "withdraw"):
+        assert decide(api, auth, candidacy, action, "user_dev1").status_code == 404
+        assert decide(api, auth, candidacy, action, "user_client").status_code == 404
+        assert decide(api, auth, candidacy, action, "user_other_lead").status_code == 404

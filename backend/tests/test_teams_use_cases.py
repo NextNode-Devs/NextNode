@@ -13,7 +13,9 @@ from nextnode.domain.accounts import Role
 from nextnode.domain.errors import ForbiddenError, NotFoundError
 from nextnode.domain.projects import Project, ProjectDetails, ProjectKind
 from nextnode.domain.teams import (
+    CandidacyClosedError,
     CandidacyStatus,
+    DuplicateCandidacyError,
     Team,
     TeamNotRecruitingError,
     TeamSizeError,
@@ -152,3 +154,122 @@ def test_shrinking_to_the_current_headcount_closes_pending_candidacies(w, projec
 def test_works_with_the_creator_as_lead_on_a_developer_idea(w):
     idea = w.project(kind=ProjectKind.DEVELOPER)
     assert w.uc.set_team_size.execute(LEAD, idea, 5).open_spots == 4
+
+
+# --- ApplyToJoinTeam ------------------------------------------------------------
+
+
+def test_a_developer_applies_and_a_conversation_opens(w, project):
+    w.uc.set_team_size.execute(LEAD, project, 5)
+    application = w.uc.apply_to_join.execute(dev(0), project)
+    assert (application.kind, application.status) == ("application", "pending")
+    assert application.conversation_id == f"conversation-{application.id}"
+    assert w.conversations.opened == [(UUID(application.id), LEAD_ID, DEV_IDS[0])]
+    assert application.actions.withdraw is True
+    assert application.actions.accept is False
+    [(recipients, frame)] = w.events.frames
+    assert recipients == (LEAD_ID, DEV_IDS[0])
+    assert (frame["type"], frame["status"]) == ("team.updated", "pending")
+
+
+def test_a_client_cannot_apply_to_join(w, project):
+    w.uc.set_team_size.execute(LEAD, project, 5)
+    with pytest.raises(ForbiddenError, match="Only developers"):
+        w.uc.apply_to_join.execute(CLIENT, project)
+    assert w.candidacies.rows == {}
+
+
+def test_someone_without_an_account_cannot_apply(w, project):
+    w.uc.set_team_size.execute(LEAD, project, 5)
+    with pytest.raises(ForbiddenError, match="Finish setting up"):
+        w.uc.apply_to_join.execute(Actor("user_new", None), project)
+
+
+def test_applying_twice_is_refused(w, project):
+    w.uc.set_team_size.execute(LEAD, project, 5)
+    w.uc.apply_to_join.execute(dev(0), project)
+    with pytest.raises(DuplicateCandidacyError, match="already applied"):
+        w.uc.apply_to_join.execute(dev(0), project)
+    assert len(w.conversations.opened) == 1
+
+
+@pytest.mark.parametrize("ending", ["withdraw_application", "reject_application"])
+def test_a_developer_applies_once_per_team_whatever_became_of_it(w, project, ending):
+    w.uc.set_team_size.execute(LEAD, project, 5)
+    application = w.uc.apply_to_join.execute(dev(0), project)
+    who = dev(0) if ending == "withdraw_application" else LEAD
+    getattr(w.uc, ending).execute(who, UUID(application.id))
+    with pytest.raises(DuplicateCandidacyError, match="already applied"):
+        w.uc.apply_to_join.execute(dev(0), project)
+
+
+def test_the_lead_and_members_cannot_apply_to_their_own_team(w, project):
+    w.uc.set_team_size.execute(LEAD, project, 5)
+    with pytest.raises(DuplicateCandidacyError, match="Team Lead already"):
+        w.uc.apply_to_join.execute(LEAD, project)
+    w.uc.accept_application.execute(LEAD, UUID(w.uc.apply_to_join.execute(dev(0), project).id))
+    with pytest.raises(DuplicateCandidacyError, match="already a member"):
+        w.uc.apply_to_join.execute(dev(0), project)
+
+
+def test_applying_before_the_size_is_set_is_refused(w, project):
+    with pytest.raises(TeamNotRecruitingError, match="not set the team size"):
+        w.uc.apply_to_join.execute(dev(0), project)
+
+
+def test_a_missing_project_is_not_found(w):
+    with pytest.raises(NotFoundError, match="Project not found"):
+        w.uc.apply_to_join.execute(dev(0), 99)
+
+
+# --- deciding an application ----------------------------------------------------
+
+
+def test_the_lead_accepts_an_application(w, project):
+    w.uc.set_team_size.execute(LEAD, project, 5)
+    application = w.uc.apply_to_join.execute(dev(0), project)
+    accepted = w.uc.accept_application.execute(LEAD, UUID(application.id))
+    assert accepted.status == "accepted"
+    team = w.team(project)
+    assert (team.member_account_ids, team.headcount, team.open_spots) == ((DEV_IDS[0],), 2, 3)
+    assert UUID(application.id) not in w.conversations.closed  # they keep talking
+
+
+def test_the_applicant_cannot_accept_their_own_application(w, project):
+    w.uc.set_team_size.execute(LEAD, project, 5)
+    application = w.uc.apply_to_join.execute(dev(0), project)
+    with pytest.raises(ForbiddenError, match="Only the Team Lead"):
+        w.uc.accept_application.execute(dev(0), UUID(application.id))
+    assert w.team(project).member_account_ids == ()
+
+
+def test_the_lead_rejects_and_the_conversation_closes_with_the_reason(w, project):
+    w.uc.set_team_size.execute(LEAD, project, 5)
+    application = w.uc.apply_to_join.execute(dev(0), project)
+    rejected = w.uc.reject_application.execute(LEAD, UUID(application.id))
+    assert (rejected.status, rejected.closed_reason) == (
+        "rejected",
+        "The Team Lead turned down this application",
+    )
+    assert w.conversations.closed[UUID(application.id)] == rejected.closed_reason
+    assert w.team(project).member_account_ids == ()
+    with pytest.raises(CandidacyClosedError):
+        w.uc.accept_application.execute(LEAD, UUID(application.id))
+
+
+def test_the_applicant_withdraws(w, project):
+    w.uc.set_team_size.execute(LEAD, project, 5)
+    application = w.uc.apply_to_join.execute(dev(0), project)
+    with pytest.raises(ForbiddenError, match="Only the developer"):
+        w.uc.withdraw_application.execute(LEAD, UUID(application.id))
+    assert w.uc.withdraw_application.execute(dev(0), UUID(application.id)).status == "withdrawn"
+    assert UUID(application.id) in w.conversations.closed
+
+
+def test_strangers_and_other_teams_see_nothing(w, project):
+    w.uc.set_team_size.execute(LEAD, project, 5)
+    application = w.uc.apply_to_join.execute(dev(0), project)
+    for who in (STRANGER, CLIENT):
+        for action in (w.uc.accept_application, w.uc.reject_application, w.uc.withdraw_application):
+            with pytest.raises(NotFoundError, match="Application not found"):
+                action.execute(who, UUID(application.id))

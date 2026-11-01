@@ -1,5 +1,6 @@
 from django.urls import path
 
+from nextnode.presentation.api import teams
 from nextnode.presentation.api.accounts import AccountView, MeView, OnboardingView, SkillsView
 from nextnode.presentation.api.conversations import (
     ConversationDetailView,
@@ -33,7 +34,6 @@ from nextnode.presentation.api.projects import (
     ProjectIdeasView,
     ProjectsView,
 )
-from nextnode.presentation.api.teams import TeamSizeView
 from nextnode.presentation.api.views import HealthView
 
 urlpatterns = [
@@ -87,7 +87,27 @@ urlpatterns = [
         name="lead-withdraw",
     ),
     # Hire Devs (#5)
-    path("projects/<int:project_id>/team/size/", TeamSizeView.as_view(), name="team-size"),
+    path("projects/<int:project_id>/team/size/", teams.TeamSizeView.as_view(), name="team-size"),
+    path(
+        "projects/<int:project_id>/team/applications/",
+        teams.TeamApplicationsView.as_view(),
+        name="team-apply",
+    ),
+    path(
+        "team-applications/<uuid:candidacy_id>/accept/",
+        teams.AcceptApplicationView.as_view(),
+        name="team-application-accept",
+    ),
+    path(
+        "team-applications/<uuid:candidacy_id>/reject/",
+        teams.RejectApplicationView.as_view(),
+        name="team-application-reject",
+    ),
+    path(
+        "team-applications/<uuid:candidacy_id>/withdraw/",
+        teams.WithdrawApplicationView.as_view(),
+        name="team-application-withdraw",
+    ),
     path(
         "projects/<int:project_id>/deposit/checkout/",
         DepositCheckoutView.as_view(),
