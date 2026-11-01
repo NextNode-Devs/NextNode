@@ -80,6 +80,7 @@ test.describe("Hire Lead", () => {
         "LeadCandidacyModel.objects.filter(Q(client__in=accounts) | Q(developer__in=accounts)).delete()",
         "ConversationModel.objects.filter(participants__account__in=accounts).delete()",
         "projects = ProjectModel.objects.filter(owner__in=accounts)",
+        "RequirementDocumentModel.objects.filter(project__in=projects).delete()",
         "TeamMembershipModel.objects.filter(team__project__in=projects).delete()",
         "TeamModel.objects.filter(project__in=projects).delete()",
         "projects.delete()",
@@ -116,6 +117,13 @@ test.describe("Hire Lead", () => {
     expect(created.status).toBe(201);
     const projectPath = `/projects/${created.body.data.id}`;
 
+    // A private requirement document, uploaded by the client (AC9 checks who can see it).
+    await grace.page.goto(projectPath);
+    await grace.page
+      .locator("input[type=file]")
+      .setInputFiles({ name: "requirements.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.7\n") });
+    await expect(grace.page.getByRole("status").filter({ hasText: "requirements.pdf uploaded." })).toBeVisible();
+
     // --- Two developers apply on the project's page ---
     for (const [person, note] of [
       [ada, "I've led two React teams."],
@@ -130,6 +138,8 @@ test.describe("Hire Lead", () => {
       await expect(person.page.getByRole("heading", { name: "Your conversation with the client" })).toBeVisible({
         timeout: 20_000,
       });
+      // An applicant sees the brief but not its documents (AC9).
+      await expect(person.page.getByText("requirements.pdf", { exact: true })).toHaveCount(0);
     }
 
     // --- The client sees both on the dashboard and opens Ada's ---
@@ -152,6 +162,8 @@ test.describe("Hire Lead", () => {
     // Ada's connection drops; what Grace sends meanwhile arrives once, in order, when it's back.
     const before = ada.problems.length;
     await ada.page.context().setOffline(true);
+    // The dropped connection is visible where Ada types (AC5).
+    await expect(ada.page.getByText(/Connecting to live chat/)).toBeVisible({ timeout: 20_000 });
     for (const text of ["First while you were away.", "Second while you were away."]) {
       await graceBox.fill(text);
       await graceBox.press("Enter");
@@ -159,6 +171,8 @@ test.describe("Hire Lead", () => {
     }
     await ada.page.context().setOffline(false);
     await expect(adaLog).toContainText("Second while you were away.", { timeout: 30_000 });
+    // Reconnecting backs off while offline, so "Live" can lag the catch-up a little.
+    await expect(ada.page.getByText(/Enter to send/)).toBeVisible({ timeout: 30_000 });
     const texts = await adaLog.getByRole("listitem").allInnerTexts();
     const first = texts.findIndex((t) => t.includes("First while you were away."));
     const second = texts.findIndex((t) => t.includes("Second while you were away."));
@@ -191,6 +205,68 @@ test.describe("Hire Lead", () => {
     await grace.page.goto(projectPath);
     await expect(grace.page.getByRole("button", { name: /Ada E2E.*Hired/ })).toBeVisible();
     await expect(grace.page.getByRole("button", { name: /Linus E2E.*Closed/ })).toBeVisible();
+
+    // Once hired, the Team Lead can see the documents; the other candidate still cannot (AC9).
+    await ada.page.goto(projectPath);
+    await expect(ada.page.getByText("requirements.pdf", { exact: true })).toBeVisible();
+    await linus.page.goto(projectPath);
+    await expect(linus.page.getByRole("heading", { level: 1, name: "Yoga studio bookings" })).toBeVisible();
+    await expect(linus.page.getByText("requirements.pdf", { exact: true })).toHaveCount(0);
+
+    for (const person of people) expect(person.problems).toEqual([]);
+  });
+
+  test("a client invites a developer to lead from their portfolio; a second invitation is refused", async ({
+    browser,
+  }) => {
+    test.setTimeout(120_000);
+    const grace = await signedInPerson(browser, "Grace", {
+      role: "client",
+      display_name: "Grace E2E",
+      client: { company_name: "Acme", industry: "Retail" },
+    });
+    const mary = await signedInPerson(browser, "Mary", developer("Mary E2E"));
+    people = [grace, mary];
+
+    const created = await callApi(grace.page, "POST", "/api/projects/", {
+      title: "Pottery class sign-ups",
+      description: "Sign-ups and reminders for a small pottery studio's classes.",
+      tech_stack: ["React"],
+      target_delivery_date: `${new Date().getFullYear() + 1}-06-01`,
+      proposed_budget_cents: 250_000,
+    });
+    expect(created.status).toBe(201);
+    const projectId = created.body.data.id;
+    const maryId = (await callApi(mary.page, "GET", "/api/me/")).body.data.account.id;
+
+    // The developer never sees "Invite to lead…" on their own portfolio.
+    await mary.page.goto(`/developers/${maryId}`);
+    await expect(mary.page.getByRole("heading", { level: 1, name: "Mary E2E" })).toBeVisible();
+    await expect(mary.page.getByRole("button", { name: /Invite to lead/ })).toHaveCount(0);
+
+    // --- The client invites from the portfolio and lands in the new conversation ---
+    await grace.page.goto(`/developers/${maryId}`);
+    await grace.page.getByRole("button", { name: /Invite to lead/ }).click();
+    await expect(grace.page.getByRole("radio", { name: "Pottery class sign-ups" })).toBeChecked();
+    await grace.page.getByLabel(/^Note/).fill("Your pottery-site work is a great fit.");
+    await grace.page.getByRole("button", { name: "Send invitation" }).click();
+    await expect(grace.page).toHaveURL(new RegExp(`/projects/${projectId}`));
+    await expect(grace.page.getByRole("button", { name: /Mary E2E/ })).toHaveAttribute("aria-pressed", "true");
+
+    // --- The developer finds it on their dashboard and can answer it ---
+    await mary.page.goto("/dashboard");
+    await mary.page.getByRole("region", { name: "Invitations" }).getByRole("link", { name: /Pottery class sign-ups/ }).click();
+    await expect(mary.page).toHaveURL(new RegExp(`/projects/${projectId}`));
+    await expect(mary.page.getByRole("button", { name: "Accept invitation" })).toBeVisible({ timeout: 20_000 });
+
+    // --- A second invitation to the same project is refused, with the reason ---
+    await grace.page.goto(`/developers/${maryId}`);
+    await grace.page.getByRole("button", { name: /Invite to lead/ }).click();
+    const before = grace.problems.length;
+    await grace.page.getByRole("button", { name: "Send invitation" }).click();
+    await expect(grace.page.getByRole("alert").filter({ hasText: "already has an invitation" })).toBeVisible();
+    // The browser logs the refused request (409) as a console error; that refusal is what this step checks.
+    grace.problems.push(...grace.problems.splice(before).filter((problem) => !/status of 409/.test(problem)));
 
     for (const person of people) expect(person.problems).toEqual([]);
   });
