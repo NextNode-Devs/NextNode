@@ -47,7 +47,8 @@ describe("TeamRosterCard", () => {
       ["Ada", "/developers/1"],
       ["Linus", "/developers/2"],
     ]);
-    expect(screen.getByText("Team Lead")).toBeInTheDocument();
+    expect(screen.getByText("Team Lead:")).toBeInTheDocument();
+    expect(screen.queryByText("(you)")).not.toBeInTheDocument();
     expect(screen.getByText("2 of 5 people · 3 open spots")).toBeInTheDocument();
   });
 
@@ -76,6 +77,7 @@ describe("TeamRosterCard", () => {
     const lead = project({ viewer: viewer({ is_lead: true }) });
     const { unmount } = render(<TeamRosterCard project={lead} team={team()} loadError={null} />);
     expect(screen.getByText("set size from 5")).toBeInTheDocument();
+    expect(screen.getByText("(you)")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Find developers to invite" })).toHaveAttribute("href", "/developers");
     unmount();
 

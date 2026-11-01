@@ -5,7 +5,6 @@ import type { Project } from "@/entities/project";
 import type { TeamProfile } from "@/entities/team";
 import { SetTeamSize } from "@/features/set-team-size";
 import { formatMessageTime } from "@/shared/lib/format-date";
-import { Badge } from "@/shared/ui/shadcn/badge";
 import { Button } from "@/shared/ui/shadcn/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui/shadcn/card";
 
@@ -76,14 +75,11 @@ function Roster({ project, team }: { project: Project; team: TeamProfile }) {
               <li key={member.account_id} className="flex items-start gap-2">
                 <Icon className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />
                 <span className="min-w-0">
+                  {lead ? <span className="text-muted-foreground">Team Lead: </span> : null}
                   <Link href={member.portfolio_url} className="font-medium break-words underline-offset-4 hover:underline">
                     {member.display_name}
                   </Link>
-                  {lead ? (
-                    <Badge variant="secondary" className="ml-2">
-                      Team Lead
-                    </Badge>
-                  ) : null}
+                  {lead && me.is_lead ? <span className="text-muted-foreground"> (you)</span> : null}
                   {member.joined_at ? (
                     <span className="block text-xs text-muted-foreground">Joined {formatMessageTime(member.joined_at)}</span>
                   ) : null}

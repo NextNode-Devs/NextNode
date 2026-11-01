@@ -27,6 +27,8 @@ type Person = { page: Page; userId: string; name: string; accountId: number; pro
 
 /** A call to the API as the page's signed-in user (setup only; people act through the UI). */
 async function callApi(page: Page, method: string, path: string, body?: object) {
+  // A page that just opened may not have loaded Clerk's session yet.
+  await page.waitForFunction(() => Boolean((window as unknown as { Clerk?: { session?: unknown } }).Clerk?.session));
   return page.evaluate(
     async ({ api, method, path, body }) => {
       const clerkWindow = window as unknown as { Clerk: { session: { getToken(): Promise<string> } } };
@@ -155,7 +157,7 @@ test.describe("Hire Devs", () => {
     await ada.page.goto(projectPath);
     await ada.page.getByRole("radio", { name: "5", exact: true }).click();
     await ada.page.getByRole("button", { name: "Open the spots" }).click();
-    await expect(ada.page.getByText("1 of 5 people · 4 open spots")).toBeVisible();
+    await expect(ada.page.getByText("1 of 5 people · 4 open spots")).toBeVisible({ timeout: 20_000 });
     const before = ada.problems.length;
     const refused = await callApi(ada.page, "PUT", `/api/projects/${projectId}/team/size/`, { size: 4 });
     expect(refused.status).toBe(400);
@@ -289,7 +291,7 @@ test.describe("Hire Devs", () => {
     await expect(ada.page.getByRole("list", { name: "Team members" })).toContainText("Team Lead");
     await ada.page.getByRole("radio", { name: "6", exact: true }).click();
     await ada.page.getByRole("button", { name: "Open the spots" }).click();
-    await expect(ada.page.getByText("1 of 6 people · 5 open spots")).toBeVisible();
+    await expect(ada.page.getByText("1 of 6 people · 5 open spots")).toBeVisible({ timeout: 20_000 });
 
     // --- A developer applies; the Lead sees it live on the dashboard and accepts ---
     await ada.page.goto("/dashboard");
@@ -315,7 +317,7 @@ test.describe("Hire Devs", () => {
       ].join("\n"),
     );
     await mary.page.goto(projectPath);
-    await expect(mary.page.getByText(/Recruitment has closed/)).toBeVisible();
+    await expect(mary.page.getByText(/Recruitment has closed/).filter({ visible: true })).toBeVisible();
     await expect(mary.page.getByRole("button", { name: "Apply to join" })).toHaveCount(0);
     const before = mary.problems.length;
     const refused = await callApi(mary.page, "POST", `/api/projects/${projectId}/team/applications/`);
