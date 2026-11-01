@@ -4,7 +4,9 @@ import { Loader2Icon } from "lucide-react";
 import Link from "next/link";
 import { useActionState, useState } from "react";
 
+import { SkillsInput } from "@/entities/skill";
 import type { Role } from "@/entities/viewer";
+import { FormField } from "@/shared/ui/molecules/form-field";
 import { Alert, AlertDescription, AlertTitle } from "@/shared/ui/shadcn/alert";
 import { Button } from "@/shared/ui/shadcn/button";
 import { Input } from "@/shared/ui/shadcn/input";
@@ -14,9 +16,7 @@ import { Textarea } from "@/shared/ui/shadcn/textarea";
 import { completeOnboarding } from "../api/complete-onboarding";
 import type { OnboardingState } from "../model/onboarding-state";
 import { LIMITS } from "../model/schema";
-import { FormField } from "./form-field";
 import { RoleChoice } from "./role-choice";
-import { SkillsInput } from "./skills-input";
 
 type Props = {
   /** Prefilled from the Clerk profile; editable. */
@@ -149,7 +149,7 @@ function DeveloperFields({
       <FormField
         id="github_username"
         label="GitHub username"
-        hint="Shown on your portfolio as provided; it isn't verified."
+        hint="Shown on your portfolio exactly as you enter it."
         error={errors.github_username}
       >
         {(aria) => (
@@ -171,7 +171,7 @@ function DeveloperFields({
         hint="Type a skill and press Enter. Add at least one."
         error={errors.skills}
       >
-        {(aria) => <SkillsInput {...aria} value={skills} onChange={onSkills} />}
+        {(aria) => <SkillsInput {...aria} name="skills" value={skills} onChange={onSkills} />}
       </FormField>
     </>
   );

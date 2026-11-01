@@ -1,6 +1,6 @@
 import type { Role } from "@/entities/viewer";
 
-export type SectionId = "my-projects" | "applications" | "invitations" | "conversations";
+export type SectionId = "my-projects" | "applications" | "invitations" | "conversations" | "portfolio";
 
 export type SectionSpec = {
   id: SectionId;
@@ -32,14 +32,20 @@ export const SECTIONS: Record<Role, SectionSpec[]> = {
     {
       id: "my-projects",
       title: "My projects",
-      empty: "Projects you lead or have joined will appear here.",
-      filledBy: "#3, #5",
+      empty: "Your project ideas, and projects you lead or have joined, will appear here.",
+      filledBy: "#3",
     },
     {
       id: "conversations",
       title: "Conversations",
       empty: "Hiring and team conversations will appear here, with unread counts.",
       filledBy: "#4",
+    },
+    {
+      id: "portfolio",
+      title: "Your portfolio",
+      empty: "Your portfolio, as clients see it in the developer directory.",
+      filledBy: "#2",
     },
   ],
   client: [
@@ -60,6 +66,12 @@ export const SECTIONS: Record<Role, SectionSpec[]> = {
       title: "Conversations",
       empty: "Conversations with Team Lead candidates will appear here, with unread counts.",
       filledBy: "#4",
+    },
+    {
+      id: "portfolio",
+      title: "Find developers",
+      empty: "Browse developers by skill and open their portfolios.",
+      filledBy: "#2",
     },
   ],
 };

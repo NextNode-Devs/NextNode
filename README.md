@@ -93,6 +93,8 @@ Templates hold placeholders only; never commit `.env` or `.env.local`.
 | | `REDIS_URL` | Channels layer for the authenticated socket. Default `redis://localhost:6379/0`; required in production |
 | | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` | Stripe **test mode** (`sk_test_…`, `whsec_…`); both or neither. Empty = payments off (webhook answers 503). Live keys are refused outside production |
 | | `DEPOSIT_PERCENT` | Deposit as a % of the accepted offer total; default `20` |
+| | `PRIVATE_MEDIA_ROOT` | Folder for private requirement documents (#3); default `backend/private_media`, git-ignored and served by nothing |
+| | `UPLOAD_MAX_BYTES`, `UPLOAD_MAX_FILES_PER_PROJECT` | Document limits; default 10 MB and 10 files (confirmed) |
 | `frontend/.env.local` | `API_BASE_URL` | Where the Next.js server reaches Django (server-only) |
 | | `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Clerk development publishable key (`pk_test_…`, public by design). Empty = sign-in off |
 | | `CLERK_SECRET_KEY` | Clerk secret key (`sk_test_…`). **Server-only**; required whenever the publishable key is set |
@@ -203,9 +205,37 @@ Built by #1: Clerk sign-in/sign-up, accounts with a role chosen once,
 onboarding, `GET /api/me/`, `GET /api/skills/`, the dashboard shell, the shared
 deny-by-default access policy and the authenticated WebSocket on Redis.
 
-Not built yet: portfolios,
-projects, hiring, team formation, workspaces and payments (see
-`docs/backlog.md`). CI is active; there is no deployment target yet
+Built by #2: developer portfolios (edit at `/developers/me/edit`, view at
+`/developers/[id]`) and the developer directory at `/developers` (search, skill
+and availability filters, all in the URL); clients have no portfolio and never
+appear in it. Links are shown as entered; nothing is labelled "verified".
+
+Built by #3: client project briefs (proposed budget, minimum CAD 1,500
+enforced by the backend) and developer project ideas (the creator is the Team
+Lead; no budget or payments), each with one team; project search at
+`/projects` (kind, tech stack, "needs a Lead", "has open spots", all in the
+URL), detail at `/projects/[id]` with the one applicable action ("Apply to
+lead" from #4), editing by the owner while allowed, and "My projects" on the
+dashboard. Clients upload private PDF/DOCX requirement documents (checked by
+extension and file signature; 10 MB, 10 per project) that only the client, the
+Team Lead and approved members can list or download, through links that expire
+after 15 minutes and re-check access. Hire Lead (#4) now runs on real projects.
+
+Built by #4: hiring conversations over the authenticated socket (live
+messages, history, catch-up after a dropped connection, unread counts, read-only
+once closed with the reason) and Hire Lead. A developer applies on a client
+project's page; a client invites a developer from their portfolio ("Invite to
+lead…", choosing one of their projects that still needs a Lead). Each opens a
+conversation shown on the project's page: the client sees every candidate there
+and picks whose chat to open; the developer sees their own. The client hires
+inside the conversation; the other candidates' conversations close live with
+the reason. The dashboard lists a client's applicants and a developer's
+invitations and applications, each opening its chat; every conversation is also
+under Conversations in the header.
+
+Not built yet:
+team size and recruiting (#5), offers and the project start (#6),
+workspaces and the deposit wiring (see `docs/backlog.md`). CI is active; there is no deployment target yet
 (`staging.yml` gates `staging` on CI; its deploy job is off and deploys nothing).
 
 ## Product rules every contributor must know
@@ -235,9 +265,8 @@ Details and remaining conflicts: `docs/decisions/phase-1-product-decisions.md`.
   `docs/spec/` — see `docs/spec/README.md`.
 - `manage.py check --deploy` warns that HSTS preload is off; that is a
   deliberate opt-in once a production domain exists.
-- The authenticated socket (Django Channels on a Redis channel layer) exists
-  (#1); conversations on it arrive with #4 — design in
-  `docs/proposals/realtime-messaging.md`.
+- Hiring conversations need Redis for live delivery (Docker Compose starts
+  it). Design: `docs/proposals/realtime-messaging.md`.
 - Phase 1 ends at project initiation (direction approved) and is due
   **1 November 2026**: `docs/phase-1-scope-review.md`.
 - Clerk and Stripe accounts do not exist yet; `.env.example` files hold

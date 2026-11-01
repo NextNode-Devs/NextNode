@@ -32,6 +32,22 @@ class LeadApplicationsView(APIView):
         return Response({"data": asdict(view)}, status=201)
 
 
+class ProjectLeadChatsView(APIView):
+    """The project's hiring conversations the viewer is part of (all of them for its client)."""
+
+    def get(self, request: Request, project_id: int) -> Response:
+        chats = get_container().list_project_lead_chats.execute(request.user.actor, project_id)
+        return Response({"data": [asdict(chat) for chat in chats]})
+
+
+class MyLeadCandidaciesView(APIView):
+    """The viewer's applications and invitations to lead, for the dashboard."""
+
+    def get(self, request: Request) -> Response:
+        items = get_container().list_my_lead_candidacies.execute(request.user.actor)
+        return Response({"data": [asdict(item) for item in items]})
+
+
 class LeadInvitationsView(APIView):
     """The project's client invites a developer to lead it."""
 

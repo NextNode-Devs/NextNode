@@ -113,10 +113,10 @@ def test_decline_and_withdraw_close_their_conversations(api, auth, people):
 
 
 @pytest.mark.django_db
-def test_without_projects_from_3_nothing_can_be_hired(api, auth, people):
-    from nextnode.infrastructure.hiring.pending_projects import ProjectsNotReadyForHiring
+def test_with_real_projects_from_3_an_unknown_project_is_404(api, auth, people):
+    from nextnode.infrastructure.persistence.projects import DjangoLeadProjects
 
-    with override_container(lead_projects=ProjectsNotReadyForHiring()):
+    with override_container(lead_projects=DjangoLeadProjects()):
         assert apply(api, auth, "user_ada").status_code == 404
 
 
@@ -153,3 +153,38 @@ def test_two_concurrent_hires_cannot_both_succeed(people, projects):
 
     assert sorted(outcomes) == ["LeadAlreadyHiredError", "hired"]
     assert LeadCandidacyModel.objects.filter(status="hired").count() == 1
+
+
+@pytest.mark.django_db
+def test_project_lead_chats_over_the_api(api, auth, people):
+    applied = apply(api, auth, "user_ada").json()["data"]
+    invite(api, auth, people["linus"])
+    url = f"/api/projects/{PROJECT}/lead-chats/"
+
+    seen_by_client = api.get(url, **auth("user_client")).json()["data"]
+    assert [(c["developer_name"], c["kind"]) for c in seen_by_client] == [
+        ("Ada", "application"),
+        ("Linus", "invitation"),
+    ]
+    assert seen_by_client[0]["conversation_id"] == applied["conversation_id"]
+
+    seen_by_ada = api.get(url, **auth("user_ada")).json()["data"]
+    assert [c["developer_name"] for c in seen_by_ada] == ["Ada"]
+    assert api.get("/api/projects/999/lead-chats/", **auth("user_client")).status_code == 404
+
+
+@pytest.mark.django_db
+def test_my_lead_candidacies_over_the_api(api, auth, people):
+    apply(api, auth, "user_ada")
+    invite(api, auth, people["linus"])
+    url = "/api/lead-candidacies/mine/"
+
+    seen_by_client = api.get(url, **auth("user_client")).json()["data"]
+    assert [(c["developer_name"], c["kind"]) for c in seen_by_client] == [
+        ("Linus", "invitation"),
+        ("Ada", "application"),
+    ]
+    seen_by_linus = api.get(url, **auth("user_linus")).json()["data"]
+    assert [(c["client_name"], c["status"], c["project_id"]) for c in seen_by_linus] == [
+        ("Grace", "invited", PROJECT)
+    ]

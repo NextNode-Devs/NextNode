@@ -1,7 +1,17 @@
 from contextlib import AbstractContextManager
+from dataclasses import dataclass
 from typing import Protocol
 
-from nextnode.domain.accounts import Account, SkillName
+from nextnode.domain.accounts import Account, Portfolio, SkillName
+
+
+@dataclass(frozen=True)
+class DeveloperPortfolio:
+    """A portfolio with the developer account it belongs to."""
+
+    account_id: int
+    display_name: str
+    portfolio: Portfolio
 
 
 class AccountRepository(Protocol):
@@ -20,6 +30,19 @@ class SkillRepository(Protocol):
         ...
 
     def search(self, query: str | None, limit: int) -> list[SkillName]: ...
+
+
+class PortfolioRepository(Protocol):
+    """Portfolios belong to developer accounts only; a client account has none."""
+
+    def get(self, account_id: int) -> DeveloperPortfolio | None:
+        """The developer's portfolio, or None if the account is not a developer."""
+        ...
+
+    def save(self, account_id: int, portfolio: Portfolio) -> DeveloperPortfolio:
+        """Replaces the developer's portfolio. Its skills must already be stored
+        (``SkillRepository.upsert_many``). Returns it as stored."""
+        ...
 
 
 class AccountDirectory(Protocol):
