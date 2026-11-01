@@ -33,6 +33,7 @@ from nextnode.presentation.api.projects import (
     ProjectIdeasView,
     ProjectsView,
 )
+from nextnode.presentation.api.teams import TeamSizeView
 from nextnode.presentation.api.views import HealthView
 
 urlpatterns = [
@@ -85,6 +86,8 @@ urlpatterns = [
         WithdrawApplicationView.as_view(),
         name="lead-withdraw",
     ),
+    # Hire Devs (#5)
+    path("projects/<int:project_id>/team/size/", TeamSizeView.as_view(), name="team-size"),
     path(
         "projects/<int:project_id>/deposit/checkout/",
         DepositCheckoutView.as_view(),

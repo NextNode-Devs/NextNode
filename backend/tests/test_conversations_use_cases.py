@@ -54,14 +54,13 @@ class UseCases:
         self.list = ListConversations(convs, names)
         self.get = GetConversation(convs, names)
         self.messages = ListMessages(convs, msgs)
-        self.candidacies = CandidacyConversations(self.open, self.close, convs, names)
+        self.candidacies = CandidacyConversations(self.open, self.close, convs)
 
 
 @pytest.fixture
 def store() -> Store:
     s = Store()
     s.names = {CLIENT: "Grace", DEV: "Ada", OTHER: "Linus"}
-    s.clerk_ids = {"user_lead": DEV, "user_dev": OTHER}
     return s
 
 
@@ -250,7 +249,7 @@ def test_before_and_after_together_or_a_bad_limit_are_refused(uc, conv_id):
 
 def test_a_team_candidacy_opens_and_closes_its_conversation(uc, store):
     candidacy = uuid4()
-    uc.candidacies.open_for_candidacy(candidacy, 7, "user_lead", "user_dev")
+    uc.candidacies.open_for_candidacy(candidacy, DEV, OTHER)
     [conversation] = store.conversations.values()
     assert conversation.subject == Subject(SubjectKind.TEAM_CANDIDACY, str(candidacy))
     assert conversation.participant_ids == (DEV, OTHER)
@@ -262,8 +261,3 @@ def test_a_team_candidacy_opens_and_closes_its_conversation(uc, store):
 def test_closing_a_candidacy_without_a_conversation_does_nothing(uc, store):
     uc.candidacies.close_for_candidacy(uuid4(), "The team is full.")
     assert store.published == []
-
-
-def test_a_candidacy_needs_both_accounts(uc):
-    with pytest.raises(ValidationError):
-        uc.candidacies.open_for_candidacy(uuid4(), 7, "user_lead", "user_nobody")

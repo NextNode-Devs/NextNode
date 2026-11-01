@@ -383,6 +383,53 @@ class TeamMembershipModel(models.Model):
         return f"{self.account_id} {self.role} of team {self.team_id} ({self.status})"
 
 
+class TeamCandidacyModel(models.Model):
+    """An application to join a team or the Lead's invitation (#5). Accepted, it
+    adds the developer's approved ``TeamMembershipModel`` row; until then they
+    are not on the team. Keyed by project: one team per project."""
+
+    class Kind(models.TextChoices):
+        APPLICATION = "application"
+        INVITATION = "invitation"
+
+    class Status(models.TextChoices):
+        PENDING = "pending"
+        ACCEPTED = "accepted"
+        REJECTED = "rejected"
+        WITHDRAWN = "withdrawn"
+        DECLINED = "declined"
+        CLOSED = "closed"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    project = models.ForeignKey(ProjectModel, on_delete=models.PROTECT, related_name="team_candidacies")
+    lead = models.ForeignKey(AccountModel, on_delete=models.PROTECT, related_name="team_candidacies_led")
+    developer = models.ForeignKey(AccountModel, on_delete=models.PROTECT, related_name="team_candidacies")
+    kind = models.CharField(max_length=16, choices=Kind.choices)
+    status = models.CharField(max_length=16, choices=Status.choices, default=Status.PENDING)
+    closed_reason = models.CharField(max_length=200, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    decided_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = "team_candidacy"
+        constraints = (
+            models.UniqueConstraint(
+                fields=["project", "developer"],
+                condition=Q(status="pending"),
+                name="team_candidacy_one_pending_per_developer",
+            ),
+            # Once per team, whatever became of the application.
+            models.UniqueConstraint(
+                fields=["project", "developer"],
+                condition=Q(kind="application"),
+                name="team_candidacy_one_application_per_developer",
+            ),
+        )
+
+    def __str__(self) -> str:
+        return f"{self.kind} {self.id} ({self.status})"
+
+
 class RequirementDocumentModel(models.Model):
     """A private PDF/DOCX on a client project (#3). The bytes live in
     ``FileStorage`` under ``storage_key``; ``filename`` is for display only."""

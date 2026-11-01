@@ -54,6 +54,10 @@ class ProjectRepository(Protocol):
         """Stores ``Team.assign_lead``: the developer's approved Lead membership."""
         ...
 
+    def save_team(self, team: Team) -> None:
+        """Stores the team's size and adds an approved membership for any new member (#5)."""
+        ...
+
     def search(self, query: ProjectQuery, offset: int, limit: int) -> ProjectPage:
         """``Posted`` projects only, newest first then by id, so pages never overlap."""
         ...

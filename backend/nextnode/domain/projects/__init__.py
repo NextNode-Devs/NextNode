@@ -13,20 +13,37 @@ from nextnode.domain.projects.project import (
     ProjectKind,
     ProjectStatus,
 )
-from nextnode.domain.projects.team import Team, TeamStatus
+from nextnode.domain.projects.team import (
+    MAX_TEAM_SIZE,
+    MIN_TEAM_SIZE,
+    RECRUITMENT_CLOSED,
+    DuplicateCandidacyError,
+    Team,
+    TeamFullError,
+    TeamNotRecruitingError,
+    TeamSizeError,
+    TeamStatus,
+)
 
 __all__ = [
     "DESCRIPTION_MAX",
     "LINK_LIFETIME_SECONDS",
+    "MAX_TEAM_SIZE",
     "MIN_PROJECT_BUDGET",
+    "MIN_TEAM_SIZE",
+    "RECRUITMENT_CLOSED",
     "TITLE_MAX",
     "DocumentType",
+    "DuplicateCandidacyError",
     "Project",
     "ProjectDetails",
     "ProjectKind",
     "ProjectStatus",
     "RequirementDocument",
     "Team",
+    "TeamFullError",
+    "TeamNotRecruitingError",
+    "TeamSizeError",
     "TeamStatus",
     "UploadLimits",
     "ensure_meets_minimum_budget",

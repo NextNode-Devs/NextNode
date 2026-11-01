@@ -1,43 +1,46 @@
-"""TeamRoster and Candidacy rules: size 5-7 with the Lead, spot arithmetic,
-who may accept what, and closing the rest when the team is full."""
+"""Team and Candidacy rules: size 5-7 with the Lead, spot arithmetic, who may
+accept what, and closing the rest when the team is full."""
 
+from datetime import UTC, datetime
 from uuid import UUID
 
 import pytest
 
 from nextnode.domain.errors import ForbiddenError
 from nextnode.domain.teams import (
+    RECRUITMENT_CLOSED,
     TEAM_FULL_REASON,
     Candidacy,
     CandidacyClosedError,
     CandidacyKind,
     CandidacyStatus,
     DuplicateCandidacyError,
+    Team,
     TeamFullError,
     TeamNotRecruitingError,
-    TeamRoster,
     TeamSizeError,
     TeamStatus,
-    accept,
-    close_pending_if_full,
+    close_all,
 )
 
-LEAD = "user_lead"
+LEAD = 1
+DEV = 50
+AT = datetime(2026, 11, 1, tzinfo=UTC)
 
 
-def roster(size: int | None = 5, members: int = 0, status: TeamStatus = TeamStatus.OPEN) -> TeamRoster:
-    return TeamRoster(
-        team_id=1,
+def team(size: int | None = 5, members: int = 0, status: TeamStatus = TeamStatus.OPEN) -> Team:
+    return Team(
+        id=1,
         project_id=10,
-        lead_user_id=LEAD,
         status=status,
+        lead_account_id=LEAD,
         team_size=size,
-        member_user_ids=[f"user_member_{n}" for n in range(members)],
+        member_account_ids=tuple(100 + n for n in range(members)),
     )
 
 
-def candidacy(kind: CandidacyKind, dev: str = "user_dev", n: int = 1, team_id: int = 1) -> Candidacy:
-    return Candidacy(UUID(int=n), team_id, kind, dev)
+def candidacy(kind: CandidacyKind, dev: int = DEV, n: int = 1) -> Candidacy:
+    return Candidacy(UUID(int=n), 10, LEAD, dev, kind)
 
 
 # --- size: 5 to 7 people including the Lead -------------------------------------
@@ -45,29 +48,21 @@ def candidacy(kind: CandidacyKind, dev: str = "user_dev", n: int = 1, team_id: i
 
 @pytest.mark.parametrize("size", [5, 6, 7])
 def test_size_between_five_and_seven_is_accepted(size):
-    team = roster(size=None)
-    team.set_size(size)
-    assert team.team_size == size
+    assert team(size=None).with_size(size).team_size == size
 
 
 @pytest.mark.parametrize("size", [0, 4, 8, -1])
-def test_size_outside_five_to_seven_is_refused(size):
-    team = roster(size=None)
+def test_size_outside_five_to_seven_is_refused_naming_the_rule(size):
     with pytest.raises(TeamSizeError) as raised:
-        team.set_size(size)
+        team(size=None).with_size(size)
     assert "5 to 7 people including the Team Lead" in raised.value.message
-    assert "team_size" in raised.value.fields
-    assert team.team_size is None
+    assert "size" in raised.value.fields
 
 
 def test_size_can_shrink_only_while_current_members_still_fit():
-    team = roster(size=7, members=4)  # 5 people on it
-    team.set_size(5)
-    assert team.team_size == 5
-    team = roster(size=7, members=5)  # 6 people on it
+    assert team(size=7, members=4).with_size(5).team_size == 5  # 5 people on it
     with pytest.raises(TeamSizeError, match="already has 6 people"):
-        team.set_size(5)
-    assert team.team_size == 7
+        team(size=7, members=5).with_size(5)
 
 
 # --- spot arithmetic ------------------------------------------------------------
@@ -84,123 +79,108 @@ def test_size_can_shrink_only_while_current_members_still_fit():
     ],
 )
 def test_spot_arithmetic(size, members, developer_spots, open_spots, full):
-    team = roster(size=size, members=members)
-    assert team.headcount == members + 1
-    assert team.developer_spots == developer_spots
-    assert team.open_spots == open_spots
-    assert team.is_full is full
+    roster = team(size=size, members=members)
+    assert roster.headcount == members + 1
+    assert roster.developer_spots == developer_spots
+    assert roster.open_spots == open_spots
+    assert roster.is_full is full
 
 
 def test_each_new_member_takes_exactly_one_spot():
-    team = roster(size=6, members=1)
-    team.add_member("user_new")
-    assert team.open_spots == 3
-    assert team.headcount == 3
+    joined = team(size=6, members=1).with_member(DEV)
+    assert (joined.open_spots, joined.headcount) == (3, 3)
 
 
 def test_a_full_team_is_never_over_filled():
-    team = roster(size=5, members=4)
     with pytest.raises(TeamFullError, match="already has 5 of 5 people"):
-        team.add_member("user_extra")
-    assert len(team.member_user_ids) == 4
+        team(size=5, members=4).with_member(DEV)
 
 
 def test_no_one_joins_before_the_size_is_set():
     with pytest.raises(TeamNotRecruitingError, match="not set the team size"):
-        roster(size=None).add_member("user_dev")
+        team(size=None).with_member(DEV)
 
 
 def test_the_lead_and_existing_members_cannot_join_again():
-    team = roster(size=6, members=1)
+    roster = team(size=6, members=1)
     with pytest.raises(DuplicateCandidacyError):
-        team.add_member(LEAD)
+        roster.with_member(LEAD)
     with pytest.raises(DuplicateCandidacyError):
-        team.add_member("user_member_0")
+        roster.with_member(100)
 
 
 @pytest.mark.parametrize("status", [TeamStatus.LOCKED, TeamStatus.ACTIVE, TeamStatus.ARCHIVED])
-def test_a_team_that_is_not_open_refuses_every_roster_change(status):
-    team = roster(size=6, members=1, status=status)
-    with pytest.raises(TeamNotRecruitingError):
-        team.set_size(7)
-    with pytest.raises(TeamNotRecruitingError):
-        team.add_member("user_dev")
-    assert team.team_size == 6
-
-
-def test_the_locked_message_says_what_is_refused():
-    with pytest.raises(TeamNotRecruitingError, match="roster is locked"):
-        roster(status=TeamStatus.LOCKED).ensure_open()
+def test_a_team_that_is_not_open_says_recruitment_has_closed(status):
+    roster = team(size=6, members=1, status=status)
+    for change in (lambda: roster.with_size(7), lambda: roster.with_member(DEV)):
+        with pytest.raises(TeamNotRecruitingError) as raised:
+            change()
+        assert raised.value.message == RECRUITMENT_CLOSED == "Recruitment has closed"
 
 
 # --- who accepts what -----------------------------------------------------------
 
 
 def test_the_lead_accepts_an_application():
-    team, application = roster(), candidacy(CandidacyKind.APPLICATION)
-    accept(application, team, LEAD)
-    assert application.status is CandidacyStatus.ACCEPTED
-    assert team.member_user_ids == ["user_dev"]
+    accepted, joined = candidacy(CandidacyKind.APPLICATION).accept(team(), LEAD, AT)
+    assert (accepted.status, accepted.decided_at) == (CandidacyStatus.ACCEPTED, AT)
+    assert joined.member_account_ids == (DEV,)
 
 
 def test_an_applicant_cannot_accept_their_own_application():
-    team, application = roster(), candidacy(CandidacyKind.APPLICATION)
     with pytest.raises(ForbiddenError, match="Only the Team Lead"):
-        accept(application, team, "user_dev")
-    assert application.is_pending
-    assert team.member_user_ids == []
+        candidacy(CandidacyKind.APPLICATION).accept(team(), DEV, AT)
 
 
 def test_only_the_invitee_accepts_an_invitation():
-    team, invitation = roster(), candidacy(CandidacyKind.INVITATION)
+    invitation = candidacy(CandidacyKind.INVITATION)
     with pytest.raises(ForbiddenError, match="Only the invited developer"):
-        accept(invitation, team, LEAD)
-    assert invitation.is_pending
-    accept(invitation, team, "user_dev")
-    assert invitation.status is CandidacyStatus.ACCEPTED
-    assert team.member_user_ids == ["user_dev"]
+        invitation.accept(team(), LEAD, AT)
+    accepted, joined = invitation.accept(team(), DEV, AT)
+    assert accepted.status is CandidacyStatus.ACCEPTED
+    assert joined.member_account_ids == (DEV,)
 
 
-def test_an_accepted_or_closed_candidacy_cannot_be_accepted_again():
-    team, application = roster(), candidacy(CandidacyKind.APPLICATION)
-    accept(application, team, LEAD)
+def test_an_accepted_or_closed_candidacy_cannot_be_decided_again():
+    accepted, _ = candidacy(CandidacyKind.APPLICATION).accept(team(), LEAD, AT)
     with pytest.raises(CandidacyClosedError, match="already accepted"):
-        accept(application, team, LEAD)
-    closed = candidacy(CandidacyKind.APPLICATION, dev="user_other", n=2)
-    closed.close(TEAM_FULL_REASON)
+        accepted.accept(team(), LEAD, AT)
+    closed = candidacy(CandidacyKind.APPLICATION).close(TEAM_FULL_REASON, AT)
     with pytest.raises(CandidacyClosedError, match="The team is full"):
-        accept(closed, team, LEAD)
+        closed.accept(team(), LEAD, AT)
+    with pytest.raises(CandidacyClosedError, match="The team is full"):
+        closed.withdraw(DEV, AT)
 
 
-def test_accepting_into_a_full_team_changes_nothing():
-    team, application = roster(size=5, members=4), candidacy(CandidacyKind.APPLICATION)
-    with pytest.raises(TeamFullError):
-        accept(application, team, LEAD)
-    assert application.is_pending
+def test_a_locked_team_refuses_an_accept():
+    with pytest.raises(TeamNotRecruitingError, match="Recruitment has closed"):
+        candidacy(CandidacyKind.APPLICATION).accept(team(status=TeamStatus.LOCKED), LEAD, AT)
 
 
-# --- closing the rest when the team fills up -----------------------------------
+# --- ending a candidacy ---------------------------------------------------------
 
 
-def test_filling_the_last_spot_closes_the_other_pending_candidacies():
-    team = roster(size=5, members=3)
-    last = candidacy(CandidacyKind.APPLICATION, dev="user_last", n=1)
-    others = [
-        candidacy(CandidacyKind.APPLICATION, dev="user_a", n=2),
-        candidacy(CandidacyKind.INVITATION, dev="user_b", n=3),
-    ]
-    other_team = candidacy(CandidacyKind.APPLICATION, dev="user_c", n=4, team_id=2)
-    accept(last, team, LEAD)
-    closed = close_pending_if_full(team, [last, *others, other_team])
-    assert closed == others
-    assert all(c.status is CandidacyStatus.CLOSED for c in others)
-    assert all(c.closed_reason == "The team is full" for c in others)
-    assert last.status is CandidacyStatus.ACCEPTED
-    assert other_team.is_pending
+def test_each_ending_belongs_to_one_side_and_records_why():
+    application = candidacy(CandidacyKind.APPLICATION)
+    with pytest.raises(ForbiddenError):
+        application.reject(DEV, AT)
+    with pytest.raises(ForbiddenError):
+        application.withdraw(LEAD, AT)
+    assert application.reject(LEAD, AT).status is CandidacyStatus.REJECTED
+    assert application.withdraw(DEV, AT).status is CandidacyStatus.WITHDRAWN
+    invitation = candidacy(CandidacyKind.INVITATION)
+    with pytest.raises(ForbiddenError):
+        invitation.decline(LEAD, AT)
+    declined = invitation.decline(DEV, AT)
+    assert (declined.status, declined.closed_reason) == (
+        CandidacyStatus.DECLINED,
+        "The developer declined the invitation",
+    )
 
 
-def test_nothing_closes_while_spots_remain():
-    team = roster(size=6, members=1)
-    pending = [candidacy(CandidacyKind.APPLICATION)]
-    assert close_pending_if_full(team, pending) == []
-    assert pending[0].is_pending
+def test_close_all_closes_only_the_pending_ones():
+    accepted, _ = candidacy(CandidacyKind.APPLICATION, n=1).accept(team(), LEAD, AT)
+    waiting = candidacy(CandidacyKind.INVITATION, dev=60, n=2)
+    closed = close_all([accepted, waiting], TEAM_FULL_REASON, AT)
+    assert [c.id for c in closed] == [waiting.id]
+    assert (closed[0].status, closed[0].closed_reason) == (CandidacyStatus.CLOSED, "The team is full")

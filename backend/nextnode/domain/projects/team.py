@@ -1,8 +1,9 @@
-"""A project's team (#3; class diagram ``Team``, ``TeamMembership``).
+"""A project's team (class diagram ``Team``, ``TeamMembership``).
 
-One team per project and one project per team (confirmed for Phase 1). This
-module owns the team's creation and its Lead; #5 owns the roster (size, members,
-open spots) and extends the same records.
+One team per project and one project per team (confirmed for Phase 1). #3 owns
+the team's creation and #4 its Lead; Hire Devs (#5) adds the roster rules: the
+size the Lead sets, the members and the open spots between them. A team is 5-7
+people in total, the Lead included.
 """
 
 from __future__ import annotations
@@ -10,8 +11,40 @@ from __future__ import annotations
 from dataclasses import dataclass, field, replace
 from enum import StrEnum
 
-from nextnode.domain.errors import ValidationError
+from nextnode.domain.errors import (
+    ConflictError,
+    ForbiddenError,
+    InvalidStateTransitionError,
+    ValidationError,
+)
 from nextnode.domain.hiring import LeadAlreadyHiredError
+
+MIN_TEAM_SIZE = 5
+MAX_TEAM_SIZE = 7
+
+RECRUITMENT_CLOSED = "Recruitment has closed"
+
+
+class TeamSizeError(ValidationError):
+    """A team size outside 5-7, or smaller than the people already on it."""
+
+    code = "TEAM_SIZE_INVALID"
+
+
+class TeamFullError(ConflictError):
+    code = "TEAM_FULL"
+
+
+class TeamNotRecruitingError(InvalidStateTransitionError):
+    """The team is not ``Open``, or its size has not been set yet."""
+
+    code = "TEAM_NOT_RECRUITING"
+
+
+class DuplicateCandidacyError(ConflictError):
+    """The developer is already on the team, or has already applied or been invited."""
+
+    code = "DUPLICATE_CANDIDACY"
 
 
 class TeamStatus(StrEnum):
@@ -27,7 +60,7 @@ class Team:
     project_id: int | None
     status: TeamStatus = TeamStatus.OPEN
     lead_account_id: int | None = None
-    team_size: int | None = None  # total people, Lead included; set by the Lead in #5
+    team_size: int | None = None  # total people, Lead included; None until the Lead sets it
     member_account_ids: tuple[int, ...] = field(default_factory=tuple)  # approved, Lead excluded
 
     @classmethod
@@ -41,10 +74,18 @@ class Team:
         return (1 if self.lead_account_id is not None else 0) + len(self.member_account_ids)
 
     @property
+    def developer_spots(self) -> int:
+        return 0 if self.team_size is None else self.team_size - 1
+
+    @property
     def open_spots(self) -> int:
         if self.team_size is None or self.status is not TeamStatus.OPEN:
             return 0
         return max(0, self.team_size - self.headcount)
+
+    @property
+    def is_full(self) -> bool:
+        return self.team_size is not None and self.headcount >= self.team_size
 
     def is_lead(self, account_id: int | None) -> bool:
         return account_id is not None and account_id == self.lead_account_id
@@ -59,3 +100,47 @@ class Team:
         if developer_account_id in self.member_account_ids:
             raise ValidationError("This developer is already a member of the team.")
         return replace(self, lead_account_id=developer_account_id)
+
+    # --- the roster (#5) -----------------------------------------------------------
+
+    def ensure_lead(self, account_id: int | None, action: str) -> None:
+        if not self.is_lead(account_id):
+            raise ForbiddenError(f"Only this team's Team Lead can {action}.")
+
+    def ensure_recruiting(self) -> None:
+        """Every roster change is refused unless the team is ``Open``."""
+        if self.status is not TeamStatus.OPEN:
+            raise TeamNotRecruitingError(RECRUITMENT_CLOSED)
+
+    def ensure_can_join(self, account_id: int) -> None:
+        """The developer could take a spot: there is one, and they are not on the team."""
+        self.ensure_recruiting()
+        if self.is_lead(account_id):
+            raise DuplicateCandidacyError("You are this team's Team Lead already.")
+        if self.is_member(account_id):
+            raise DuplicateCandidacyError("This developer is already a member of the team.")
+        if self.team_size is None:
+            raise TeamNotRecruitingError("The Team Lead has not set the team size yet.")
+        if self.is_full:
+            raise TeamFullError(f"This team already has {self.headcount} of {self.team_size} people.")
+
+    def with_size(self, team_size: int) -> Team:
+        self.ensure_recruiting()
+        if not MIN_TEAM_SIZE <= team_size <= MAX_TEAM_SIZE:
+            raise TeamSizeError(
+                f"A team has {MIN_TEAM_SIZE} to {MAX_TEAM_SIZE} people including the Team Lead "
+                f"({MIN_TEAM_SIZE - 1} to {MAX_TEAM_SIZE - 1} developer spots); you chose {team_size}.",
+                {"size": [f"Choose between {MIN_TEAM_SIZE} and {MAX_TEAM_SIZE}."]},
+            )
+        if team_size < self.headcount:
+            raise TeamSizeError(
+                f"This team already has {self.headcount} people, so its size can't be less "
+                f"than {self.headcount}.",
+                {"size": [f"Choose at least {self.headcount}."]},
+            )
+        return replace(self, team_size=team_size)
+
+    def with_member(self, account_id: int) -> Team:
+        """Takes one open spot. Never over-fills: a full team refuses."""
+        self.ensure_can_join(account_id)
+        return replace(self, member_account_ids=(*self.member_account_ids, account_id))

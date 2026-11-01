@@ -1,6 +1,5 @@
-"""Hire Devs ports. The adapters come from the issues that own the data:
-#3 (teams and projects), #1 (accounts and roles), #4 (hiring conversations).
-Tests use in-memory fakes."""
+"""What the Hire Devs use cases need. Teams are #3's ``ProjectRepository``,
+accounts #1's ``AccountDirectory``, conversations #4's ``CandidacyConversations``."""
 
 from __future__ import annotations
 
@@ -8,50 +7,56 @@ from contextlib import AbstractContextManager
 from typing import Protocol
 from uuid import UUID
 
-from nextnode.domain.teams import Candidacy, TeamRoster
-
-
-class TeamRosterRepository(Protocol):
-    def get_for_update(self, team_id: int) -> TeamRoster | None:
-        """Locks the team until the transaction ends. Every change to a team's
-        roster or candidacies happens under this lock, so spots fill one at a
-        time and can never be over-filled."""
-        ...
-
-    def save(self, roster: TeamRoster) -> None: ...
+from nextnode.domain.teams import Candidacy
 
 
 class CandidacyRepository(Protocol):
-    def get(self, candidacy_id: UUID) -> Candidacy | None: ...
-
-    def find_pending(self, team_id: int, developer_user_id: str) -> Candidacy | None:
-        """The developer's pending application or invitation for the team."""
+    def add(self, candidacy: Candidacy) -> Candidacy:
+        """Raises ``DuplicateCandidacyError`` if the developer already has a
+        pending candidacy for the project, or has already applied to it."""
         ...
 
-    def pending_for_team(self, team_id: int) -> list[Candidacy]: ...
+    def get(self, candidacy_id: UUID) -> Candidacy | None: ...
 
     def save(self, candidacy: Candidacy) -> None: ...
+
+    def find_pending(self, project_id: int, developer_account_id: int) -> Candidacy | None:
+        """The developer's pending application or invitation for the project's team."""
+        ...
+
+    def has_applied(self, project_id: int, developer_account_id: int) -> bool:
+        """Whether the developer ever applied, whatever became of it: once per team."""
+        ...
+
+    def pending_for_project(self, project_id: int) -> list[Candidacy]: ...
+
+    def for_account(self, account_id: int) -> list[Candidacy]:
+        """Every application and invitation the account is part of, newest first."""
+        ...
 
 
 class DeveloperAccounts(Protocol):
     def is_developer(self, clerk_user_id: str) -> bool:
-        """True for an onboarded Developer account (#1); False for a client,
-        an unknown user or one who has not chosen a role yet."""
+        """True for an onboarded Developer account (#1)."""
+        ...
+
+    def is_developer_account(self, account_id: int) -> bool:
+        """The same, for someone chosen by account id (a portfolio's owner)."""
         ...
 
 
 class HiringConversations(Protocol):
     """#4's conversation module, used for team applications and invitations."""
 
-    def open_for_candidacy(
-        self, candidacy_id: UUID, team_id: int, lead_user_id: str, developer_user_id: str
-    ) -> None:
+    def open_for_candidacy(self, candidacy_id: UUID, lead_account_id: int, developer_account_id: int) -> None:
         """A conversation between the Team Lead and the developer."""
         ...
 
     def close_for_candidacy(self, candidacy_id: UUID, reason: str) -> None:
         """Makes the conversation read-only, showing ``reason``."""
         ...
+
+    def conversation_id_for(self, candidacy_id: UUID) -> str | None: ...
 
 
 class UnitOfWork(Protocol):

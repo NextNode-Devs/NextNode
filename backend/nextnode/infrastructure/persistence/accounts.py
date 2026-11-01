@@ -110,3 +110,6 @@ class DjangoAccountDirectory:
         return AccountModel.objects.filter(
             clerk_user_id=clerk_user_id, role=AccountModel.Role.DEVELOPER
         ).exists()
+
+    def is_developer_account(self, account_id: int) -> bool:
+        return AccountModel.objects.filter(pk=account_id, role=AccountModel.Role.DEVELOPER).exists()
