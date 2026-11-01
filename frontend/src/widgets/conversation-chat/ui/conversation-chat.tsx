@@ -14,7 +14,12 @@ import { useConversationChat } from "../model/use-conversation-chat";
 import { Composer } from "./composer";
 import { MessageList } from "./message-list";
 
-type Props = { conversationId: string; myAccountId: number };
+type Props = {
+  conversationId: string;
+  myAccountId: number;
+  /** Shown inside another page (a project's): no "All conversations" link. */
+  embedded?: boolean;
+};
 
 const BACK = (
   <Link
@@ -26,7 +31,7 @@ const BACK = (
 );
 
 /** One hiring conversation: live messages, history and the message box. */
-export function ConversationChat({ conversationId, myAccountId }: Props) {
+export function ConversationChat({ conversationId, myAccountId, embedded = false }: Props) {
   const chat = useConversationChat(conversationId, myAccountId);
   const { state } = chat;
 
@@ -50,7 +55,7 @@ export function ConversationChat({ conversationId, myAccountId }: Props) {
     const notFound = state.status === "not-found";
     return (
       <div className="space-y-3">
-        {BACK}
+        {embedded ? null : BACK}
         <Alert variant={notFound ? "default" : "destructive"}>
           {notFound ? <MessageSquareOffIcon aria-hidden /> : <TriangleAlertIcon aria-hidden />}
           <AlertTitle>{notFound ? "Conversation not found" : "We couldn't load this conversation"}</AlertTitle>
@@ -70,7 +75,7 @@ export function ConversationChat({ conversationId, myAccountId }: Props) {
 
   return (
     <div className="space-y-3">
-      {BACK}
+      {embedded ? null : BACK}
       <Card className="gap-0 overflow-hidden p-0">
         <header className="flex flex-wrap items-center justify-between gap-2 border-b px-4 py-3">
           <div className="min-w-0">
