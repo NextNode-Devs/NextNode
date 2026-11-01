@@ -62,3 +62,33 @@ def test_deposit_percent_is_configurable():
 def test_deposit_percent_must_be_1_to_100(value):
     with pytest.raises(ImproperlyConfiguredEnv, match="DEPOSIT_PERCENT"):
         parse({**BASE, "DEPOSIT_PERCENT": value})
+
+
+FAKE_CHECKOUT = {"STRIPE_FAKE_CHECKOUT": "true", "STRIPE_WEBHOOK_SECRET": "whsec_e2e"}
+
+
+def test_fake_checkout_needs_only_a_webhook_secret():
+    stripe = parse({**BASE, **FAKE_CHECKOUT}).stripe
+    assert stripe.fake_checkout and stripe.secret_key == "" and stripe.webhook_secret == "whsec_e2e"
+    assert "whsec_e2e" not in repr(stripe)
+
+
+def test_real_keys_mean_real_checkout():
+    assert parse({**BASE, **TEST_KEYS}).stripe.fake_checkout is False
+
+
+@pytest.mark.parametrize(
+    ("extra", "message"),
+    [
+        ({"STRIPE_SECRET_KEY": "sk_test_abc"}, "leave STRIPE_SECRET_KEY empty"),
+        ({"STRIPE_WEBHOOK_SECRET": ""}, "needs a STRIPE_WEBHOOK_SECRET"),
+    ],
+)
+def test_fake_checkout_is_refused_when_misconfigured(extra, message):
+    with pytest.raises(ImproperlyConfiguredEnv, match=message):
+        parse({**BASE, **FAKE_CHECKOUT, **extra})
+
+
+def test_fake_checkout_is_refused_in_production():
+    with pytest.raises(ImproperlyConfiguredEnv, match="production"):
+        parse({**PRODUCTION, **FAKE_CHECKOUT})

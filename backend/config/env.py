@@ -42,9 +42,11 @@ class Clerk:
 class Stripe:
     secret_key: str
     webhook_secret: str
+    # CI's end-to-end run (docs/proposals/ci.md): checkout skips Stripe, webhooks are still verified.
+    fake_checkout: bool = False
 
     def __repr__(self) -> str:  # never print keys, even in a traceback
-        return "Stripe(secret_key=***, webhook_secret=***)"
+        return f"Stripe(secret_key=***, webhook_secret=***, fake_checkout={self.fake_checkout})"
 
 
 @dataclass(frozen=True)
@@ -141,6 +143,18 @@ def _clerk(source: dict[str, str], frontend_origins: tuple[str, ...], production
 def _stripe(source: dict[str, str], production: bool) -> Stripe | None:
     secret_key = source.get("STRIPE_SECRET_KEY", "").strip()
     webhook_secret = source.get("STRIPE_WEBHOOK_SECRET", "").strip()
+    if _bool(source, "STRIPE_FAKE_CHECKOUT", False):
+        if production:
+            raise ImproperlyConfiguredEnv(
+                "STRIPE_FAKE_CHECKOUT is for tests; it can't be used in production."
+            )
+        if secret_key:
+            raise ImproperlyConfiguredEnv(
+                "STRIPE_FAKE_CHECKOUT replaces Stripe; leave STRIPE_SECRET_KEY empty."
+            )
+        if not webhook_secret.startswith("whsec_"):
+            raise ImproperlyConfiguredEnv("STRIPE_FAKE_CHECKOUT needs a STRIPE_WEBHOOK_SECRET (whsec_...).")
+        return Stripe(secret_key="", webhook_secret=webhook_secret, fake_checkout=True)
     if not secret_key and not webhook_secret:
         return None  # payments off; the webhook answers 503
     if not secret_key or not webhook_secret:
