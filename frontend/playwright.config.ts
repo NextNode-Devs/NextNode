@@ -1,5 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
+import { E2E_WEBHOOK_SECRET, REAL_STRIPE } from "./e2e/stripe";
+
 const FRONTEND_PORT = 3100;
 const BACKEND_PORT = 8100;
 
@@ -12,6 +14,12 @@ try {
 
 // E2E_DEV=1 runs the frontend with `next dev` instead of the production build.
 const DEV = process.env.E2E_DEV === "1";
+
+// Deposits (#7): the backend's checkout skips Stripe and the specs sign the webhook
+// (docs/proposals/ci.md), unless E2E_REAL_STRIPE=1 (see e2e/stripe.ts).
+const PAYMENTS: Record<string, string> = REAL_STRIPE
+  ? {}
+  : { STRIPE_FAKE_CHECKOUT: "true", STRIPE_SECRET_KEY: "", STRIPE_WEBHOOK_SECRET: E2E_WEBHOOK_SECRET };
 
 /**
  * Runs against the real production build of the frontend and a real Django
@@ -43,7 +51,7 @@ export default defineConfig({
       url: `http://127.0.0.1:${BACKEND_PORT}/api/health/`,
       reuseExistingServer: !process.env.CI,
       timeout: 60_000,
-      env: { FRONTEND_ORIGIN: `http://localhost:${FRONTEND_PORT}` },
+      env: { FRONTEND_ORIGIN: `http://localhost:${FRONTEND_PORT}`, ...PAYMENTS },
     },
     {
       command: DEV
