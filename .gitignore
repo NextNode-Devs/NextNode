@@ -10,3 +10,5 @@ Thumbs.db
 
 # Claude Code per-user settings (shared project skills under .claude/skills are committed)
 .claude/settings.local.json
+frontend/src/.agents/ 
+docs/submission/
