@@ -55,7 +55,7 @@ class ProjectRepository(Protocol):
         ...
 
     def save_team(self, team: Team) -> None:
-        """Stores the team's size and adds an approved membership for any new member (#5)."""
+        """Stores the team's size and status (#5, #6) and adds an approved membership for any new member."""
         ...
 
     def search(self, query: ProjectQuery, offset: int, limit: int) -> ProjectPage:

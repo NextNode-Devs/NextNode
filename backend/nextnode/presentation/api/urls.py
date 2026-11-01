@@ -1,6 +1,6 @@
 from django.urls import path
 
-from nextnode.presentation.api import teams
+from nextnode.presentation.api import start_gate, teams
 from nextnode.presentation.api.accounts import AccountView, MeView, OnboardingView, SkillsView
 from nextnode.presentation.api.conversations import (
     ConversationDetailView,
@@ -124,6 +124,22 @@ urlpatterns = [
         teams.WithdrawApplicationView.as_view(),
         name="team-application-withdraw",
     ),
+    # Project start gate (#6)
+    path("projects/<int:project_id>/start/", start_gate.StartGateView.as_view(), name="start-gate"),
+    path(
+        "projects/<int:project_id>/close-proposal/",
+        start_gate.CloseProposalView.as_view(),
+        name="close-proposal",
+    ),
+    path("projects/<int:project_id>/offers/", start_gate.OffersView.as_view(), name="offers"),
+    path(
+        "projects/<int:project_id>/offers/deposit-preview/",
+        start_gate.DepositPreviewView.as_view(),
+        name="offer-deposit-preview",
+    ),
+    path("offers/<int:offer_id>/accept/", start_gate.AcceptOfferView.as_view(), name="offer-accept"),
+    path("offers/<int:offer_id>/decline/", start_gate.DeclineOfferView.as_view(), name="offer-decline"),
+    path("projects/<int:project_id>/timeline/", start_gate.TimelineView.as_view(), name="timeline"),
     path(
         "projects/<int:project_id>/deposit/checkout/",
         DepositCheckoutView.as_view(),

@@ -156,7 +156,7 @@ class DjangoProjectRepository:
 
     def save_team(self, team: Team) -> None:
         with transaction.atomic():
-            TeamModel.objects.filter(pk=team.id).update(team_size=team.team_size)
+            TeamModel.objects.filter(pk=team.id).update(team_size=team.team_size, status=team.status.value)
             stored = set(
                 TeamMembershipModel.objects.filter(team_id=team.id).values_list("account", flat=True)
             )
