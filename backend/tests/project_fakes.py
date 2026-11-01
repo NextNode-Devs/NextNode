@@ -58,8 +58,13 @@ class InMemoryProjects:
         project, team = self.rows[project_id]
         self.rows[project_id] = (project, team.assign_lead(developer_account_id))
 
+    def save_team(self, team: Team) -> None:
+        assert team.project_id is not None
+        project, _ = self.rows[team.project_id]
+        self.rows[team.project_id] = (project, team)
+
     def add_member(self, project_id: int, account_id: int) -> None:
-        """What #5's approval will do."""
+        """A shortcut for tests: what accepting a candidacy does (#5)."""
         project, team = self.rows[project_id]
         self.rows[project_id] = (
             project,

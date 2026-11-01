@@ -1,5 +1,6 @@
 from django.urls import path
 
+from nextnode.presentation.api import teams
 from nextnode.presentation.api.accounts import AccountView, MeView, OnboardingView, SkillsView
 from nextnode.presentation.api.conversations import (
     ConversationDetailView,
@@ -84,6 +85,44 @@ urlpatterns = [
         "lead-applications/<uuid:candidacy_id>/withdraw/",
         WithdrawApplicationView.as_view(),
         name="lead-withdraw",
+    ),
+    # Hire Devs (#5)
+    path("projects/<int:project_id>/team/", teams.TeamView.as_view(), name="team"),
+    path("projects/<int:project_id>/team/size/", teams.TeamSizeView.as_view(), name="team-size"),
+    path("team-candidacies/mine/", teams.MyTeamCandidaciesView.as_view(), name="my-team-candidacies"),
+    path("team-candidacies/<uuid:candidacy_id>/", teams.TeamCandidacyView.as_view(), name="team-candidacy"),
+    path(
+        "projects/<int:project_id>/team/applications/",
+        teams.TeamApplicationsView.as_view(),
+        name="team-apply",
+    ),
+    path(
+        "projects/<int:project_id>/team/invitations/", teams.TeamInvitationsView.as_view(), name="team-invite"
+    ),
+    path(
+        "team-invitations/<uuid:candidacy_id>/accept/",
+        teams.AcceptInvitationView.as_view(),
+        name="team-invitation-accept",
+    ),
+    path(
+        "team-invitations/<uuid:candidacy_id>/decline/",
+        teams.DeclineInvitationView.as_view(),
+        name="team-invitation-decline",
+    ),
+    path(
+        "team-applications/<uuid:candidacy_id>/accept/",
+        teams.AcceptApplicationView.as_view(),
+        name="team-application-accept",
+    ),
+    path(
+        "team-applications/<uuid:candidacy_id>/reject/",
+        teams.RejectApplicationView.as_view(),
+        name="team-application-reject",
+    ),
+    path(
+        "team-applications/<uuid:candidacy_id>/withdraw/",
+        teams.WithdrawApplicationView.as_view(),
+        name="team-application-withdraw",
     ),
     path(
         "projects/<int:project_id>/deposit/checkout/",

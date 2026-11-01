@@ -163,9 +163,6 @@ class DjangoAccountNames:
     def names(self, account_ids: list[int]) -> dict[int, str]:
         return dict(AccountModel.objects.filter(id__in=account_ids).values_list("id", "display_name"))
 
-    def account_id_for(self, clerk_user_id: str) -> int | None:
-        return AccountModel.objects.filter(clerk_user_id=clerk_user_id).values_list("id", flat=True).first()
-
 
 def is_participant(conversation_id: str | int, account_id: int | None) -> bool:
     """For the access policy: REST and socket frames share this one check."""

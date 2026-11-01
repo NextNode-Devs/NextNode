@@ -34,5 +34,5 @@ def build_access_policy() -> AccessPolicy:
     policy.register("project", "read", any_onboarded_user)
     policy.register("project_document", "read", project_document_reader)
     policy.register("conversation", "post", conversation_participant)
-    # #5: policy.register("team", "read", ...)
+    policy.register("team", "read", any_onboarded_user)
     return policy
