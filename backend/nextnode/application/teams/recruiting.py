@@ -7,7 +7,13 @@ from nextnode.application.ports import Actor
 from nextnode.application.teams.deps import TeamDeps, require_account
 from nextnode.application.teams.dto import CandidacyView, RosterView
 from nextnode.domain.errors import ForbiddenError, NotFoundError
-from nextnode.domain.teams import Candidacy, CandidacyKind, DuplicateCandidacyError, Team
+from nextnode.domain.teams import (
+    RECRUITMENT_CLOSED,
+    Candidacy,
+    CandidacyKind,
+    DuplicateCandidacyError,
+    Team,
+)
 
 
 class SetTeamSize:
@@ -25,6 +31,19 @@ class SetTeamSize:
             self._d.projects.save_team(resized)
             closed = self._d.close_pending_if_full(project_id, resized)
             return RosterView.of(project_id, resized, closed)
+
+
+class CloseRecruitment:
+    """#6 runs this in the transaction that locks the team (it holds the lock):
+    everyone still waiting is closed, live, with "Recruitment has closed"."""
+
+    def __init__(self, deps: TeamDeps) -> None:
+        self._d = deps
+
+    def execute(self, project_id: int) -> list[str]:
+        with self._d.uow.atomic():
+            closed = self._d.close_pending(project_id, RECRUITMENT_CLOSED)
+            return [str(candidacy.id) for candidacy in closed]
 
 
 class _OpenCandidacy:

@@ -1,8 +1,12 @@
 """Hire Devs over REST with real PostgreSQL: teams, candidacies, conversations and constraints."""
 
+import threading
 from datetime import date
+from uuid import UUID
 
 import pytest
+from django.db import connections
+from rest_framework.test import APIClient
 
 from nextnode.domain.projects import Project, ProjectDetails, ProjectKind, Team
 from nextnode.infrastructure.container import get_container, override_container
@@ -13,6 +17,7 @@ from nextnode.infrastructure.persistence.models import (
     TeamModel,
 )
 from tests.conversation_fakes import make_account
+from tests.team_fakes import FakeEvents
 
 
 @pytest.fixture(autouse=True)
@@ -231,3 +236,131 @@ def test_declining_closes_the_conversation(api, auth, project, people):
         "The developer declined the invitation",
     )
     assert answer(api, auth, data["id"], "accept", "user_dev0").status_code == 409
+
+
+# --- filling the team -----------------------------------------------------------
+
+
+def fill_all_but_one(api, auth, project_id):
+    set_size(api, auth, project_id, 5)
+    for n in range(3):
+        candidacy = apply(api, auth, project_id, f"user_dev{n}").json()["data"]["id"]
+        assert decide(api, auth, candidacy, "accept", "user_lead").status_code == 200
+
+
+def test_the_last_spot_closes_the_rest_with_the_reason_live(api, auth, project, people):
+    fill_all_but_one(api, auth, project)
+    last = apply(api, auth, project, "user_dev3").json()["data"]
+    waiting_application = apply(api, auth, project, "user_dev4").json()["data"]
+    waiting_invitation = invite(api, auth, project, people["dev5"]).json()["data"]
+
+    events = FakeEvents()
+    with override_container(conversation_events=events):
+        assert decide(api, auth, last["id"], "accept", "user_lead").status_code == 200
+
+    team = TeamModel.objects.get(project_id=project)
+    assert team.memberships.filter(status="approved").count() == 5
+    for waiting in (waiting_application, waiting_invitation):
+        conversation = ConversationModel.objects.get(pk=waiting["conversation_id"])
+        assert (conversation.status, conversation.close_reason) == ("closed", "The team is full")
+        stored = TeamCandidacyModel.objects.get(pk=waiting["id"])
+        assert (stored.status, stored.closed_reason) == ("closed", "The team is full")
+    assert ConversationModel.objects.get(pk=last["conversation_id"]).status == "open"
+
+    closed_frames = [frame for _, frame in events.frames if frame["type"] == "conversation.closed"]
+    assert {frame["conversation_id"] for frame in closed_frames} == {
+        waiting_application["conversation_id"],
+        waiting_invitation["conversation_id"],
+    }
+    assert {frame["reason"] for frame in closed_frames} == {"The team is full"}
+    # The applicant whose conversation closed is told, not only the Team Lead.
+    assert any(
+        people["dev4"] in recipients and frame["type"] == "conversation.closed"
+        for recipients, frame in events.frames
+    )
+
+
+def test_a_full_team_answers_409(api, auth, project, people):
+    fill_all_but_one(api, auth, project)
+    candidacy = apply(api, auth, project, "user_dev3").json()["data"]["id"]
+    decide(api, auth, candidacy, "accept", "user_lead")
+    response = apply(api, auth, project, "user_dev4")
+    assert response.status_code == 409
+    assert response.json()["error"]["code"] == "TEAM_FULL"
+    assert invite(api, auth, project, people["dev4"]).status_code == 409
+
+
+def race(*attempts) -> list[int]:
+    barrier = threading.Barrier(len(attempts))
+    outcomes: list[int] = []
+
+    def run(attempt) -> None:
+        try:
+            barrier.wait()
+            outcomes.append(attempt())
+        finally:
+            connections.close_all()
+
+    threads = [threading.Thread(target=run, args=(attempt,)) for attempt in attempts]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+    return sorted(outcomes)
+
+
+@pytest.mark.django_db(transaction=True)
+def test_two_simultaneous_accepts_for_the_last_spot_give_one_success_and_one_409(auth, people):
+    project_id = make_project(people["client"], people["lead"])
+    client = APIClient()
+    fill_all_but_one(client, auth, project_id)
+    application = apply(client, auth, project_id, "user_dev3").json()["data"]["id"]
+    invitation = invite(client, auth, project_id, people["dev4"]).json()["data"]["id"]
+
+    outcomes = race(
+        lambda: decide(APIClient(), auth, application, "accept", "user_lead").status_code,
+        lambda: answer(APIClient(), auth, invitation, "accept", "user_dev4").status_code,
+    )
+
+    assert outcomes == [200, 409]
+    team = TeamModel.objects.get(project_id=project_id)
+    assert team.memberships.filter(status="approved").count() == 5
+    rows = TeamCandidacyModel.objects.filter(pk__in=[UUID(application), UUID(invitation)])
+    assert sorted(rows.values_list("status", flat=True)) == ["accepted", "closed"]
+
+
+@pytest.mark.django_db(transaction=True)
+def test_the_same_candidacy_accepted_twice_at_once_adds_one_member(auth, people):
+    project_id = make_project(people["client"], people["lead"])
+    client = APIClient()
+    set_size(client, auth, project_id, 5)
+    application = apply(client, auth, project_id, "user_dev0").json()["data"]["id"]
+
+    outcomes = race(
+        lambda: decide(APIClient(), auth, application, "accept", "user_lead").status_code,
+        lambda: decide(APIClient(), auth, application, "accept", "user_lead").status_code,
+    )
+
+    assert outcomes == [200, 409]
+    assert TeamMembershipModel.objects.filter(account_id=people["dev0"]).count() == 1
+
+
+# --- a Locked team --------------------------------------------------------------
+
+
+def test_a_locked_team_refuses_applying_inviting_and_accepting_with_the_reason(api, auth, project, people):
+    set_size(api, auth, project, 5)
+    application = apply(api, auth, project, "user_dev0").json()["data"]["id"]
+    invitation = invite(api, auth, project, people["dev1"]).json()["data"]["id"]
+    TeamModel.objects.filter(project_id=project).update(status="locked")
+
+    refused = [
+        apply(api, auth, project, "user_dev2"),
+        invite(api, auth, project, people["dev3"]),
+        decide(api, auth, application, "accept", "user_lead"),
+        answer(api, auth, invitation, "accept", "user_dev1"),
+    ]
+    for response in refused:
+        assert response.status_code == 409
+        assert response.json()["error"]["message"] == "Recruitment has closed"
+    assert decide(api, auth, application, "withdraw", "user_dev0").status_code == 200  # still free to leave

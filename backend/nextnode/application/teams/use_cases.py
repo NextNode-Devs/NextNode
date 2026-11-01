@@ -11,7 +11,12 @@ from nextnode.application.teams.membership import (
     RejectApplication,
     WithdrawApplication,
 )
-from nextnode.application.teams.recruiting import ApplyToJoinTeam, InviteDeveloper, SetTeamSize
+from nextnode.application.teams.recruiting import (
+    ApplyToJoinTeam,
+    CloseRecruitment,
+    InviteDeveloper,
+    SetTeamSize,
+)
 
 
 class TeamUseCases:
@@ -24,3 +29,4 @@ class TeamUseCases:
         self.invite_developer = InviteDeveloper(deps)
         self.accept_invitation = AcceptInvitation(deps)
         self.decline_invitation = DeclineInvitation(deps)
+        self.close_recruitment = CloseRecruitment(deps)

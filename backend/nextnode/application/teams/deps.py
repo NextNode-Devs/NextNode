@@ -65,8 +65,7 @@ class TeamDeps:
         self.events.publish(candidacy.participant_ids, team_updated_frame(candidacy, conversation_id))
 
     def close_pending(self, project_id: int, reason: str) -> list[Candidacy]:
-        """Closes every pending candidacy for the project and its conversation, live.
-        #6 calls this with ``RECRUITMENT_CLOSED`` when it locks a team."""
+        """Closes every pending candidacy for the project and its conversation, live."""
         closed = close_all(self.candidacies.pending_for_project(project_id), reason, self.clock.now())
         for candidacy in closed:
             self.candidacies.save(candidacy)

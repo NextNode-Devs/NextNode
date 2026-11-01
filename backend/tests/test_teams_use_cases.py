@@ -17,6 +17,7 @@ from nextnode.domain.teams import (
     CandidacyStatus,
     DuplicateCandidacyError,
     Team,
+    TeamFullError,
     TeamNotRecruitingError,
     TeamSizeError,
     TeamStatus,
@@ -370,3 +371,95 @@ def test_a_developer_can_lead_one_project_and_join_another(w, project):
     w.uc.accept_invitation.execute(dev(0), UUID(invitation.id))
     assert w.team(other).is_lead(DEV_IDS[0])
     assert w.team(project).is_member(DEV_IDS[0])
+
+
+# --- filling the team and closing the rest ------------------------------------
+
+
+def fill_all_but_one(w, project):
+    w.uc.set_team_size.execute(LEAD, project, 5)
+    for n in range(3):
+        w.uc.accept_application.execute(LEAD, UUID(w.uc.apply_to_join.execute(dev(n), project).id))
+
+
+def test_the_last_spot_closes_every_other_pending_candidacy_and_conversation_live(w, project):
+    fill_all_but_one(w, project)
+    last = w.uc.invite_developer.execute(LEAD, project, DEV_IDS[3])
+    waiting_application = w.uc.apply_to_join.execute(dev(4), project)
+    waiting_invitation = w.uc.invite_developer.execute(LEAD, project, DEV_IDS[5])
+    w.events.frames.clear()
+
+    accepted = w.uc.accept_invitation.execute(dev(3), UUID(last.id))
+
+    team = w.team(project)
+    assert accepted.status == "accepted"
+    assert (team.headcount, team.open_spots, team.is_full) == (5, 0, True)
+    for waiting in (waiting_application, waiting_invitation):
+        stored = w.candidacies.get(UUID(waiting.id))
+        assert (stored.status, stored.closed_reason) == (CandidacyStatus.CLOSED, "The team is full")
+        assert w.conversations.closed[UUID(waiting.id)] == "The team is full"
+    assert UUID(last.id) not in w.conversations.closed  # the new member keeps theirs
+    announced = {frame["candidacy_id"]: frame["status"] for _, frame in w.events.frames}
+    assert announced == {
+        last.id: "accepted",
+        waiting_application.id: "closed",
+        waiting_invitation.id: "closed",
+    }
+
+
+def test_a_full_team_refuses_new_applications_and_invitations(w, project):
+    fill_all_but_one(w, project)
+    w.uc.accept_application.execute(LEAD, UUID(w.uc.apply_to_join.execute(dev(3), project).id))
+    with pytest.raises(TeamFullError, match="already has 5 of 5 people"):
+        w.uc.apply_to_join.execute(dev(6), project)
+    with pytest.raises(TeamFullError):
+        w.uc.invite_developer.execute(LEAD, project, DEV_IDS[7])
+
+
+def test_a_candidacy_closed_by_the_full_team_cannot_be_accepted_later(w, project):
+    fill_all_but_one(w, project)
+    waiting = w.uc.apply_to_join.execute(dev(9), project)
+    w.uc.accept_application.execute(LEAD, UUID(w.uc.apply_to_join.execute(dev(3), project).id))
+    with pytest.raises(CandidacyClosedError, match="The team is full"):
+        w.uc.accept_application.execute(LEAD, UUID(waiting.id))
+    assert len(w.team(project).member_account_ids) == 4
+
+
+def test_making_room_again_does_not_reopen_closed_candidacies(w, project):
+    fill_all_but_one(w, project)
+    waiting = w.uc.apply_to_join.execute(dev(9), project)
+    w.uc.accept_application.execute(LEAD, UUID(w.uc.apply_to_join.execute(dev(3), project).id))
+    w.uc.set_team_size.execute(LEAD, project, 6)
+    assert w.candidacies.get(UUID(waiting.id)).status is CandidacyStatus.CLOSED
+
+
+# --- a Locked team -------------------------------------------------------------
+
+
+def test_a_locked_team_refuses_applying_inviting_and_accepting(w, project):
+    w.uc.set_team_size.execute(LEAD, project, 5)
+    application = w.uc.apply_to_join.execute(dev(0), project)
+    invitation = w.uc.invite_developer.execute(LEAD, project, DEV_IDS[1])
+    w.set_status(project, TeamStatus.LOCKED)
+    refused = [
+        lambda: w.uc.apply_to_join.execute(dev(2), project),
+        lambda: w.uc.invite_developer.execute(LEAD, project, DEV_IDS[3]),
+        lambda: w.uc.accept_application.execute(LEAD, UUID(application.id)),
+        lambda: w.uc.accept_invitation.execute(dev(1), UUID(invitation.id)),
+    ]
+    for attempt in refused:
+        with pytest.raises(TeamNotRecruitingError) as raised:
+            attempt()
+        assert raised.value.message == "Recruitment has closed"
+    assert w.team(project).member_account_ids == ()
+
+
+def test_close_recruitment_closes_what_is_pending_with_the_reason(w, project):
+    w.uc.set_team_size.execute(LEAD, project, 5)
+    application = w.uc.apply_to_join.execute(dev(0), project)
+    accepted = w.uc.apply_to_join.execute(dev(1), project)
+    w.uc.accept_application.execute(LEAD, UUID(accepted.id))
+    assert w.uc.close_recruitment.execute(project) == [application.id]
+    stored = w.candidacies.get(UUID(application.id))
+    assert (stored.status, stored.closed_reason) == (CandidacyStatus.CLOSED, "Recruitment has closed")
+    assert w.conversations.closed[UUID(application.id)] == "Recruitment has closed"
