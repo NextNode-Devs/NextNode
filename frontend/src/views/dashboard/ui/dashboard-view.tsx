@@ -1,8 +1,9 @@
 import { ArrowRightIcon, PencilIcon } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Suspense } from "react";
+import { Suspense, type ReactNode } from "react";
 
+import { TeamLiveRefresh } from "@/entities/team";
 import { getViewer, routeFor } from "@/entities/viewer";
 import { RealtimeProvider } from "@/shared/api/realtime";
 import { isAuthConfigured } from "@/shared/config/env.public";
@@ -14,6 +15,7 @@ import { ConversationList } from "@/widgets/conversation-list";
 import { DashboardShell } from "@/widgets/dashboard-shell";
 import { MyLeadCandidacies } from "@/widgets/my-lead-candidacies";
 import { MyProjects } from "@/widgets/my-projects";
+import { TeamCandidacies } from "@/widgets/team-candidacies";
 
 /** The signed-in home. Users without an account are sent to onboarding first. */
 export function DashboardView() {
@@ -49,6 +51,11 @@ async function Dashboard() {
       <MyLeadCandidacies role={account.role} show={show} />
     </Suspense>
   );
+  const team = (show: "applications" | "invitations") => (
+    <Suspense fallback={<LoadingCards count={1} label="Loading" />}>
+      <TeamCandidacies show={show} />
+    </Suspense>
+  );
   return (
     <DashboardShell
       account={account}
@@ -58,10 +65,19 @@ async function Dashboard() {
             <MyProjects role={account.role} />
           </Suspense>
         ),
-        // Hire Lead (#4). A client sees applicants and invitees together; a developer
-        // sees invitations and applications apart. #5 adds team ones alongside.
-        applications: lead(account.role === "client" ? "all" : "application"),
-        ...(account.role === "developer" ? { invitations: lead("invitation") } : {}),
+        // A client sees Hire Lead's applicants and invitees together. A developer sees
+        // invitations and applications apart: to lead a project (#4) and to join a team (#5).
+        ...(account.role === "client"
+          ? { applications: lead("all") }
+          : {
+              applications: <TwoLists lead={lead("application")} team={team("applications")} />,
+              invitations: (
+                <>
+                  {isAuthConfigured() ? <TeamLiveRefresh /> : null}
+                  <TwoLists lead={lead("invitation")} team={team("invitations")} />
+                </>
+              ),
+            }),
         conversations: (
           <div className="space-y-3">
             <ConversationList
@@ -84,6 +100,21 @@ async function Dashboard() {
         portfolio: account.role === "developer" ? <PortfolioSection /> : <FindDevelopersSection />,
       }}
     />
+  );
+}
+
+function TwoLists({ lead, team }: { lead: ReactNode; team: ReactNode }) {
+  return (
+    <div className="space-y-4">
+      <section className="space-y-2">
+        <h3 className="text-sm font-medium">To lead a project</h3>
+        {lead}
+      </section>
+      <section className="space-y-2">
+        <h3 className="text-sm font-medium">To join a team</h3>
+        {team}
+      </section>
+    </div>
   );
 }
 

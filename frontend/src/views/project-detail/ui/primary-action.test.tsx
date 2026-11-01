@@ -5,6 +5,9 @@ import type { Project } from "@/entities/project";
 
 import { PrimaryAction } from "./primary-action";
 
+vi.mock("@/features/apply-to-join", () => ({
+  ApplyToJoin: ({ projectId }: { projectId: number }) => <button>Apply to join {projectId}</button>,
+}));
 vi.mock("@/features/apply-to-lead", () => ({
   ApplyToLead: ({ projectId }: { projectId: number }) => <button>Apply to lead {projectId}</button>,
 }));
@@ -45,8 +48,13 @@ describe("PrimaryAction", () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  it("shows no dead control for Apply to join until #5 mounts it", () => {
-    const { container } = render(<PrimaryAction project={project({ viewer_actions: ["apply_to_join"] })} />);
-    expect(container).toBeEmptyDOMElement();
+  it("offers Apply to join with the open spots, on either kind of project", () => {
+    const team = { id: 1, status: "open", size: 5, headcount: 4, open_spots: 1 };
+    const { unmount } = render(<PrimaryAction project={project({ team, viewer_actions: ["apply_to_join"] })} />);
+    expect(screen.getByRole("button", { name: "Apply to join 5" })).toBeInTheDocument();
+    expect(screen.getByText(/1 open spot\./)).toBeInTheDocument();
+    unmount();
+    render(<PrimaryAction project={project({ kind: "developer", team, viewer_actions: ["apply_to_join"] })} />);
+    expect(screen.getByRole("button", { name: "Apply to join 5" })).toBeInTheDocument();
   });
 });
