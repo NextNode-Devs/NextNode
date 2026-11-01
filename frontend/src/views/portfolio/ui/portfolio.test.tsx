@@ -62,16 +62,19 @@ describe("PortfolioProfile", () => {
 
 describe("PortfolioActions (the slot #4 and #5 fill)", () => {
   it("is never shown to the portfolio's owner", () => {
-    const { container } = render(<PortfolioActions portfolio={{ ...PORTFOLIO, is_owner: true }} viewerRole="client" />);
-    expect(container).toBeEmptyDOMElement();
+    for (const viewerRole of ["client", "developer"] as const) {
+      const { container, unmount } = render(<PortfolioActions portfolio={{ ...PORTFOLIO, is_owner: true }} viewerRole={viewerRole} />);
+      expect(container).toBeEmptyDOMElement();
+      unmount();
+    }
   });
 
-  it("offers clients #4's invite to lead; developers get nothing until #5", () => {
-    const [invite] = actionsFor(PORTFOLIO, "client") as ReactElement<{ developerId: number }>[];
-    expect(invite.key).toBe("invite-to-lead");
-    expect(invite.props.developerId).toBe(7);
-    expect(actionsFor(PORTFOLIO, "developer")).toEqual([]);
-    const { container } = render(<PortfolioActions portfolio={PORTFOLIO} viewerRole="developer" />);
-    expect(container).toBeEmptyDOMElement();
+  it("offers clients #4's invite to lead and developers #5's invite to their team, kept apart", () => {
+    const [lead] = actionsFor(PORTFOLIO, "client") as ReactElement<{ developerId: number }>[];
+    expect(lead.key).toBe("invite-to-lead");
+    expect(lead.props.developerId).toBe(7);
+    const [team] = actionsFor(PORTFOLIO, "developer") as ReactElement<{ developerId: number }>[];
+    expect(team.key).toBe("invite-to-team");
+    expect(team.props.developerId).toBe(7);
   });
 });

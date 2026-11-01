@@ -31,12 +31,15 @@ from nextnode.infrastructure.persistence.models import (
 
 APPROVED = TeamMembershipModel.Status.APPROVED
 LEAD = TeamMembershipModel.Role.LEAD
+MEMBER = TeamMembershipModel.Role.MEMBER
 
 
 def _approved_memberships() -> Prefetch:
     return Prefetch(
         "team__memberships",
-        queryset=TeamMembershipModel.objects.filter(status=APPROVED).select_related("account"),
+        queryset=TeamMembershipModel.objects.filter(status=APPROVED)
+        .select_related("account")
+        .order_by("created_at", "id"),
         to_attr="approved",
     )
 
@@ -53,7 +56,11 @@ def _to_record(row: ProjectModel) -> ProjectRecord:
     team_row = row.team
     approved = getattr(team_row, "approved", None)
     if approved is None:  # not prefetched (a fresh row after a save)
-        approved = list(team_row.memberships.filter(status=APPROVED).select_related("account"))
+        approved = list(
+            team_row.memberships.filter(status=APPROVED)
+            .select_related("account")
+            .order_by("created_at", "id")
+        )
     lead = next((m for m in approved if m.role == LEAD), None)
     project = Project(
         id=row.id,
@@ -146,6 +153,16 @@ class DjangoProjectRepository:
                 )
         except IntegrityError:
             raise LeadAlreadyHiredError() from None
+
+    def save_team(self, team: Team) -> None:
+        with transaction.atomic():
+            TeamModel.objects.filter(pk=team.id).update(team_size=team.team_size)
+            stored = set(
+                TeamMembershipModel.objects.filter(team_id=team.id).values_list("account", flat=True)
+            )
+            for account_id in team.member_account_ids:
+                if account_id not in stored:
+                    TeamMembershipModel.objects.create(team_id=team.id, account_id=account_id, role=MEMBER)
 
     def search(self, query: ProjectQuery, offset: int, limit: int) -> ProjectPage:
         rows = ProjectModel.objects.filter(deleted_at__isnull=True, status=ProjectModel.Status.POSTED)

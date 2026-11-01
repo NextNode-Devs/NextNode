@@ -4,6 +4,7 @@ import { ArrowLeftIcon, LockIcon, MessageSquareOffIcon, TriangleAlertIcon } from
 import Link from "next/link";
 
 import { otherParticipant, SUBJECT_LABEL } from "@/entities/conversation";
+import { TeamDecisions } from "@/features/accept-invitation";
 import { LeadDecisions } from "@/features/hire-team-lead";
 import { Alert, AlertDescription, AlertTitle } from "@/shared/ui/shadcn/alert";
 import { Badge } from "@/shared/ui/shadcn/badge";
@@ -94,6 +95,13 @@ export function ConversationChat({ conversationId, myAccountId, embedded = false
             candidacyId={conversation.subject_id}
             myAccountId={myAccountId}
             developerName={other.display_name}
+          />
+        ) : null}
+        {conversation.subject_kind === "team_candidacy" ? (
+          <TeamDecisions
+            candidacyId={conversation.subject_id}
+            myAccountId={myAccountId}
+            otherName={other.display_name}
           />
         ) : null}
 

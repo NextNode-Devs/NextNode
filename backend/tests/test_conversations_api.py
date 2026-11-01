@@ -132,7 +132,7 @@ def test_opening_the_same_subject_twice_keeps_one_conversation(people, conversat
 def test_team_candidacies_use_the_same_conversations(people):
     candidacy = uuid4()
     port = get_container().candidacy_conversations
-    port.open_for_candidacy(candidacy, 1, "user_dev", "user_other")
+    port.open_for_candidacy(candidacy, people["dev"], people["other"])
     port.close_for_candidacy(candidacy, "The team is full.")
     row = ConversationModel.objects.get(subject_id=str(candidacy))
     assert (row.subject_kind, row.status) == ("team_candidacy", "closed")

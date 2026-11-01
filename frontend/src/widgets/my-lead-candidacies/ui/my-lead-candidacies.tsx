@@ -29,7 +29,7 @@ const EMPTY: Record<Show, string> = {
 /**
  * The dashboard's Hire Lead lists (#4): a client's applicants and invitees, a
  * developer's invitations or applications. Each opens the conversation on the
- * project's page. (#5 adds team applications and invitations alongside.)
+ * project's page. Team applications and invitations are `widgets/team-candidacies` (#5).
  */
 export async function MyLeadCandidacies({ role, show, limit = 5 }: Props) {
   const result = await getMyLeadCandidacies(authedServerApi);

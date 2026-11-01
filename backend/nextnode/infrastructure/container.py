@@ -80,6 +80,10 @@ from nextnode.application.projects.documents import (
 )
 from nextnode.application.projects.ports import DocumentRepository, FileStorage, LinkSigner, ProjectRepository
 from nextnode.application.projects.queries import GetProject, ListMyProjects, SearchProjects
+from nextnode.application.teams.deps import TeamDeps
+from nextnode.application.teams.ports import CandidacyRepository, TeamMembers
+from nextnode.application.teams.queries import GetTeam
+from nextnode.application.teams.use_cases import TeamUseCases
 from nextnode.domain.projects import UploadLimits
 from nextnode.infrastructure.access_rules import build_access_policy
 from nextnode.infrastructure.auth.clerk import ClerkTokenVerifier, UnconfiguredTokenVerifier
@@ -110,6 +114,7 @@ from nextnode.infrastructure.persistence.projects import (
     DjangoLeadProjects,
     DjangoProjectRepository,
 )
+from nextnode.infrastructure.persistence.teams import DjangoTeamCandidacies, DjangoTeamMembers
 from nextnode.infrastructure.realtime.conversation_events import OnCommitConversationEvents
 from nextnode.infrastructure.realtime.publisher import ChannelsEventPublisher
 from nextnode.infrastructure.storage.links import DjangoLinkSigner
@@ -147,6 +152,8 @@ class Container:
     file_storage: FileStorage
     link_signer: LinkSigner
     upload_limits: UploadLimits
+    team_candidacies: CandidacyRepository
+    team_members: TeamMembers
 
     @property
     def get_account(self) -> GetAccount:
@@ -221,9 +228,7 @@ class Container:
     @property
     def candidacy_conversations(self) -> CandidacyConversations:
         """#5's ``HiringConversations`` port."""
-        return CandidacyConversations(
-            self.open_conversation, self.close_conversation, self.conversations, self.account_names
-        )
+        return CandidacyConversations(self.open_conversation, self.close_conversation, self.conversations)
 
     # --- Hire Lead (#4) -----------------------------------------------------------
 
@@ -336,6 +341,27 @@ class Container:
     def download_document(self) -> DownloadDocument:
         return DownloadDocument(self._documents)
 
+    # --- Hire Devs (#5) ---------------------------------------------------------------
+
+    @property
+    def teams(self) -> TeamUseCases:
+        return TeamUseCases(
+            TeamDeps(
+                projects=self.projects,
+                candidacies=self.team_candidacies,
+                accounts=self.account_directory,
+                conversations=self.candidacy_conversations,
+                events=self.conversation_events,
+                names=self.account_names,
+                clock=self.clock,
+                uow=self.uow,
+            )
+        )
+
+    @property
+    def get_team(self) -> GetTeam:
+        return GetTeam(self.projects, self.team_members, self.access_policy)
+
     @property
     def handle_payment_webhook(self) -> HandlePaymentWebhook:
         return HandlePaymentWebhook(
@@ -407,6 +433,8 @@ def build_container() -> Container:
         file_storage=LocalPrivateStorage(uploads.private_media_root),
         link_signer=DjangoLinkSigner(),
         upload_limits=UploadLimits(uploads.max_bytes, uploads.max_files_per_project),
+        team_candidacies=DjangoTeamCandidacies(),
+        team_members=DjangoTeamMembers(),
     )
 
 

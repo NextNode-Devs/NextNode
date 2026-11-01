@@ -20,7 +20,6 @@ class Store:
     markers: dict[tuple[UUID, int], int] = field(default_factory=dict)
     published: list[tuple[tuple[int, ...], dict]] = field(default_factory=list)
     names: dict[int, str] = field(default_factory=dict)
-    clerk_ids: dict[str, int] = field(default_factory=dict)
     ticks: int = 0
 
     def tick(self) -> datetime:
@@ -107,9 +106,6 @@ class FakeNames:
 
     def names(self, account_ids: list[int]) -> dict[int, str]:
         return {i: self.store.names[i] for i in account_ids if i in self.store.names}
-
-    def account_id_for(self, clerk_user_id: str) -> int | None:
-        return self.store.clerk_ids.get(clerk_user_id)
 
 
 class FakeEvents:

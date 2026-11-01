@@ -14,10 +14,11 @@ import { Alert, AlertDescription, AlertTitle } from "@/shared/ui/shadcn/alert";
 import { Button } from "@/shared/ui/shadcn/button";
 import { AppHeader } from "@/widgets/app-header";
 import { RequirementDocuments } from "@/widgets/requirement-documents";
+import { TeamRoster } from "@/widgets/team-roster";
 
 import { PrimaryAction } from "./primary-action";
 import { ProjectChats } from "./project-chats";
-import { ProjectBrief, TeamCard } from "./project-sections";
+import { ProjectBrief } from "./project-sections";
 
 export type Notice = "created" | "saved" | null;
 
@@ -145,13 +146,16 @@ async function ProjectScreen({ projectId, notice }: Props) {
         </div>
         <aside className="space-y-4">
           <PrimaryAction project={project} />
-          <TeamCard project={project} />
+          <Suspense fallback={<LoadingCards count={1} label="Loading the team" />}>
+            <TeamRoster project={project} />
+          </Suspense>
         </aside>
       </div>
       {chats}
     </div>
   );
-  return chats && isAuthConfigured() ? <RealtimeProvider>{page}</RealtimeProvider> : page;
+  // Live: hiring conversations and team decisions.
+  return isAuthConfigured() ? <RealtimeProvider>{page}</RealtimeProvider> : page;
 }
 
 function SavedNotice({ project, notice }: { project: Project; notice: NonNullable<Notice> }) {
