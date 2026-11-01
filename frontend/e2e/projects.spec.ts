@@ -4,6 +4,8 @@ import { createClerkClient } from "@clerk/nextjs/server";
 import { clerk } from "@clerk/testing/playwright";
 import { expect, test, type Browser, type Page } from "@playwright/test";
 
+import { isConsoleProblem } from "./console";
+
 /**
  * #3 projects, as two people in two browsers: a client publishes a brief and
  * attaches a requirement PDF, a developer finds it with the filters, sees
@@ -25,7 +27,7 @@ function django(code: string): string {
 function watchConsole(page: Page): string[] {
   const problems: string[] = [];
   page.on("console", (m) => {
-    if (m.type() === "error" || /hydrat/i.test(m.text())) problems.push(m.text());
+    if (isConsoleProblem(m)) problems.push(m.text());
   });
   page.on("pageerror", (error) => problems.push(error.message));
   return problems;

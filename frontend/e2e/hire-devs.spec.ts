@@ -4,6 +4,8 @@ import { createClerkClient } from "@clerk/nextjs/server";
 import { clerk } from "@clerk/testing/playwright";
 import { expect, test, type Browser, type Page } from "@playwright/test";
 
+import { isConsoleProblem } from "./console";
+
 /**
  * #5 Hire Devs, through the UI with one browser per person. A Team Lead sets the
  * size, invites one developer (who accepts) and accepts three applications; the
@@ -50,7 +52,7 @@ async function signedInPerson(browser: Browser, name: string, body: object): Pro
   const page = await (await browser.newContext()).newPage();
   const problems: string[] = [];
   page.on("console", (m) => {
-    if (m.type() === "error" || /hydrat/i.test(m.text())) problems.push(m.text());
+    if (isConsoleProblem(m)) problems.push(m.text());
   });
   page.on("pageerror", (error) => problems.push(error.message));
   await page.goto("/");

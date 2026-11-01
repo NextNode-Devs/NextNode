@@ -1,9 +1,11 @@
 import { expect, test } from "@playwright/test";
 
+import { isConsoleProblem } from "./console";
+
 test("home renders, reaches the backend, and logs no console errors", async ({ page }) => {
   const problems: string[] = [];
   page.on("console", (message) => {
-    if (message.type() === "error" || /hydrat/i.test(message.text())) problems.push(message.text());
+    if (isConsoleProblem(message)) problems.push(message.text());
   });
   page.on("pageerror", (error) => problems.push(error.message));
 

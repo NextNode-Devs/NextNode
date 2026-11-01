@@ -2,6 +2,8 @@ import { clerk } from "@clerk/testing/playwright";
 import { createClerkClient } from "@clerk/nextjs/server";
 import { expect, test, type Page } from "@playwright/test";
 
+import { isConsoleProblem } from "./console";
+
 /**
  * #1 journeys. The signed-out redirect runs everywhere. Onboarding needs the
  * Clerk development keys (frontend/.env.local, or GitHub environment secrets
@@ -12,7 +14,7 @@ const hasClerk = Boolean(process.env.CLERK_SECRET_KEY && process.env.NEXT_PUBLIC
 function watchConsole(page: Page): string[] {
   const problems: string[] = [];
   page.on("console", (m) => {
-    if (m.type() === "error" || /hydrat/i.test(m.text())) problems.push(m.text());
+    if (isConsoleProblem(m)) problems.push(m.text());
   });
   page.on("pageerror", (error) => problems.push(error.message));
   return problems;
