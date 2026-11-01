@@ -94,6 +94,19 @@ urlpatterns = [
         name="team-apply",
     ),
     path(
+        "projects/<int:project_id>/team/invitations/", teams.TeamInvitationsView.as_view(), name="team-invite"
+    ),
+    path(
+        "team-invitations/<uuid:candidacy_id>/accept/",
+        teams.AcceptInvitationView.as_view(),
+        name="team-invitation-accept",
+    ),
+    path(
+        "team-invitations/<uuid:candidacy_id>/decline/",
+        teams.DeclineInvitationView.as_view(),
+        name="team-invitation-decline",
+    ),
+    path(
         "team-applications/<uuid:candidacy_id>/accept/",
         teams.AcceptApplicationView.as_view(),
         name="team-application-accept",

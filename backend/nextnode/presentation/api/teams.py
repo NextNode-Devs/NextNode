@@ -28,6 +28,22 @@ class TeamSizeView(APIView):
         return Response({"data": asdict(view)})
 
 
+class InvitationSerializer(serializers.Serializer):
+    developer_account_id = serializers.IntegerField(min_value=1)
+
+
+class TeamInvitationsView(APIView):
+    """The Team Lead invites a developer, who joins only if they accept."""
+
+    def post(self, request: Request, project_id: int) -> Response:
+        body = InvitationSerializer(data=request.data)
+        body.is_valid(raise_exception=True)
+        view = get_container().teams.invite_developer.execute(
+            request.user.actor, project_id, body.validated_data["developer_account_id"]
+        )
+        return Response({"data": asdict(view)}, status=201)
+
+
 class TeamApplicationsView(APIView):
     """A developer applies to join (once). Opens the conversation with the Team Lead."""
 
@@ -49,3 +65,5 @@ def _decision(use_case: str):
 AcceptApplicationView = _decision("accept_application")
 RejectApplicationView = _decision("reject_application")
 WithdrawApplicationView = _decision("withdraw_application")
+AcceptInvitationView = _decision("accept_invitation")
+DeclineInvitationView = _decision("decline_invitation")

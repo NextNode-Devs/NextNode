@@ -177,3 +177,57 @@ def test_wrong_people_get_403_or_404_on_a_decision(api, auth, project):
         assert decide(api, auth, candidacy, action, "user_dev1").status_code == 404
         assert decide(api, auth, candidacy, action, "user_client").status_code == 404
         assert decide(api, auth, candidacy, action, "user_other_lead").status_code == 404
+
+
+# --- invitations ----------------------------------------------------------------
+
+
+def invite(api, auth, project_id, developer_id, sub="user_lead"):
+    body = {"developer_account_id": developer_id}
+    return api.post(f"/api/projects/{project_id}/team/invitations/", body, format="json", **auth(sub))
+
+
+def answer(api, auth, candidacy_id, action, sub):
+    return api.post(f"/api/team-invitations/{candidacy_id}/{action}/", **auth(sub))
+
+
+def test_invite_opens_the_conversation_and_only_the_invitee_can_accept(api, auth, project, people):
+    set_size(api, auth, project, 5)
+    response = invite(api, auth, project, people["dev0"])
+    assert response.status_code == 201
+    data = response.json()["data"]
+    assert (data["kind"], data["status"]) == ("invitation", "pending")
+    conversation = ConversationModel.objects.get(pk=data["conversation_id"])
+    assert conversation.subject_kind == "team_candidacy"
+    assert not TeamMembershipModel.objects.filter(account_id=people["dev0"]).exists()
+
+    assert answer(api, auth, data["id"], "accept", "user_lead").status_code == 403
+    assert answer(api, auth, data["id"], "accept", "user_dev1").status_code == 404
+    assert answer(api, auth, data["id"], "accept", "user_dev0").status_code == 200
+    assert TeamMembershipModel.objects.get(account_id=people["dev0"]).role == "member"
+
+
+def test_inviting_is_for_the_lead_and_for_developers(api, auth, project, people):
+    set_size(api, auth, project, 5)
+    assert invite(api, auth, project, people["dev0"], sub="user_dev1").status_code == 403
+    assert invite(api, auth, project, people["dev0"], sub="user_client").status_code == 403
+    assert invite(api, auth, project, people["dev0"], sub="user_other_lead").status_code == 403
+    assert invite(api, auth, project, people["client"]).status_code == 404
+    assert invite(api, auth, project, 99999).status_code == 404
+    assert invite(api, auth, 99999, people["dev0"]).status_code == 404
+    assert invite(api, auth, project, "someone").status_code == 400
+    assert invite(api, auth, project, people["dev0"]).status_code == 201
+    assert invite(api, auth, project, people["dev0"]).status_code == 409
+
+
+def test_declining_closes_the_conversation(api, auth, project, people):
+    set_size(api, auth, project, 5)
+    data = invite(api, auth, project, people["dev0"]).json()["data"]
+    assert answer(api, auth, data["id"], "decline", "user_lead").status_code == 403
+    assert answer(api, auth, data["id"], "decline", "user_dev0").status_code == 200
+    conversation = ConversationModel.objects.get(pk=data["conversation_id"])
+    assert (conversation.status, conversation.close_reason) == (
+        "closed",
+        "The developer declined the invitation",
+    )
+    assert answer(api, auth, data["id"], "accept", "user_dev0").status_code == 409

@@ -273,3 +273,100 @@ def test_strangers_and_other_teams_see_nothing(w, project):
         for action in (w.uc.accept_application, w.uc.reject_application, w.uc.withdraw_application):
             with pytest.raises(NotFoundError, match="Application not found"):
                 action.execute(who, UUID(application.id))
+
+
+# --- InviteDeveloper ------------------------------------------------------------
+
+
+def test_the_lead_invites_and_the_invitee_is_not_a_member_until_they_accept(w, project):
+    w.uc.set_team_size.execute(LEAD, project, 5)
+    invitation = w.uc.invite_developer.execute(LEAD, project, DEV_IDS[0])
+    assert (invitation.kind, invitation.developer_account_id) == ("invitation", DEV_IDS[0])
+    assert w.conversations.opened == [(UUID(invitation.id), LEAD_ID, DEV_IDS[0])]
+    assert w.team(project).member_account_ids == ()
+    assert invitation.actions.accept is False  # what the Lead sees
+
+
+@pytest.mark.parametrize("who", [dev(1), CLIENT])
+def test_only_the_lead_invites(w, project, who):
+    w.uc.set_team_size.execute(LEAD, project, 5)
+    with pytest.raises(ForbiddenError, match="Only this team's Team Lead"):
+        w.uc.invite_developer.execute(who, project, DEV_IDS[0])
+    assert w.candidacies.rows == {}
+
+
+def test_a_client_or_unknown_account_cannot_be_invited(w, project):
+    w.uc.set_team_size.execute(LEAD, project, 5)
+    for target in (CLIENT_ID, 9999):
+        with pytest.raises(NotFoundError, match="Developer not found"):
+            w.uc.invite_developer.execute(LEAD, project, target)
+
+
+def test_the_lead_cannot_invite_themselves_or_a_member(w, project):
+    w.uc.set_team_size.execute(LEAD, project, 5)
+    with pytest.raises(DuplicateCandidacyError):
+        w.uc.invite_developer.execute(LEAD, project, LEAD_ID)
+    w.projects.add_member(project, DEV_IDS[0])
+    with pytest.raises(DuplicateCandidacyError, match="already a member"):
+        w.uc.invite_developer.execute(LEAD, project, DEV_IDS[0])
+
+
+def test_duplicates_point_to_what_is_already_open(w, project):
+    w.uc.set_team_size.execute(LEAD, project, 5)
+    w.uc.invite_developer.execute(LEAD, project, DEV_IDS[0])
+    with pytest.raises(DuplicateCandidacyError, match="already invited"):
+        w.uc.invite_developer.execute(LEAD, project, DEV_IDS[0])
+    with pytest.raises(DuplicateCandidacyError, match="accept the invitation instead"):
+        w.uc.apply_to_join.execute(dev(0), project)
+    w.uc.apply_to_join.execute(dev(1), project)
+    with pytest.raises(DuplicateCandidacyError, match="accept their application instead"):
+        w.uc.invite_developer.execute(LEAD, project, DEV_IDS[1])
+
+
+def test_a_declined_developer_can_be_invited_again(w, project):
+    w.uc.set_team_size.execute(LEAD, project, 5)
+    first = w.uc.invite_developer.execute(LEAD, project, DEV_IDS[0])
+    w.uc.decline_invitation.execute(dev(0), UUID(first.id))
+    assert w.uc.invite_developer.execute(LEAD, project, DEV_IDS[0]).status == "pending"
+
+
+# --- deciding an invitation -----------------------------------------------------
+
+
+def test_the_invitee_accepts_and_the_lead_cannot_accept_for_them(w, project):
+    w.uc.set_team_size.execute(LEAD, project, 5)
+    invitation = w.uc.invite_developer.execute(LEAD, project, DEV_IDS[0])
+    with pytest.raises(ForbiddenError, match="Only the invited developer"):
+        w.uc.accept_invitation.execute(LEAD, UUID(invitation.id))
+    assert w.team(project).member_account_ids == ()
+    assert w.uc.accept_invitation.execute(dev(0), UUID(invitation.id)).status == "accepted"
+    assert w.team(project).member_account_ids == (DEV_IDS[0],)
+
+
+def test_the_invitee_declines_and_the_conversation_closes(w, project):
+    w.uc.set_team_size.execute(LEAD, project, 5)
+    invitation = w.uc.invite_developer.execute(LEAD, project, DEV_IDS[0])
+    with pytest.raises(ForbiddenError, match="Only the invited developer"):
+        w.uc.decline_invitation.execute(LEAD, UUID(invitation.id))
+    assert w.uc.decline_invitation.execute(dev(0), UUID(invitation.id)).status == "declined"
+    assert w.conversations.closed[UUID(invitation.id)] == "The developer declined the invitation"
+
+
+def test_the_wrong_url_for_the_kind_is_not_found(w, project):
+    w.uc.set_team_size.execute(LEAD, project, 5)
+    invitation = w.uc.invite_developer.execute(LEAD, project, DEV_IDS[0])
+    application = w.uc.apply_to_join.execute(dev(1), project)
+    with pytest.raises(NotFoundError, match="Application not found"):
+        w.uc.accept_application.execute(LEAD, UUID(invitation.id))
+    with pytest.raises(NotFoundError, match="Invitation not found"):
+        w.uc.accept_invitation.execute(dev(1), UUID(application.id))
+
+
+def test_a_developer_can_lead_one_project_and_join_another(w, project):
+    other = w.project(lead_id=DEV_IDS[0], kind=ProjectKind.DEVELOPER)
+    w.uc.set_team_size.execute(dev(0), other, 5)
+    w.uc.set_team_size.execute(LEAD, project, 5)
+    invitation = w.uc.invite_developer.execute(LEAD, project, DEV_IDS[0])
+    w.uc.accept_invitation.execute(dev(0), UUID(invitation.id))
+    assert w.team(other).is_lead(DEV_IDS[0])
+    assert w.team(project).is_member(DEV_IDS[0])
