@@ -146,6 +146,12 @@ class Project:
     def send_offer(self) -> Project:
         return self._move(ProjectStatus.OFFER_SENT)
 
+    def revise_offer(self) -> Project:
+        """A revised version after the client declined one (#6): the project stays ``OfferSent``."""
+        if not self.is_client_project or self.status is not ProjectStatus.OFFER_SENT:
+            self._move(ProjectStatus.OFFER_SENT)  # raises the same reason a first offer would
+        return self
+
     def accept_offer(self) -> Project:
         return self._move(ProjectStatus.ASSIGNED)
 
