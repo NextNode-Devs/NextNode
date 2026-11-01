@@ -85,6 +85,8 @@ test.describe("Hire Devs", () => {
 
   test.afterEach(async () => {
     if (people.length === 0) return;
+    // Open pages keep their sockets reconnecting, which slows the later specs on this worker.
+    for (const person of people) await person.page.context().close();
     // The e2e backend shares the local database: remove everything these accounts made.
     const ids = people.map((p) => `"${p.userId}"`).join(", ");
     django(
@@ -157,7 +159,7 @@ test.describe("Hire Devs", () => {
     await ada.page.goto(projectPath);
     await ada.page.getByRole("radio", { name: "5", exact: true }).click();
     await ada.page.getByRole("button", { name: "Open the spots" }).click();
-    await expect(ada.page.getByText("1 of 5 people · 4 open spots")).toBeVisible({ timeout: 20_000 });
+    await expect(ada.page.getByText("1 of 5 people · 4 open spots").filter({ visible: true })).toBeVisible({ timeout: 20_000 });
     const before = ada.problems.length;
     const refused = await callApi(ada.page, "PUT", `/api/projects/${projectId}/team/size/`, { size: 4 });
     expect(refused.status).toBe(400);
@@ -233,7 +235,7 @@ test.describe("Hire Devs", () => {
     await expect(roster).toHaveCount(5);
     await expect(roster.first()).toContainText("Ada E2E");
     await expect(roster.first()).toContainText("Team Lead");
-    await expect(grace.page.getByText("5 of 5 people. The team is full.")).toBeVisible();
+    await expect(grace.page.getByText("5 of 5 people. The team is full.").filter({ visible: true })).toBeVisible();
     await grace.page.getByRole("link", { name: "Linus E2E" }).click();
     await expect(grace.page.getByRole("heading", { level: 1, name: "Linus E2E" })).toBeVisible();
 
@@ -291,7 +293,7 @@ test.describe("Hire Devs", () => {
     await expect(ada.page.getByRole("list", { name: "Team members" })).toContainText("Team Lead");
     await ada.page.getByRole("radio", { name: "6", exact: true }).click();
     await ada.page.getByRole("button", { name: "Open the spots" }).click();
-    await expect(ada.page.getByText("1 of 6 people · 5 open spots")).toBeVisible({ timeout: 20_000 });
+    await expect(ada.page.getByText("1 of 6 people · 5 open spots").filter({ visible: true })).toBeVisible({ timeout: 20_000 });
 
     // --- A developer applies; the Lead sees it live on the dashboard and accepts ---
     await ada.page.goto("/dashboard");
@@ -306,7 +308,7 @@ test.describe("Hire Devs", () => {
 
     await linus.page.goto(projectPath);
     await expect(linus.page.getByRole("list", { name: "Team members" }).getByRole("listitem")).toHaveCount(2);
-    await expect(linus.page.getByText("2 of 6 people · 4 open spots")).toBeVisible();
+    await expect(linus.page.getByText("2 of 6 people · 4 open spots").filter({ visible: true })).toBeVisible();
     await expect(linus.page.getByRole("button", { name: "Apply to join" })).toHaveCount(0);
 
     // --- #6 locks a team: the page says so, and applying and inviting are refused with the reason ---
