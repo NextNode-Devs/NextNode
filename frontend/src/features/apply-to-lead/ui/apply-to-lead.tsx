@@ -1,13 +1,14 @@
 "use client";
 
 import { Loader2Icon } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { useId, useState, type FormEvent } from "react";
+import { useEffect, useId, useState, type FormEvent } from "react";
 
-import { applyToLead } from "@/entities/lead-candidacy";
+import { applyToLead, getProjectLeadChats } from "@/entities/lead-candidacy";
 import { useApiClient } from "@/shared/api/browser-client";
 import { Button } from "@/shared/ui/shadcn/button";
 import { Textarea } from "@/shared/ui/shadcn/textarea";
+
+import { alreadyInvolved } from "../model/already-involved";
 
 const NOTE_MAX = 1000;
 
@@ -15,16 +16,39 @@ type Props = { projectId: number };
 
 /**
  * "Apply to lead" for a client-funded project's page (#3 mounts it in its
- * detail action slot for developers). Opens the conversation with the client.
+ * detail action slot for developers). Applying opens the conversation with the
+ * client, shown further down the same page; once applied, the button gives way
+ * to a pointer to it.
  */
 export function ApplyToLead({ projectId }: Props) {
   const api = useApiClient();
-  const router = useRouter();
   const id = useId();
   const [open, setOpen] = useState(false);
   const [note, setNote] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [involved, setInvolved] = useState(false);
+
+  useEffect(() => {
+    let current = true;
+    void getProjectLeadChats(api, projectId).then((result) => {
+      if (current && result.ok && alreadyInvolved(result.data)) setInvolved(true);
+    });
+    return () => {
+      current = false;
+    };
+  }, [api, projectId]);
+
+  if (involved) {
+    return (
+      <p role="status" className="text-sm">
+        You&apos;re talking with the client about leading this project.{" "}
+        <a href="#hiring" className="font-medium underline underline-offset-4">
+          Open the conversation
+        </a>
+      </p>
+    );
+  }
 
   if (!open) {
     return <Button onClick={() => setOpen(true)}>Apply to lead</Button>;
@@ -35,12 +59,12 @@ export function ApplyToLead({ projectId }: Props) {
     setSending(true);
     setError(null);
     const result = await applyToLead(api, projectId, note.trim());
-    if (result.ok && result.data.conversation_id) {
-      router.push(`/conversations/${result.data.conversation_id}`);
-      return; // keep "Applying…" until the conversation opens
-    }
     setSending(false);
-    setError(result.ok ? "Applied, but the conversation couldn't be opened." : result.error.message);
+    if (result.ok) {
+      setInvolved(true); // the conversation appears below as the socket announces it
+      return;
+    }
+    setError(result.error.message);
   };
 
   return (

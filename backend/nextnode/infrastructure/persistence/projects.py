@@ -245,6 +245,7 @@ class DjangoLeadProjects:
             client_funded=project.is_client_project,
             status=project.status.value,
             lead_account_id=record.team.lead_account_id,
+            title=project.details.title,
         )
 
     def get(self, project_id: int) -> LeadProject | None:

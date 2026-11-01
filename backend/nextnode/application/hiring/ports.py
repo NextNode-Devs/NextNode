@@ -44,6 +44,14 @@ class LeadCandidacies(Protocol):
 
     def for_developer(self, project_id: int, developer_account_id: int) -> list[LeadCandidacy]: ...
 
+    def for_account(self, account_id: int) -> list[LeadCandidacy]:
+        """Every application and invitation the account is part of (as client or developer)."""
+        ...
+
+    def for_project(self, project_id: int) -> list[LeadCandidacy]:
+        """Every application and invitation for the project, oldest first."""
+        ...
+
     def active_for_project(self, project_id: int) -> list[LeadCandidacy]: ...
 
 

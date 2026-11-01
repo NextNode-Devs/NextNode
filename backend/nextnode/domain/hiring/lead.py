@@ -60,6 +60,7 @@ class LeadProject:
     client_funded: bool  # False for developer-created projects
     status: str
     lead_account_id: int | None
+    title: str = ""  # for lists such as the dashboard's
 
     def ensure_open_for_lead(self) -> None:
         if not self.client_funded:

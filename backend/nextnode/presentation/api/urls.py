@@ -7,7 +7,6 @@ from nextnode.presentation.api.conversations import (
     ConversationMessagesView,
     ConversationReadView,
 )
-from nextnode.presentation.api.dev_conversations import DevTestConversationView, DevTestPartnersView
 from nextnode.presentation.api.hiring import (
     AcceptInvitationView,
     DeclineInvitationView,
@@ -15,6 +14,8 @@ from nextnode.presentation.api.hiring import (
     LeadApplicationsView,
     LeadCandidacyView,
     LeadInvitationsView,
+    MyLeadCandidaciesView,
+    ProjectLeadChatsView,
     WithdrawApplicationView,
 )
 from nextnode.presentation.api.payments import DepositCheckoutView, StripeWebhookView
@@ -71,6 +72,8 @@ urlpatterns = [
     # Hire Lead (#4)
     path("projects/<int:project_id>/lead-applications/", LeadApplicationsView.as_view(), name="lead-apply"),
     path("projects/<int:project_id>/lead-invitations/", LeadInvitationsView.as_view(), name="lead-invite"),
+    path("projects/<int:project_id>/lead-chats/", ProjectLeadChatsView.as_view(), name="lead-chats"),
+    path("lead-candidacies/mine/", MyLeadCandidaciesView.as_view(), name="my-lead-candidacies"),
     path("lead-candidacies/<uuid:candidacy_id>/", LeadCandidacyView.as_view(), name="lead-candidacy"),
     path("lead-candidacies/<uuid:candidacy_id>/hire/", HireView.as_view(), name="lead-hire"),
     path("lead-invitations/<uuid:candidacy_id>/accept/", AcceptInvitationView.as_view(), name="lead-accept"),
@@ -82,9 +85,6 @@ urlpatterns = [
         WithdrawApplicationView.as_view(),
         name="lead-withdraw",
     ),
-    # Development only (404 elsewhere): try the chat before Hire Lead exists.
-    path("dev/test-partners/", DevTestPartnersView.as_view(), name="dev-test-partners"),
-    path("dev/test-conversations/", DevTestConversationView.as_view(), name="dev-test-conversations"),
     path(
         "projects/<int:project_id>/deposit/checkout/",
         DepositCheckoutView.as_view(),
