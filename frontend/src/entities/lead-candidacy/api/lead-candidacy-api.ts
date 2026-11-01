@@ -1,6 +1,6 @@
 import type { ApiResult, BrowserApi } from "@/shared/api/browser-client";
 
-import type { LeadCandidacy } from "../model/lead-candidacy";
+import type { LeadCandidacy, LeadChat, MyLeadCandidacy } from "../model/lead-candidacy";
 
 export type LeadDecision = "accept" | "decline" | "withdraw" | "hire";
 
@@ -25,4 +25,27 @@ export function decideLeadCandidacy(
 
 export function applyToLead(api: BrowserApi, projectId: number, note: string): Promise<ApiResult<LeadCandidacy>> {
   return api.post<LeadCandidacy>(`/api/projects/${projectId}/lead-applications/`, { note });
+}
+
+export function inviteToLead(
+  api: BrowserApi,
+  projectId: number,
+  developerAccountId: number,
+  note: string,
+): Promise<ApiResult<LeadCandidacy>> {
+  return api.post<LeadCandidacy>(`/api/projects/${projectId}/lead-invitations/`, {
+    developer_account_id: developerAccountId,
+    note,
+  });
+}
+
+export function getProjectLeadChats(api: BrowserApi, projectId: number): Promise<ApiResult<LeadChat[]>> {
+  return api.get<LeadChat[]>(`/api/projects/${projectId}/lead-chats/`);
+}
+
+/** Any client that can GET: the browser client or the server one (`authedServerApi`). */
+type ApiGetter = { get<T>(path: string): Promise<ApiResult<T>> };
+
+export function getMyLeadCandidacies(api: ApiGetter): Promise<ApiResult<MyLeadCandidacy[]>> {
+  return api.get<MyLeadCandidacy[]>("/api/lead-candidacies/mine/");
 }

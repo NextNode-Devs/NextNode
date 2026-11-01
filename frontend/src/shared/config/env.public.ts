@@ -16,8 +16,6 @@ export const publicEnv = {
   apiBaseUrl: url(process.env.NEXT_PUBLIC_API_BASE_URL, "http://localhost:8000"),
   /** Django Channels endpoint for the authenticated socket. */
   wsUrl: url(process.env.NEXT_PUBLIC_WS_URL, "ws://localhost:8000/ws"),
-  /** True under `next dev` only: shows local testing aids (e.g. starting a test conversation). */
-  devTools: process.env.NODE_ENV === "development",
 } as const;
 
 export function isAuthConfigured(): boolean {

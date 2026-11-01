@@ -56,7 +56,14 @@ export function DashboardShell({ account, sections = {} }: Props) {
 
 function Section({ spec, children }: { spec: SectionSpec; children?: ReactNode }) {
   return (
-    <Card id={spec.id} aria-labelledby={`${spec.id}-title`} className="scroll-mt-20" role="region">
+    <Card
+      id={spec.id}
+      aria-labelledby={`${spec.id}-title`}
+      // The section links jump here; when every card already fits on screen the
+      // jump can't scroll, so the chosen card is outlined to show where it went.
+      className="scroll-mt-20 transition-shadow target:ring-2 target:ring-ring"
+      role="region"
+    >
       <CardHeader>
         <CardTitle>
           <h2 id={`${spec.id}-title`} className="text-base font-semibold">

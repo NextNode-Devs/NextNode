@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react";
+import type { ReactElement } from "react";
 import { describe, expect, it } from "vitest";
 
 import { PortfolioProfile, type Portfolio } from "@/entities/developer";
@@ -65,10 +66,12 @@ describe("PortfolioActions (the slot #4 and #5 fill)", () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  it("renders no control until #4 and #5 provide one, so nothing shown does nothing", () => {
-    expect(actionsFor(PORTFOLIO, "client")).toEqual([]);
+  it("offers clients #4's invite to lead; developers get nothing until #5", () => {
+    const [invite] = actionsFor(PORTFOLIO, "client") as ReactElement<{ developerId: number }>[];
+    expect(invite.key).toBe("invite-to-lead");
+    expect(invite.props.developerId).toBe(7);
     expect(actionsFor(PORTFOLIO, "developer")).toEqual([]);
-    const { container } = render(<PortfolioActions portfolio={PORTFOLIO} viewerRole="client" />);
+    const { container } = render(<PortfolioActions portfolio={PORTFOLIO} viewerRole="developer" />);
     expect(container).toBeEmptyDOMElement();
   });
 });

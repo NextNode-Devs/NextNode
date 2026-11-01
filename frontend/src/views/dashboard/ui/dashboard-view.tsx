@@ -12,6 +12,7 @@ import { AppHeader } from "@/widgets/app-header";
 import { ConnectionStatus } from "@/widgets/connection-status";
 import { ConversationList } from "@/widgets/conversation-list";
 import { DashboardShell } from "@/widgets/dashboard-shell";
+import { MyLeadCandidacies } from "@/widgets/my-lead-candidacies";
 import { MyProjects } from "@/widgets/my-projects";
 
 /** The signed-in home. Users without an account are sent to onboarding first. */
@@ -43,6 +44,11 @@ async function Dashboard() {
     );
   }
   const account = route.viewer.account;
+  const lead = (show: "all" | "application" | "invitation") => (
+    <Suspense fallback={<LoadingCards count={1} label="Loading" />}>
+      <MyLeadCandidacies role={account.role} show={show} />
+    </Suspense>
+  );
   return (
     <DashboardShell
       account={account}
@@ -52,6 +58,10 @@ async function Dashboard() {
             <MyProjects role={account.role} />
           </Suspense>
         ),
+        // Hire Lead (#4). A client sees applicants and invitees together; a developer
+        // sees invitations and applications apart. #5 adds team ones alongside.
+        applications: lead(account.role === "client" ? "all" : "application"),
+        ...(account.role === "developer" ? { invitations: lead("invitation") } : {}),
         conversations: (
           <div className="space-y-3">
             <ConversationList

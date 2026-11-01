@@ -31,7 +31,6 @@ from nextnode.application.conversations.commands import (
     OpenConversation,
     PostMessage,
 )
-from nextnode.application.conversations.dev import ListTestPartners, StartTestConversation, TestPartners
 from nextnode.application.conversations.ports import (
     AccountNames,
     Clock,
@@ -53,6 +52,7 @@ from nextnode.application.hiring.lead import (
     WithdrawLeadApplication,
 )
 from nextnode.application.hiring.ports import HiringAccounts, LeadCandidacies, LeadProjects
+from nextnode.application.hiring.queries import ListMyLeadCandidacies, ListProjectLeadChats
 from nextnode.application.payments.checkout import StartDepositCheckout
 from nextnode.application.payments.ports import (
     DepositTermsSource,
@@ -95,7 +95,6 @@ from nextnode.infrastructure.persistence.conversations import (
     DjangoConversationRepository,
     DjangoMessageRepository,
     DjangoReadMarkers,
-    DjangoTestPartners,
     SystemClock,
 )
 from nextnode.infrastructure.persistence.database_probe import DjangoDatabaseProbe
@@ -140,7 +139,6 @@ class Container:
     account_names: AccountNames
     conversation_events: ConversationEvents
     clock: Clock
-    test_partners: TestPartners
     lead_projects: LeadProjects
     lead_candidacies: LeadCandidacies
     hiring_accounts: HiringAccounts
@@ -272,14 +270,12 @@ class Container:
         return GetLeadCandidacy(self._hire_lead)
 
     @property
-    def list_test_partners(self) -> ListTestPartners:
-        """Development only."""
-        return ListTestPartners(self.test_partners)
+    def list_project_lead_chats(self) -> ListProjectLeadChats:
+        return ListProjectLeadChats(self._hire_lead, self.account_names)
 
     @property
-    def start_test_conversation(self) -> StartTestConversation:
-        """Development only."""
-        return StartTestConversation(self.test_partners, self.open_conversation)
+    def list_my_lead_candidacies(self) -> ListMyLeadCandidacies:
+        return ListMyLeadCandidacies(self._hire_lead, self.account_names)
 
     # --- projects and requirement documents (#3) ------------------------------------
 
@@ -403,7 +399,6 @@ def build_container() -> Container:
         account_names=DjangoAccountNames(),
         conversation_events=OnCommitConversationEvents(publisher),
         clock=SystemClock(),
-        test_partners=DjangoTestPartners(),
         lead_projects=DjangoLeadProjects(projects),
         lead_candidacies=DjangoLeadCandidacies(),
         hiring_accounts=DjangoHiringAccounts(),

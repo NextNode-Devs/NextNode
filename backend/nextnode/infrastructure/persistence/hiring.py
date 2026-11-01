@@ -5,6 +5,7 @@ from __future__ import annotations
 from uuid import UUID
 
 from django.db import IntegrityError, transaction
+from django.db.models import Q
 
 from nextnode.domain.accounts import Role
 from nextnode.domain.errors import ConflictError
@@ -79,6 +80,14 @@ class DjangoLeadCandidacies:
 
     def for_developer(self, project_id: int, developer_account_id: int) -> list[LeadCandidacy]:
         rows = LeadCandidacyModel.objects.filter(project_id=project_id, developer_id=developer_account_id)
+        return [_to_entity(row) for row in rows.order_by("created_at")]
+
+    def for_account(self, account_id: int) -> list[LeadCandidacy]:
+        rows = LeadCandidacyModel.objects.filter(Q(client_id=account_id) | Q(developer_id=account_id))
+        return [_to_entity(row) for row in rows.order_by("-created_at")]
+
+    def for_project(self, project_id: int) -> list[LeadCandidacy]:
+        rows = LeadCandidacyModel.objects.filter(project_id=project_id)
         return [_to_entity(row) for row in rows.order_by("created_at")]
 
     def active_for_project(self, project_id: int) -> list[LeadCandidacy]:

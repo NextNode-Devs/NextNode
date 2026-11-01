@@ -46,3 +46,42 @@ export function leadStatusText(candidacy: LeadCandidacy, viewerId: number, devel
       return "Another candidate was hired as Team Lead.";
   }
 }
+
+/** `GET /api/projects/{id}/lead-chats/`: the project's hiring conversations the
+ * viewer is part of (every one for the project's client). */
+export type LeadChat = {
+  candidacy_id: string;
+  developer_account_id: number;
+  developer_name: string;
+  kind: LeadCandidacy["kind"];
+  status: LeadStatus;
+  conversation_id: string | null;
+};
+
+/** `GET /api/lead-candidacies/mine/`: the viewer's applications and invitations,
+ * newest first (a client's on their projects, a developer's own). */
+export type MyLeadCandidacy = {
+  candidacy_id: string;
+  project_id: number;
+  project_title: string;
+  kind: LeadCandidacy["kind"];
+  status: LeadStatus;
+  client_name: string;
+  developer_name: string;
+  conversation_id: string | null;
+  created_at: string | null;
+};
+
+/** Where an application or invitation is discussed: its project's page, with that conversation open. */
+export const leadChatHref = (projectId: number, candidacyId: string) =>
+  `/projects/${projectId}?chat=${candidacyId}#hiring`;
+
+/** A one-word status for lists and badges. */
+export const LEAD_STATUS_TAG: Record<LeadStatus, string> = {
+  invited: "Invited",
+  candidate: "Candidate",
+  hired: "Hired",
+  declined: "Declined",
+  withdrawn: "Withdrew",
+  closed: "Closed",
+};

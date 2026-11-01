@@ -4,9 +4,8 @@ import { Suspense } from "react";
 
 import { isConversationId } from "@/entities/conversation";
 import { getViewer, routeFor } from "@/entities/viewer";
-import { StartTestConversation } from "@/features/start-test-conversation";
 import { RealtimeProvider } from "@/shared/api/realtime";
-import { isAuthConfigured, publicEnv } from "@/shared/config/env.public";
+import { isAuthConfigured } from "@/shared/config/env.public";
 import { cn } from "@/shared/lib/utils";
 import { LoadError, LoadingCards } from "@/shared/ui/load-states";
 import { AppHeader } from "@/widgets/app-header";
@@ -64,7 +63,6 @@ async function Conversations(props: Props) {
       <div className="grid items-start gap-6 md:grid-cols-[18rem_minmax(0,1fr)]">
         <section aria-label="Your conversations" className={cn("space-y-4", open && "hidden md:block")}>
           <ConversationList myAccountId={me} activeId={open} />
-          {publicEnv.devTools ? <StartTestConversation /> : null}
         </section>
 
         <section aria-label="Open conversation" className={cn("min-w-0", !open && "hidden md:block")}>
