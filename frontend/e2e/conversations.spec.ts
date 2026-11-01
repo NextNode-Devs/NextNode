@@ -4,6 +4,8 @@ import { createClerkClient } from "@clerk/nextjs/server";
 import { clerk } from "@clerk/testing/playwright";
 import { expect, test, type Browser, type Page } from "@playwright/test";
 
+import { isConsoleProblem } from "./console";
+
 /**
  * #4 conversations screen: layout and keyboard. The live chat itself, from a
  * real application to a hire, is in hire-lead.spec.ts. Needs the Clerk
@@ -26,7 +28,7 @@ function django(code: string): string {
 function watchConsole(page: Page): string[] {
   const problems: string[] = [];
   page.on("console", (m) => {
-    if (m.type() === "error" || /hydrat/i.test(m.text())) problems.push(m.text());
+    if (isConsoleProblem(m)) problems.push(m.text());
   });
   page.on("pageerror", (error) => problems.push(error.message));
   return problems;

@@ -233,9 +233,20 @@ the reason. The dashboard lists a client's applicants and a developer's
 invitations and applications, each opening its chat; every conversation is also
 under Conversations in the header.
 
+Built by #5: Hire Devs and the team roster. The Team Lead sets the team size
+(5–7 people, the Lead included) on the project page; developers apply to join
+while spots are open (once per team), and the Lead accepts or rejects; the Lead
+invites from a developer's portfolio ("Invite to my team…"), and only the
+invited developer can accept. Each application or invitation opens a
+conversation. A team never exceeds its size; when it fills, every other pending
+application and invitation closes live with "The team is full". The project
+page shows the team profile with portfolio links, members can read the
+requirement documents, and a locked team refuses new members with "Recruitment
+has closed". Works the same on a developer's own project, where the creator is
+the Lead.
+
 Not built yet:
-team size and recruiting (#5), offers and the project start (#6),
-workspaces and the deposit wiring (see `docs/backlog.md`). CI is active; there is no deployment target yet
+offers and the project start (#6), workspaces and the deposit wiring (see `docs/backlog.md`). CI is active; there is no deployment target yet
 (`staging.yml` gates `staging` on CI; its deploy job is off and deploys nothing).
 
 ## Product rules every contributor must know
