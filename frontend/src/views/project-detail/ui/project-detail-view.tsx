@@ -13,6 +13,7 @@ import { StateCard } from "@/shared/ui/molecules/state-card";
 import { Alert, AlertDescription, AlertTitle } from "@/shared/ui/shadcn/alert";
 import { Button } from "@/shared/ui/shadcn/button";
 import { AppHeader } from "@/widgets/app-header";
+import { ProjectStartStatus } from "@/widgets/project-start-status";
 import { RequirementDocuments } from "@/widgets/requirement-documents";
 import { TeamRoster } from "@/widgets/team-roster";
 
@@ -134,6 +135,12 @@ async function ProjectScreen({ projectId, notice }: Props) {
 
       <div className="grid gap-6 lg:grid-cols-[1fr_20rem]">
         <div className="space-y-6">
+          {/* Its client, Team Lead and members see what the project still needs to start (#6). */}
+          {project.viewer.is_owner || project.viewer.is_lead || project.viewer.is_member ? (
+            <Suspense fallback={<LoadingCards count={1} label="Loading the project start" />}>
+              <ProjectStartStatus project={project} />
+            </Suspense>
+          ) : null}
           <ProjectBrief project={project} />
           {project.kind === "client" && project.viewer.can_read_documents ? (
             <RequirementDocuments projectId={project.id} canUpload={project.viewer.can_upload_documents} />

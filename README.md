@@ -245,8 +245,23 @@ requirement documents, and a locked team refuses new members with "Recruitment
 has closed". Works the same on a developer's own project, where the creator is
 the Lead.
 
+Built by #6: the project start gate, shown on the project's page to its client,
+Team Lead and members as a checklist with whose turn it is
+(`GET /api/projects/{id}/start/`). Once the team is full the Team Lead closes
+the proposal (team `Locked`; applications and invitations stop). On a client
+project the Lead then signs an offer: estimate, total in CAD (at least
+CAD 1,500.00, refused by the backend otherwise) and dates, with the 20 % deposit
+computed by the server and shown next to the client's proposed budget. The
+client accepts (project `Assigned`) or declines with a reason, and the Lead
+sends a revised version; every version and decision is kept unchanged, with
+who and when. It is an in-app acknowledgement, not a legal contract. The
+deposit (#7) is paid next; only its verified webhook starts the project
+(team `Active`, project `InProgress`). A developer idea starts when its Lead
+finalises the timeline, with no offer or payment. Starting opens one workspace
+conversation for the Team Lead and members; the client is not in it.
+
 Not built yet:
-offers and the project start (#6), workspaces and the deposit wiring (see `docs/backlog.md`). CI is active; there is no deployment target yet
+workspace extras, milestones and the final payment (see `docs/backlog.md`). CI is active; there is no deployment target yet
 (`staging.yml` gates `staging` on CI; its deploy job is off and deploys nothing).
 
 ## Product rules every contributor must know
