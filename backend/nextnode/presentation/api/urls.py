@@ -87,7 +87,10 @@ urlpatterns = [
         name="lead-withdraw",
     ),
     # Hire Devs (#5)
+    path("projects/<int:project_id>/team/", teams.TeamView.as_view(), name="team"),
     path("projects/<int:project_id>/team/size/", teams.TeamSizeView.as_view(), name="team-size"),
+    path("team-candidacies/mine/", teams.MyTeamCandidaciesView.as_view(), name="my-team-candidacies"),
+    path("team-candidacies/<uuid:candidacy_id>/", teams.TeamCandidacyView.as_view(), name="team-candidacy"),
     path(
         "projects/<int:project_id>/team/applications/",
         teams.TeamApplicationsView.as_view(),

@@ -1,83 +1,22 @@
 """Hire Devs use cases with in-memory fakes: no database, no sockets."""
 
-from dataclasses import replace
-from datetime import date
 from uuid import UUID
 
 import pytest
 
 from nextnode.application.ports import Actor
-from nextnode.application.teams.deps import TeamDeps
-from nextnode.application.teams.use_cases import TeamUseCases
-from nextnode.domain.accounts import Role
 from nextnode.domain.errors import ForbiddenError, NotFoundError
-from nextnode.domain.projects import Project, ProjectDetails, ProjectKind
+from nextnode.domain.projects import ProjectKind
 from nextnode.domain.teams import (
     CandidacyClosedError,
     CandidacyStatus,
     DuplicateCandidacyError,
-    Team,
     TeamFullError,
     TeamNotRecruitingError,
     TeamSizeError,
     TeamStatus,
 )
-from tests.project_fakes import FixedClock, InMemoryProjects
-from tests.team_fakes import FakeAccounts, FakeCandidacies, FakeConversations, FakeEvents, FakeUnitOfWork
-
-CLIENT_ID = 1
-LEAD_ID = 2
-STRANGER_ID = 3
-DEV_IDS = tuple(range(10, 20))
-
-
-def actor(account_id: int, role: Role = Role.DEVELOPER) -> Actor:
-    return Actor(f"user_{account_id}", f"sess_{account_id}", account_id, role)
-
-
-LEAD = actor(LEAD_ID)
-CLIENT = actor(CLIENT_ID, Role.CLIENT)
-STRANGER = actor(STRANGER_ID)
-
-
-def dev(n: int) -> Actor:
-    return actor(DEV_IDS[n])
-
-
-class World:
-    def __init__(self) -> None:
-        self.projects = InMemoryProjects()
-        self.candidacies = FakeCandidacies()
-        self.conversations = FakeConversations()
-        self.events = FakeEvents()
-        ids = (UUID(int=n) for n in range(1, 100))
-        self.uc = TeamUseCases(
-            TeamDeps(
-                self.projects,
-                self.candidacies,
-                FakeAccounts({LEAD_ID, STRANGER_ID, *DEV_IDS}),
-                self.conversations,
-                self.events,
-                FixedClock(),
-                FakeUnitOfWork(),
-                new_id=lambda: next(ids),
-            )
-        )
-
-    def project(self, lead_id: int | None = LEAD_ID, kind: ProjectKind = ProjectKind.CLIENT) -> int:
-        details = ProjectDetails("Booking app", "A booking app.", (), date(2027, 1, 1))
-        owner = CLIENT_ID if kind is ProjectKind.CLIENT else lead_id
-        assert owner is not None
-        record = self.projects.add(Project.publish(kind, owner, details), Team.for_new_project(lead_id))
-        assert record.project.id is not None
-        return record.project.id
-
-    def team(self, project_id: int) -> Team:
-        return self.projects.rows[project_id][1]
-
-    def set_status(self, project_id: int, status: TeamStatus) -> None:
-        project, team = self.projects.rows[project_id]
-        self.projects.rows[project_id] = (project, replace(team, status=status))
+from tests.team_fakes import CLIENT, CLIENT_ID, DEV_IDS, LEAD, LEAD_ID, STRANGER, World, dev
 
 
 @pytest.fixture

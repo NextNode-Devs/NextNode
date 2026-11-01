@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from uuid import UUID, uuid4
 
-from nextnode.application.conversations.ports import Clock, ConversationEvents
+from nextnode.application.conversations.ports import AccountNames, Clock, ConversationEvents
 from nextnode.application.ports import Actor
 from nextnode.application.projects.ports import ProjectRecord, ProjectRepository
 from nextnode.application.teams.dto import CandidacyView, team_updated_frame
@@ -35,6 +35,7 @@ class TeamDeps:
         accounts: DeveloperAccounts,
         conversations: HiringConversations,
         events: ConversationEvents,
+        names: AccountNames,
         clock: Clock,
         uow: UnitOfWork,
         new_id: Callable[[], UUID] = uuid4,
@@ -44,6 +45,7 @@ class TeamDeps:
         self.accounts = accounts
         self.conversations = conversations
         self.events = events
+        self.names = names
         self.clock = clock
         self.uow = uow
         self.new_id = new_id

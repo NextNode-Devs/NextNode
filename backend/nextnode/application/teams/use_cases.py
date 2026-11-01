@@ -11,6 +11,7 @@ from nextnode.application.teams.membership import (
     RejectApplication,
     WithdrawApplication,
 )
+from nextnode.application.teams.queries import GetTeamCandidacy, ListMyTeamCandidacies
 from nextnode.application.teams.recruiting import (
     ApplyToJoinTeam,
     CloseRecruitment,
@@ -30,3 +31,5 @@ class TeamUseCases:
         self.accept_invitation = AcceptInvitation(deps)
         self.decline_invitation = DeclineInvitation(deps)
         self.close_recruitment = CloseRecruitment(deps)
+        self.get_candidacy = GetTeamCandidacy(deps)
+        self.list_my_candidacies = ListMyTeamCandidacies(deps)

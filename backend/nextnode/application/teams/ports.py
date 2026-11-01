@@ -4,6 +4,8 @@ accounts #1's ``AccountDirectory``, conversations #4's ``CandidacyConversations`
 from __future__ import annotations
 
 from contextlib import AbstractContextManager
+from dataclasses import dataclass
+from datetime import datetime
 from typing import Protocol
 from uuid import UUID
 
@@ -32,6 +34,20 @@ class CandidacyRepository(Protocol):
 
     def for_account(self, account_id: int) -> list[Candidacy]:
         """Every application and invitation the account is part of, newest first."""
+        ...
+
+
+@dataclass(frozen=True)
+class TeamMemberRecord:
+    account_id: int
+    display_name: str
+    role: str  # lead | member
+    joined_at: datetime | None
+
+
+class TeamMembers(Protocol):
+    def for_project(self, project_id: int) -> list[TeamMemberRecord]:
+        """The team's approved people, in the order they joined."""
         ...
 
 

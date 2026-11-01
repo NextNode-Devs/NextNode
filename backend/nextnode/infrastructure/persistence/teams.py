@@ -1,4 +1,4 @@
-"""Django adapter for Hire Devs' ``CandidacyRepository``. ORM models never leave this module."""
+"""Django adapters for the Hire Devs ports. ORM models never leave this module."""
 
 from __future__ import annotations
 
@@ -7,8 +7,9 @@ from uuid import UUID
 from django.db import IntegrityError, transaction
 from django.db.models import Q
 
+from nextnode.application.teams.ports import TeamMemberRecord
 from nextnode.domain.teams import Candidacy, CandidacyKind, CandidacyStatus, DuplicateCandidacyError
-from nextnode.infrastructure.persistence.models import TeamCandidacyModel
+from nextnode.infrastructure.persistence.models import TeamCandidacyModel, TeamMembershipModel
 
 
 def _to_entity(row: TeamCandidacyModel) -> Candidacy:
@@ -72,3 +73,16 @@ class DjangoTeamCandidacies:
     def for_account(self, account_id: int) -> list[Candidacy]:
         rows = TeamCandidacyModel.objects.filter(Q(lead_id=account_id) | Q(developer_id=account_id))
         return [_to_entity(row) for row in rows.order_by("-created_at")]
+
+
+class DjangoTeamMembers:
+    def for_project(self, project_id: int) -> list[TeamMemberRecord]:
+        rows = (
+            TeamMembershipModel.objects.filter(team__project_id=project_id, status="approved")
+            .select_related("account")
+            .order_by("created_at", "id")
+        )
+        return [
+            TeamMemberRecord(row.account_id, row.account.display_name, row.role, row.created_at)
+            for row in rows
+        ]

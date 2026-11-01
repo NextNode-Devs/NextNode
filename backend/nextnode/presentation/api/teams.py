@@ -12,6 +12,30 @@ from rest_framework.views import APIView
 from nextnode.infrastructure.container import get_container
 
 
+class TeamView(APIView):
+    """The team profile: its size, open spots, status and people, the Team Lead first."""
+
+    def get(self, request: Request, project_id: int) -> Response:
+        view = get_container().get_team.execute(request.user.actor, project_id)
+        return Response({"data": asdict(view)})
+
+
+class MyTeamCandidaciesView(APIView):
+    """The viewer's applications and invitations to join teams, for the dashboard."""
+
+    def get(self, request: Request) -> Response:
+        items = get_container().teams.list_my_candidacies.execute(request.user.actor)
+        return Response({"data": [asdict(item) for item in items]})
+
+
+class TeamCandidacyView(APIView):
+    """One application or invitation, with the viewer's allowed actions. Others get 404."""
+
+    def get(self, request: Request, candidacy_id: UUID) -> Response:
+        view = get_container().teams.get_candidacy.execute(request.user.actor, candidacy_id)
+        return Response({"data": asdict(view)})
+
+
 class TeamSizeSerializer(serializers.Serializer):
     size = serializers.IntegerField()
 

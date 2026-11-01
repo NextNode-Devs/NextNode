@@ -364,3 +364,106 @@ def test_a_locked_team_refuses_applying_inviting_and_accepting_with_the_reason(a
         assert response.status_code == 409
         assert response.json()["error"]["message"] == "Recruitment has closed"
     assert decide(api, auth, application, "withdraw", "user_dev0").status_code == 200  # still free to leave
+
+
+# --- the team profile -----------------------------------------------------------
+
+
+def test_the_team_profile_shows_the_lead_first_with_portfolio_links(api, auth, project, people):
+    set_size(api, auth, project, 6)
+    candidacy = apply(api, auth, project, "user_dev0").json()["data"]["id"]
+    decide(api, auth, candidacy, "accept", "user_lead")
+    apply(api, auth, project, "user_dev1")  # pending: not on the profile
+
+    for sub in ("user_client", "user_lead", "user_dev0", "user_dev1", "user_other_lead"):
+        response = api.get(f"/api/projects/{project}/team/", **auth(sub))
+        assert response.status_code == 200
+
+    data = response.json()["data"]
+    assert (data["size"], data["open_spots"], data["status"]) == (6, 4, "open")
+    assert [(m["account_id"], m["role"]) for m in data["members"]] == [
+        (people["lead"], "lead"),
+        (people["dev0"], "member"),
+    ]
+    member = data["members"][1]
+    assert member["portfolio_url"] == f"/developers/{people['dev0']}"
+    assert member["display_name"] == "Dev 0"
+    assert member["joined_at"]
+
+
+def test_the_team_profile_of_a_project_before_a_lead_and_a_missing_one(api, auth, people):
+    posted = make_project(people["client"], None)
+    data = api.get(f"/api/projects/{posted}/team/", **auth("user_client")).json()["data"]
+    assert data == {"size": None, "open_spots": 0, "status": "open", "members": []}
+    assert api.get("/api/projects/99999/team/", **auth("user_client")).status_code == 404
+    assert api.get(f"/api/projects/{posted}/team/").status_code == 401
+
+
+def test_the_team_profile_needs_an_onboarded_account(api, auth, project):
+    response = api.get(f"/api/projects/{project}/team/", **auth("user_never_onboarded"))
+    assert response.status_code == 403
+
+
+def test_the_project_page_reflects_the_team_and_offers_apply_to_join(api, auth, project, people):
+    set_size(api, auth, project, 5)
+    page = api.get(f"/api/projects/{project}/", **auth("user_dev0")).json()["data"]
+    assert page["viewer_actions"] == ["apply_to_join"]
+    assert (page["team"]["size"], page["team"]["open_spots"]) == (5, 4)
+
+    candidacy = apply(api, auth, project, "user_dev0").json()["data"]["id"]
+    decide(api, auth, candidacy, "accept", "user_lead")
+    page = api.get(f"/api/projects/{project}/", **auth("user_dev0")).json()["data"]
+    assert (page["viewer"]["is_member"], page["viewer_actions"]) == (True, [])
+    assert page["team"]["headcount"] == 2
+
+
+def test_my_candidacies_and_one_candidacy_over_the_api(api, auth, project, people):
+    set_size(api, auth, project, 5)
+    applied = apply(api, auth, project, "user_dev0").json()["data"]
+    invited = invite(api, auth, project, people["dev1"]).json()["data"]
+
+    mine = api.get("/api/team-candidacies/mine/", **auth("user_lead")).json()["data"]
+    assert {row["candidacy_id"] for row in mine} == {applied["id"], invited["id"]}
+    assert all(row["project_title"] == "Booking app" for row in mine)
+    assert api.get("/api/team-candidacies/mine/", **auth("user_dev2")).json()["data"] == []
+
+    url = f"/api/team-candidacies/{invited['id']}/"
+    assert api.get(url, **auth("user_dev1")).json()["data"]["actions"]["accept"] is True
+    assert api.get(url, **auth("user_lead")).json()["data"]["actions"]["accept"] is False
+    assert api.get(url, **auth("user_dev2")).status_code == 404
+    assert api.get(url, **auth("user_client")).status_code == 404
+
+
+# --- members and requirement documents --------------------------------------------
+
+
+def test_a_member_reads_the_documents_and_pending_or_rejected_ones_cannot(api, auth, project, people):
+    set_size(api, auth, project, 5)
+    url = f"/api/projects/{project}/documents/"
+    accepted = apply(api, auth, project, "user_dev0").json()["data"]["id"]
+    rejected = apply(api, auth, project, "user_dev1").json()["data"]["id"]
+    apply(api, auth, project, "user_dev2")  # stays pending
+    invite(api, auth, project, people["dev3"])  # stays pending
+    decide(api, auth, accepted, "accept", "user_lead")
+    decide(api, auth, rejected, "reject", "user_lead")
+
+    assert api.get(url, **auth("user_dev0")).status_code == 200
+    for sub in ("user_dev1", "user_dev2", "user_dev3", "user_dev4"):
+        assert api.get(url, **auth(sub)).status_code in (403, 404)
+    page = api.get(f"/api/projects/{project}/", **auth("user_dev0")).json()["data"]
+    assert page["viewer"]["can_read_documents"] is True
+
+
+# --- developer ideas ------------------------------------------------------------
+
+
+def test_the_same_flow_works_on_a_developer_idea(api, auth, people):
+    idea = make_project(people["lead"], people["lead"], ProjectKind.DEVELOPER)
+    assert set_size(api, auth, idea, 5).status_code == 200
+    invited = invite(api, auth, idea, people["dev0"]).json()["data"]["id"]
+    assert answer(api, auth, invited, "accept", "user_dev0").status_code == 200
+    applied = apply(api, auth, idea, "user_dev1").json()["data"]["id"]
+    assert decide(api, auth, applied, "accept", "user_lead").status_code == 200
+    data = api.get(f"/api/projects/{idea}/team/", **auth("user_client")).json()["data"]
+    assert [m["role"] for m in data["members"]] == ["lead", "member", "member"]
+    assert data["open_spots"] == 2
