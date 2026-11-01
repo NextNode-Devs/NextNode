@@ -144,3 +144,38 @@ class Team:
         """Takes one open spot. Never over-fills: a full team refuses."""
         self.ensure_can_join(account_id)
         return replace(self, member_account_ids=(*self.member_account_ids, account_id))
+
+    # --- the start gate (#6) ---------------------------------------------------------
+
+    @property
+    def participant_ids(self) -> tuple[int, ...]:
+        """The Lead first, then the approved members: the workspace chat's people."""
+        lead = () if self.lead_account_id is None else (self.lead_account_id,)
+        return (*lead, *self.member_account_ids)
+
+    def close_proposal(self, account_id: int | None) -> Team:
+        """``Open -> Locked``: the Team Lead freezes the full roster. Never reopened."""
+        self.ensure_lead(account_id, "close the project proposal")
+        if self.status is not TeamStatus.OPEN:
+            raise InvalidStateTransitionError("This project's proposal is already closed.")
+        if not self.is_full:
+            size = (
+                "the team size has not been set"
+                if self.team_size is None
+                else (f"the team has {self.headcount} of {self.team_size} people")
+            )
+            raise TeamNotRecruitingError(f"Close the proposal once the team is full; {size}.")
+        return replace(self, status=TeamStatus.LOCKED)
+
+    def ensure_locked(self) -> None:
+        if self.status is not TeamStatus.LOCKED:
+            raise InvalidStateTransitionError(
+                "The Team Lead closes the project proposal first, once the team is full."
+                if self.status is TeamStatus.OPEN
+                else f"This team is {self.status}, so the project has already started."
+            )
+
+    def activate(self) -> Team:
+        """``Locked -> Active``: the start conditions are met and work begins."""
+        self.ensure_locked()
+        return replace(self, status=TeamStatus.ACTIVE)

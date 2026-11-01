@@ -453,3 +453,9 @@ class RequirementDocumentModel(models.Model):
 
     def __str__(self) -> str:
         return self.filename
+
+
+# The start gate (#6) keeps its tables in their own module; importing them registers them.
+from nextnode.infrastructure.persistence.start_gate_models import OfferModel, ProjectTimelineModel  # noqa: E402
+
+__all__ = ["OfferModel", "ProjectTimelineModel"]

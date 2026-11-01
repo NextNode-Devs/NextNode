@@ -40,6 +40,7 @@ from nextnode.application.conversations.ports import (
     ReadMarkers,
 )
 from nextnode.application.conversations.queries import GetConversation, ListConversations, ListMessages
+from nextnode.application.conversations.workspace import TeamWorkspaceChats
 from nextnode.application.health import CheckHealth
 from nextnode.application.hiring.lead import (
     AcceptLeadInvitation,
@@ -80,6 +81,9 @@ from nextnode.application.projects.documents import (
 )
 from nextnode.application.projects.ports import DocumentRepository, FileStorage, LinkSigner, ProjectRepository
 from nextnode.application.projects.queries import GetProject, ListMyProjects, SearchProjects
+from nextnode.application.start_gate.deps import StartGateDeps
+from nextnode.application.start_gate.ports import OfferRepository, TimelineRepository
+from nextnode.application.start_gate.use_cases import StartGateUseCases
 from nextnode.application.teams.deps import TeamDeps
 from nextnode.application.teams.ports import CandidacyRepository, TeamMembers
 from nextnode.application.teams.queries import GetTeam
@@ -87,7 +91,6 @@ from nextnode.application.teams.use_cases import TeamUseCases
 from nextnode.domain.projects import UploadLimits
 from nextnode.infrastructure.access_rules import build_access_policy
 from nextnode.infrastructure.auth.clerk import ClerkTokenVerifier, UnconfiguredTokenVerifier
-from nextnode.infrastructure.payments.pending_dependencies import ProjectsNotReady
 from nextnode.infrastructure.payments.stripe_gateway import StripeGateway, UnconfiguredPaymentGateway
 from nextnode.infrastructure.persistence.accounts import (
     DjangoAccountDirectory,
@@ -114,6 +117,11 @@ from nextnode.infrastructure.persistence.projects import (
     DjangoLeadProjects,
     DjangoProjectRepository,
 )
+from nextnode.infrastructure.persistence.start_gate import (
+    DjangoDepositTerms,
+    DjangoOfferRepository,
+    DjangoTimelineRepository,
+)
 from nextnode.infrastructure.persistence.teams import DjangoTeamCandidacies, DjangoTeamMembers
 from nextnode.infrastructure.realtime.conversation_events import OnCommitConversationEvents
 from nextnode.infrastructure.realtime.publisher import ChannelsEventPublisher
@@ -130,7 +138,6 @@ class Container:
     webhook_events: WebhookEventLog
     uow: UnitOfWork
     deposit_terms: DepositTermsSource
-    project_starter: ProjectStarter
     accounts: AccountRepository
     skills: SkillRepository
     portfolios: PortfolioRepository
@@ -154,6 +161,9 @@ class Container:
     upload_limits: UploadLimits
     team_candidacies: CandidacyRepository
     team_members: TeamMembers
+    offers: OfferRepository
+    timelines: TimelineRepository
+    project_starter: ProjectStarter | None = None  # tests only; otherwise #6's start use case
 
     @property
     def get_account(self) -> GetAccount:
@@ -362,10 +372,32 @@ class Container:
     def get_team(self) -> GetTeam:
         return GetTeam(self.projects, self.team_members, self.access_policy)
 
+    # --- project start gate (#6) -----------------------------------------------------
+
+    @property
+    def start_gate(self) -> StartGateUseCases:
+        return StartGateUseCases(
+            StartGateDeps(
+                projects=self.projects,
+                offers=self.offers,
+                timelines=self.timelines,
+                deposits=self.deposit_status,
+                workspace=TeamWorkspaceChats(self.open_conversation, self.conversations),
+                recruitment=self.teams.close_recruitment,
+                clock=self.clock,
+                uow=self.uow,
+                deposit_percent=settings.ENV.deposit_percent,
+            )
+        )
+
     @property
     def handle_payment_webhook(self) -> HandlePaymentWebhook:
         return HandlePaymentWebhook(
-            self.payment_gateway, self.payments, self.webhook_events, self.uow, self.project_starter
+            self.payment_gateway,
+            self.payments,
+            self.webhook_events,
+            self.uow,
+            self.project_starter or self.start_gate.start_client_project,
         )
 
     @property
@@ -409,9 +441,7 @@ def build_container() -> Container:
         payments=DjangoPaymentRepository(),
         webhook_events=DjangoWebhookEventLog(),
         uow=DjangoUnitOfWork(),
-        # #6 replaces these with its project adapters.
-        deposit_terms=ProjectsNotReady(),
-        project_starter=ProjectsNotReady(),
+        deposit_terms=DjangoDepositTerms(),
         accounts=DjangoAccountRepository(),
         skills=DjangoSkillRepository(),
         portfolios=DjangoPortfolioRepository(),
@@ -435,6 +465,8 @@ def build_container() -> Container:
         upload_limits=UploadLimits(uploads.max_bytes, uploads.max_files_per_project),
         team_candidacies=DjangoTeamCandidacies(),
         team_members=DjangoTeamMembers(),
+        offers=DjangoOfferRepository(),
+        timelines=DjangoTimelineRepository(),
     )
 
 
