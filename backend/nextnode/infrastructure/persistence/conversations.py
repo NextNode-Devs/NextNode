@@ -9,7 +9,6 @@ from django.db import IntegrityError, transaction
 from django.db.models import Count, F, Max, OuterRef, Q, Subquery
 from django.db.models.functions import Coalesce
 
-from nextnode.application.conversations.dev import TestPartner
 from nextnode.application.conversations.ports import ConversationSummary
 from nextnode.domain.conversations import Conversation, ConversationStatus, Message, Subject, SubjectKind
 from nextnode.infrastructure.persistence.models import (
@@ -177,14 +176,6 @@ def is_participant(conversation_id: str | int, account_id: int | None) -> bool:
     except ValueError:
         return False
     return ConversationParticipantModel.objects.filter(conversation_id=key, account_id=account_id).exists()
-
-
-class DjangoTestPartners:
-    """Development only (see application/conversations/dev.py)."""
-
-    def all_accounts(self) -> list[TestPartner]:
-        rows = AccountModel.objects.order_by("display_name", "id").values_list("id", "display_name", "role")
-        return [TestPartner(account_id, name, role) for account_id, name, role in rows]
 
 
 class SystemClock:

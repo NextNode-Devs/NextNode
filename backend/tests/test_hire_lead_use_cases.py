@@ -16,6 +16,7 @@ from nextnode.application.hiring.lead import (
     InviteToLead,
     WithdrawLeadApplication,
 )
+from nextnode.application.hiring.queries import ListMyLeadCandidacies, ListProjectLeadChats
 from nextnode.application.ports import Actor
 from nextnode.domain.accounts import Role
 from nextnode.domain.errors import (
@@ -56,7 +57,9 @@ class World:
         names = FakeNames(self.store)
         self.projects = FakeLeadProjects()
         self.projects.put(
-            LeadProject(PROJECT, CLIENT, client_funded=True, status="Posted", lead_account_id=None)
+            LeadProject(
+                PROJECT, CLIENT, client_funded=True, status="Posted", lead_account_id=None, title="Shop"
+            )
         )
         self.candidacies = FakeCandidacies(clock)
         deps = HireLeadDeps(
@@ -72,6 +75,7 @@ class World:
             clock=clock,
             uow=uow,
         )
+        self.deps = deps
         self.apply = ApplyToLead(deps)
         self.invite = InviteToLead(deps)
         self.accept = AcceptLeadInvitation(deps)
@@ -258,3 +262,49 @@ def test_actions_differ_per_viewer(w):
     w.accept.execute(ada, invited)
     assert w.get.execute(client, invited).actions.hire is True
     assert w.get.execute(ada, invited).actions.withdraw is False  # invitations are declined, not withdrawn
+
+
+# --- the project's hiring chats (its page) ------------------------------------------
+
+
+def test_the_client_sees_every_chat_on_their_project_and_a_developer_only_their_own(w):
+    applied = w.apply.execute(ada, PROJECT, "")
+    invited = w.invite.execute(client, PROJECT, LINUS)
+    chats = ListProjectLeadChats(w.deps, FakeNames(w.store))
+
+    seen_by_client = chats.execute(client, PROJECT)
+    assert [(c.developer_name, c.kind, c.conversation_id) for c in seen_by_client] == [
+        ("Ada", "application", applied.conversation_id),
+        ("Linus", "invitation", invited.conversation_id),
+    ]
+    assert [c.developer_name for c in chats.execute(ada, PROJECT)] == ["Ada"]
+    assert chats.execute(other_client, PROJECT) == []
+
+
+def test_project_chats_of_a_missing_project_are_404(w):
+    with pytest.raises(NotFoundError):
+        ListProjectLeadChats(w.deps, FakeNames(w.store)).execute(client, 999)
+
+
+# --- the dashboard's lists ------------------------------------------------------------
+
+
+def test_dashboard_lists_the_clients_candidacies_and_each_developers_own_newest_first(w):
+    w.apply.execute(ada, PROJECT, "")
+    w.invite.execute(client, PROJECT, LINUS)
+    mine = ListMyLeadCandidacies(w.deps, FakeNames(w.store))
+
+    seen_by_client = mine.execute(client)
+    assert [(v.developer_name, v.kind, v.project_title) for v in seen_by_client] == [
+        ("Linus", "invitation", "Shop"),
+        ("Ada", "application", "Shop"),
+    ]
+    assert all(v.client_name == "Grace" and v.conversation_id for v in seen_by_client)
+    assert [(v.kind, v.status) for v in mine.execute(linus)] == [("invitation", "invited")]
+    assert mine.execute(other_client) == []
+
+
+def test_dashboard_leaves_out_projects_that_no_longer_exist(w):
+    w.apply.execute(ada, PROJECT, "")
+    del w.projects.projects[PROJECT]
+    assert ListMyLeadCandidacies(w.deps, FakeNames(w.store)).execute(ada) == []

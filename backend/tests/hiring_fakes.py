@@ -66,6 +66,13 @@ class FakeCandidacies:
             if c.project_id == project_id and c.developer_account_id == developer_account_id
         ]
 
+    def for_account(self, account_id: int) -> list[LeadCandidacy]:
+        mine = [c for c in self.rows.values() if account_id in (c.client_account_id, c.developer_account_id)]
+        return mine[::-1]  # newest first
+
+    def for_project(self, project_id: int) -> list[LeadCandidacy]:
+        return [c for c in self.rows.values() if c.project_id == project_id]
+
     def active_for_project(self, project_id: int) -> list[LeadCandidacy]:
         return [c for c in self.rows.values() if c.project_id == project_id and c.is_active]
 

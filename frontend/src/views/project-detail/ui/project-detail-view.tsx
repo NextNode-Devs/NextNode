@@ -5,7 +5,9 @@ import { Suspense } from "react";
 
 import { getProject, KindBadge, StatusBadge, type Project } from "@/entities/project";
 import { getViewer, routeFor } from "@/entities/viewer";
+import { RealtimeProvider } from "@/shared/api/realtime";
 import { authedServerApi } from "@/shared/api/server-client";
+import { isAuthConfigured } from "@/shared/config/env.public";
 import { LoadError, LoadingCards } from "@/shared/ui/load-states";
 import { StateCard } from "@/shared/ui/molecules/state-card";
 import { Alert, AlertDescription, AlertTitle } from "@/shared/ui/shadcn/alert";
@@ -13,8 +15,9 @@ import { Button } from "@/shared/ui/shadcn/button";
 import { AppHeader } from "@/widgets/app-header";
 import { RequirementDocuments } from "@/widgets/requirement-documents";
 
-import { ProjectBrief, TeamCard } from "./project-sections";
 import { PrimaryAction } from "./primary-action";
+import { ProjectChats } from "./project-chats";
+import { ProjectBrief, TeamCard } from "./project-sections";
 
 export type Notice = "created" | "saved" | null;
 
@@ -89,7 +92,13 @@ async function ProjectScreen({ projectId, notice }: Props) {
 
   const project = result.data;
   const shown = project.viewer.is_owner ? await notice : null;
-  return (
+  const me = route.viewer.account;
+  // Hire Lead happens on client projects, between their client and developers.
+  const chats =
+    project.kind === "client" && (project.viewer.is_owner || me.role === "developer") ? (
+      <ProjectChats projectId={project.id} myAccountId={me.id} isOwner={project.viewer.is_owner} />
+    ) : null;
+  const page = (
     <div className="space-y-6">
       {shown ? <SavedNotice project={project} notice={shown} /> : null}
       <header className="space-y-3">
@@ -139,8 +148,10 @@ async function ProjectScreen({ projectId, notice }: Props) {
           <TeamCard project={project} />
         </aside>
       </div>
+      {chats}
     </div>
   );
+  return chats && isAuthConfigured() ? <RealtimeProvider>{page}</RealtimeProvider> : page;
 }
 
 function SavedNotice({ project, notice }: { project: Project; notice: NonNullable<Notice> }) {
