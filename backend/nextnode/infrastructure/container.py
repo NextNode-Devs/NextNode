@@ -91,6 +91,7 @@ from nextnode.application.teams.use_cases import TeamUseCases
 from nextnode.domain.projects import UploadLimits
 from nextnode.infrastructure.access_rules import build_access_policy
 from nextnode.infrastructure.auth.clerk import ClerkTokenVerifier, UnconfiguredTokenVerifier
+from nextnode.infrastructure.payments.fake_checkout import FakeCheckoutGateway
 from nextnode.infrastructure.payments.stripe_gateway import StripeGateway, UnconfiguredPaymentGateway
 from nextnode.infrastructure.persistence.accounts import (
     DjangoAccountDirectory,
@@ -428,9 +429,13 @@ def build_container() -> Container:
         else UnconfiguredTokenVerifier()
     )
     stripe = settings.ENV.stripe
-    gateway: PaymentGateway = (
-        StripeGateway(stripe.secret_key, stripe.webhook_secret) if stripe else UnconfiguredPaymentGateway()
-    )
+    gateway: PaymentGateway
+    if stripe is None:
+        gateway = UnconfiguredPaymentGateway()
+    elif stripe.fake_checkout:
+        gateway = FakeCheckoutGateway(stripe.webhook_secret)
+    else:
+        gateway = StripeGateway(stripe.secret_key, stripe.webhook_secret)
     publisher = ChannelsEventPublisher()
     projects = DjangoProjectRepository()
     uploads = settings.ENV.uploads

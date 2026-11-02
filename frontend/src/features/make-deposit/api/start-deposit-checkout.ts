@@ -21,8 +21,25 @@ export async function startDepositCheckout(projectId: string): Promise<CheckoutS
     timeoutMs: 10_000, // the backend calls Stripe before answering
   });
   if (!result.ok) return { error: result.error };
-  if (!result.data.checkout_url.startsWith("https://checkout.stripe.com/")) {
+  const target = checkoutTarget(result.data.checkout_url, projectId);
+  if (target === null) {
     return { error: { code: "BAD_RESPONSE", message: "The checkout link from the server was not a Stripe link." } };
   }
-  redirect(result.data.checkout_url); // outside any try: it throws to navigate
+  redirect(target); // outside any try: it throws to navigate
+}
+
+/**
+ * Where the browser may be sent: Stripe Checkout, or (CI's fake checkout,
+ * docs/proposals/ci.md) this project's own return page, as a path so it can
+ * never leave the app. Landing there confirms nothing. Anything else: null.
+ */
+function checkoutTarget(url: string, projectId: string): string | null {
+  if (url.startsWith("https://checkout.stripe.com/")) return url;
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return null;
+  }
+  return parsed.pathname === `/projects/${projectId}/deposit/return` ? `${parsed.pathname}${parsed.search}` : null;
 }
