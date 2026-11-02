@@ -7,10 +7,9 @@ import pytest
 from django.db import IntegrityError, transaction
 
 from nextnode.infrastructure.container import override_container
-from nextnode.infrastructure.payments.pending_dependencies import ProjectsNotReady
 from nextnode.infrastructure.payments.stripe_gateway import StripeGateway, UnconfiguredPaymentGateway
 from nextnode.infrastructure.persistence.models import PaymentModel, StripeEventModel
-from tests.payment_fakes import FakeProjects
+from tests.payment_fakes import FakeProjects, UnavailableProjects
 from tests.stripe_helpers import TEST_WEBHOOK_SECRET, checkout_event, sign
 
 URL = "/api/payments/stripe/webhook/"
@@ -69,9 +68,9 @@ def test_confirmed_deposit_starts_the_project(api, payment, projects):
 
 
 def test_without_the_start_gate_a_paid_event_is_refused_and_changes_nothing(api, payment):
-    """Until #6 merges, nothing can mark a deposit paid without starting the
-    project; Stripe keeps retrying the event."""
-    with override_container(project_starter=ProjectsNotReady()):
+    """Nothing can mark a deposit paid without starting the project; Stripe
+    keeps retrying the event until the start gate answers."""
+    with override_container(project_starter=UnavailableProjects()):
         response = post(api, checkout_event(str(payment.id)))
     assert response.status_code == 503
     payment.refresh_from_db()

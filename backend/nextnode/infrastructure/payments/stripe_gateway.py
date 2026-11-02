@@ -97,26 +97,31 @@ class StripeGateway:
         )
 
     def parse_event(self, payload: bytes, signature: str | None) -> PaymentEvent:
-        try:
-            stripe.WebhookSignature.verify_header(
-                payload.decode("utf-8"), signature or "", self._webhook_secret, SIGNATURE_TOLERANCE_SECONDS
-            )
-        except (stripe.SignatureVerificationError, UnicodeDecodeError) as exc:
-            raise InvalidWebhookError("The Stripe signature is missing or invalid.") from exc
-        try:
-            event = json.loads(payload)
-            session = event["data"]["object"]
-            return PaymentEvent(
-                event_id=str(event["id"]),
-                type=str(event["type"]),
-                checkout_session_id=str(session.get("id", "")),
-                payment_id=(session.get("metadata") or {}).get("payment_id"),
-                amount_cents=session.get("amount_total"),
-                currency=session.get("currency"),
-                paid=session.get("payment_status") == "paid",
-            )
-        except (ValueError, KeyError, TypeError, AttributeError) as exc:
-            raise InvalidWebhookError("The Stripe event could not be read.") from exc
+        return parse_signed_event(payload, signature, self._webhook_secret)
+
+
+def parse_signed_event(payload: bytes, signature: str | None, webhook_secret: str) -> PaymentEvent:
+    """Verify the Stripe signature, then parse. Raises ``InvalidWebhookError``."""
+    try:
+        stripe.WebhookSignature.verify_header(
+            payload.decode("utf-8"), signature or "", webhook_secret, SIGNATURE_TOLERANCE_SECONDS
+        )
+    except (stripe.SignatureVerificationError, UnicodeDecodeError) as exc:
+        raise InvalidWebhookError("The Stripe signature is missing or invalid.") from exc
+    try:
+        event = json.loads(payload)
+        session = event["data"]["object"]
+        return PaymentEvent(
+            event_id=str(event["id"]),
+            type=str(event["type"]),
+            checkout_session_id=str(session.get("id", "")),
+            payment_id=(session.get("metadata") or {}).get("payment_id"),
+            amount_cents=session.get("amount_total"),
+            currency=session.get("currency"),
+            paid=session.get("payment_status") == "paid",
+        )
+    except (ValueError, KeyError, TypeError, AttributeError) as exc:
+        raise InvalidWebhookError("The Stripe event could not be read.") from exc
 
 
 class UnconfiguredPaymentGateway:

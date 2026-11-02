@@ -116,8 +116,18 @@ stripe listen --forward-to localhost:8000/api/payments/stripe/webhook/
 ```
 
 Payment status changes only when a signed webhook arrives; returning from
-Checkout changes nothing. CI never uses Stripe keys: tests sign payloads with
-a generated secret. No real money moves, and NextNode holds no funds.
+Checkout changes nothing. CI never uses Stripe keys: backend tests sign
+payloads with a generated secret, and the e2e backend runs with
+`STRIPE_FAKE_CHECKOUT` (checkout skips Stripe and the spec sends the signed
+webhook itself; refused in production). To run the deposit e2e against real
+Stripe Checkout in test mode instead:
+
+```bash
+stripe listen --forward-to localhost:8100/api/payments/stripe/webhook/   # the e2e backend's port
+cd frontend && E2E_REAL_STRIPE=1 npx playwright test e2e/deposit.spec.ts --project=desktop
+```
+
+No real money moves, and NextNode holds no funds.
 
 ### Migrations
 
@@ -259,6 +269,16 @@ deposit (#7) is paid next; only its verified webhook starts the project
 (team `Active`, project `InProgress`). A developer idea starts when its Lead
 finalises the timeline, with no offer or payment. Starting opens one workspace
 conversation for the Team Lead and members; the client is not in it.
+
+Built by #7 and #26: the deposit, in Stripe test mode. Only the client of an
+`Assigned` project sees "Pay deposit", with the amount the server computed
+(`DEPOSIT_PERCENT`, 20 % of the accepted offer, in CAD). It opens Stripe
+Checkout (`POST /api/projects/{id}/deposit/checkout/`); an open checkout is
+reused and a second deposit is refused. The return page shows "Confirming
+payment…" until Stripe's signed webhook (`POST /api/payments/stripe/webhook/`)
+confirms it, then the team is `Active` and the project `In progress`. A
+cancelled or failed payment charges nothing and can be retried. The payment
+pages are the client's alone. No real money moves.
 
 Not built yet:
 workspace extras, milestones and the final payment (see `docs/backlog.md`). CI is active; there is no deployment target yet

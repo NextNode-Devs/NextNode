@@ -8,10 +8,9 @@ import pytest
 
 from nextnode.application.payments.ports import DepositTerms
 from nextnode.infrastructure.container import override_container
-from nextnode.infrastructure.payments.pending_dependencies import ProjectsNotReady
 from nextnode.infrastructure.persistence.models import PaymentModel
 from nextnode.infrastructure.persistence.payments import DjangoPaymentRepository
-from tests.payment_fakes import FakeGateway, FakeProjects
+from tests.payment_fakes import FakeGateway, FakeProjects, UnavailableProjects
 
 URL = "/api/projects/7/deposit/checkout/"
 pytestmark = pytest.mark.django_db
@@ -95,10 +94,10 @@ def test_paid_deposit_gets_409(api, make_token):
 
 
 def test_without_projects_and_the_start_gate_checkout_is_503(api, make_token):
-    with override_container(deposit_terms=ProjectsNotReady()):
+    with override_container(deposit_terms=UnavailableProjects()):
         response = post(api, make_token())
     assert response.status_code == 503
-    assert "#6" in response.json()["error"]["message"]
+    assert response.json()["error"]["message"] == UnavailableProjects.MESSAGE
 
 
 def test_current_deposit_prefers_the_completed_one():

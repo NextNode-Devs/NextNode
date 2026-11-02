@@ -41,7 +41,12 @@ credentials are the Clerk development keys, and only the e2e step receives them.
 - **Stripe (#7):** webhook tests use payloads signed with a generated test
   secret, so they need no Stripe secret. The end-to-end deposit run uses a
   CI-only fake `PaymentGateway` (Team Lead's decision, 28 Oct 2026), so **no
-  Stripe secret is stored in GitHub**. Stripe setup and credentials belong to
+  Stripe secret is stored in GitHub**. It is `FakeCheckoutGateway`, chosen by
+  `STRIPE_FAKE_CHECKOUT=true` (refused in production), which
+  `playwright.config.ts` sets on its backend with a made-up
+  `STRIPE_WEBHOOK_SECRET`: checkout returns straight to the success page, and
+  `e2e/deposit.spec.ts` sends the webhook signed with that secret, verified as
+  Stripe's would be. Stripe setup and credentials belong to
   the Team Lead (`shar-hylton`) in #7. Never live keys; never a key in YAML,
   docs or issues.
 
