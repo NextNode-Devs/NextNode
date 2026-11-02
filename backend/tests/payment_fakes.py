@@ -11,6 +11,7 @@ from nextnode.application.payments.ports import (
     DepositTerms,
     InvalidWebhookError,
     PaymentEvent,
+    PaymentsUnavailableError,
 )
 from nextnode.domain.payments import Payment, PaymentStatus
 
@@ -116,3 +117,15 @@ class FakeProjects:
         if self.fail_start:
             raise RuntimeError("start refused")
         self.started.append((project_id, offer_version_id))
+
+
+class UnavailableProjects:
+    """Projects or the start gate cannot be reached (e.g. the database is down)."""
+
+    MESSAGE = "Projects are unavailable right now."
+
+    def get_for_update(self, project_id: int) -> DepositTerms | None:
+        raise PaymentsUnavailableError(self.MESSAGE)
+
+    def start_client_project(self, project_id: int, offer_version_id: int) -> None:
+        raise PaymentsUnavailableError(self.MESSAGE)
