@@ -148,6 +148,10 @@ Tavoiri (Team Lead; all Stripe work). Trace: Q1, Q5.
 - a receipt for every payment
 - cancel and **full refund** request (no fee), only while nothing is approved
 - fees panel (no hidden fees)
+- built: `/projects/[id]/payments` (client: totals, schedule, receipts, cancel
+  and refund; Team Lead and members: totals and schedule), linked from the
+  project page; deposit-and-milestone arithmetic still to be confirmed
+  (decisions, Still open)
 
 Backend note: Stripe Connect (separate charges and transfers, KYC) and refund
 handling. A Team Lead decision; not built in Phase 2. The live deposit is
