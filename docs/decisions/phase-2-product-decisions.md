@@ -193,10 +193,13 @@ student prototype, not a legal contract.
 
 1. ~~How the deposit and milestone payments add up~~: resolved 17 Nov.
    There are no milestone payments; see Payments.
-2. **The remaining 80 %:** the prototype shows it as one final payment when
-   the client approves the finished project (the original plan). The
-   stakeholder also suggested paying the rest per milestone; not adopted
-   unless the Team Lead says so.
+2. ~~The remaining 80 %~~: resolved 17 Nov. **One final payment** when the
+   client approves the finished project (Team Lead). The stakeholder's
+   per-milestone suggestion is not adopted: the client should not have to
+   keep paying, and the deposit is the client's show of good will and
+   commitment to the final delivery.
+
+Nothing else is open for Phase 2 payments.
 
 ## Future builds (not Phase 2)
 
