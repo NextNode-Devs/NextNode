@@ -1,35 +1,40 @@
 /**
- * PLANNED milestone-held payments (Phase 2 prototype, NN-37 #96).
+ * PLANNED deposit holding (Phase 2 prototype, NN-37 #96).
  *
- * Nothing here exists in the live product. The running integration is the
- * Phase 1 deposit (`deposit.ts`): Stripe test mode, confirmed by webhook, no
- * funds held and no payouts. These types are the planned API shape for the
- * screens that show the planned model, which are always labelled "Planned".
+ * The amounts are the existing plan: a 20 % deposit when the project starts
+ * (as in Phase 1) and the final payment when the client approves the
+ * finished project. What is planned (not live) is WHEN the team gets the
+ * deposit: it is held until the client approves the milestone they chose
+ * (1 or 2). Until then a cancelled project refunds the deposit minus Stripe's
+ * processing fee, which Stripe keeps on a refund. After that it is released
+ * and no longer refundable.
+ *
+ * The running integration is still the Phase 1 deposit (`deposit.ts`):
+ * Stripe test mode, confirmed by webhook, nothing held, no payouts. Screens
+ * using these types are labelled "Planned".
  * Rules: `docs/decisions/phase-2-product-decisions.md` (Payments).
- *
- * The model: the client pays a deposit up front and each milestone's payment
- * when that milestone starts. Each payment is held until its milestone is
- * approved; the deposit is held until the milestone the client chose (1 or 2)
- * is approved. Held money is refundable in full; released money is not.
  */
 
-export type PlannedPaymentKind = "deposit" | "milestone";
+export type PlannedPaymentKind = "deposit" | "final";
 
-/** `due` → `held` → `released`, or `held` → `refunded` when the client cancels. */
+/** `due` → `held` → `released` (deposit), `due` → `released` (final), or `held` → `refunded`. */
 export type PlannedPaymentState = "due" | "held" | "released" | "refunded";
 
 export type PlannedPayment = {
   id: number;
   project_id: number;
   kind: PlannedPaymentKind;
-  /**
-   * The milestone whose approval releases this payment: its own milestone,
-   * or for the deposit, the milestone the client chose (1 or 2).
-   */
-  release_milestone: number;
+  /** Deposit: the milestone (1 or 2) whose approval releases it. Final payment: `null`. */
+  release_milestone: number | null;
   amount_cents: number;
   currency: "CAD";
   state: PlannedPaymentState;
+  /**
+   * Stripe's processing fee on this charge, withheld if it is refunded. The
+   * real value comes from the charge's Stripe balance transaction; `null`
+   * until the client has paid.
+   */
+  processing_fee_cents: number | null;
   paid_at: string | null;
   released_at: string | null;
   refunded_at: string | null;
@@ -67,7 +72,12 @@ export function plannedPaymentTotals(payments: readonly PlannedPayment[]): Plann
   return { paid_cents: held + released, held_cents: held, released_cents: released, due_cents: sum("due") };
 }
 
-/** What a cancellation would refund now: everything still held, in full, no fee. */
+/** What a cancellation would refund now: anything still held (in practice, the deposit). */
 export function refundableNow(payments: readonly PlannedPayment[]): PlannedPayment[] {
   return payments.filter((item) => item.state === "held");
+}
+
+/** What the client gets back for one held payment: the amount minus Stripe's processing fee. */
+export function refundAmountCents(payment: PlannedPayment): number {
+  return Math.max(0, payment.amount_cents - (payment.processing_fee_cents ?? 0));
 }
