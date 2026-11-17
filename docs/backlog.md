@@ -1,5 +1,10 @@
 # NextNode product backlog
 
+> **Phase 2 is current:** `backlog-phase-2.md` (due 23 Nov 2026, target
+> 22 Nov). This file remains the Phase 1 record and the reference for the
+> working flows. Items moved into Phase 2 are listed in
+> `decisions/phase-2-product-decisions.md`.
+
 Revised 28 Oct 2026 (fifth review: Phase 1 is the MVP build only).
 Previous: 27 Oct 2026 (fourth review: the Team Lead's confirmed decisions).
 Sources: project proposal (FR/NFR), use case diagram (UC), class diagram

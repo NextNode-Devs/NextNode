@@ -2,7 +2,10 @@
 
 Collaborative freelance marketplace: developers form squads, build projects for
 clients or their own portfolios, and ship work into verified portfolios.
-CPAN 314, Group 1. Currently in **Phase 1: Initial Prototype Development**.
+CPAN 314, Group 1. Currently in **Phase 2: Prototype Refinement** (due
+23 Nov 2026, target 22 Nov): UI-first prototype screens on top of the working
+Phase 1 build. Backlog: `docs/backlog-phase-2.md`. Rules:
+`docs/decisions/phase-2-product-decisions.md`.
 
 | Path        | Project                         | Architecture                          | Tooling |
 | ----------- | ------------------------------- | ------------------------------------- | ------- |
@@ -31,12 +34,18 @@ may also be listed; it does not apply to NextNode and must be ignored here.
 
 ## Non-negotiables
 
-- Build only what the approved Phase 1 scope needs (`docs/backlog.md`); ask
-  before adding a role, workflow, integration or package the spec does not name.
+- Build only what the approved scope needs (`docs/backlog.md`, and for
+  Phase 2 `docs/backlog-phase-2.md`); ask before adding a role, workflow,
+  integration or package the spec does not name. Scope grows per iteration
+  (agile): stakeholder requests enter through a recorded decision.
 - Keep Hire Lead (developer applies to *lead* a client project) and Hire Devs
   (developer joins a team) distinct. Teams are 5–7 people including the Lead.
-- Payments are Stripe test mode with webhook-confirmed status; no escrow, no
-  payouts, and nothing may claim otherwise.
+- Payments are Stripe test mode with webhook-confirmed status. The running
+  integration holds no funds and makes no payouts, and nothing may claim
+  otherwise. Phase 2 prototype screens may show the planned milestone-held
+  flow only when it is labelled "Planned".
+- Phase 2 prototype screens never change a working Phase 1 flow; sample data
+  stays in prototype screens and is labelled.
 - No file over 500 lines. Imports follow each project's layer direction.
 - Secrets live in environment variables, are listed (as placeholders) in
   `.env.example`, and are never committed, logged or sent to the browser.

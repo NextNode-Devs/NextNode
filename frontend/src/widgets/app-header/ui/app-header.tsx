@@ -2,6 +2,7 @@ import { UserButton } from "@clerk/nextjs";
 import Link from "next/link";
 import { Suspense, type ReactNode } from "react";
 
+import { ContactSupportButton } from "@/features/contact-support";
 import { isAuthConfigured } from "@/shared/config/env.public";
 
 type Props = {
@@ -47,6 +48,7 @@ export function AppHeader({ current, status }: Props) {
         </nav>
         <div className="ml-auto flex items-center gap-3 sm:ml-0">
           {status}
+          <ContactSupportButton variant="compact" />
           {isAuthConfigured() ? (
             <Suspense fallback={<span className="size-7 rounded-full bg-muted" aria-hidden />}>
               <UserButton />

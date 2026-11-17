@@ -105,6 +105,24 @@ Never write "done", "complete" or "ready" while a required piece is missing.
 - [ ] Setup docs and `.env.example` updated if anything changed.
 - [ ] Merged into `develop` through a reviewed PR.
 
+### Phase 2 prototype items
+
+Items in `docs/backlog-phase-2.md` are UI prototypes. Their bar replaces the
+"real data" and "persists" lines above, and nothing else:
+
+- [ ] Reachable through the navigation as each role that would use it.
+- [ ] Shows the "Prototype" badge; sample data typed to the planned API and kept
+      in `model/sample.ts`, never in a Phase 1 screen.
+- [ ] Every unbuilt action shows the shared under-construction toast (no
+      `window.alert`), and no screen claims something works that does not.
+- [ ] Loading, empty, error and permission-denied states drawn.
+- [ ] 375 / 768 / 1280 px, keyboard only, visible focus; no console errors.
+- [ ] Lint, typecheck and unit tests pass; Phase 1 e2e still green.
+- [ ] The item's "Backend note" is still accurate (update it if the screen
+      changed what the backend will need).
+
+Report these as "prototype complete", never as "done" for the real feature.
+
 ## 10. Carry follow-ups forward
 
 Anything found and deliberately not done becomes a named follow-up (new issue
