@@ -179,7 +179,12 @@ student prototype, not a legal contract.
 
 ## Still open
 
-Nothing for Phase 2.
+1. **How the deposit and the milestone payments add up** (raised while
+   building #96, 17 Nov). If the client paid the deposit and every milestone
+   in full, they would pay 120 % of the offer. The prototype assumes the
+   deposit covers 20 % (the deposit percentage) of every milestone, so each
+   milestone payment is the remaining 80 % and the total never exceeds the
+   offer. The screens say so. **To be confirmed by the Team Lead.**
 
 ## Future builds (not Phase 2)
 
