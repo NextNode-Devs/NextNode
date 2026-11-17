@@ -61,7 +61,7 @@ The backlog is `../backlog-phase-2.md`.
 | Profile growth: time zone, new talent, completeness, certificates, GitHub import | Not described | In, as a prototype (Q4) |
 | Junior or new-developer spots | Not described | In, as a prototype (Q4) |
 | Receipts for every payment, cancel and refund request | Not described | In, as a prototype (Q1, Q5) |
-| Milestone-held payments | Out of scope (escrow) | **Planned flow shown as a prototype only**, see Payments |
+| Holding the deposit until a chosen milestone is approved | Out of scope (escrow) | **Planned flow shown as a prototype only**, see Payments |
 | Dispute escalation | Not described (no admin role) | Contact support placeholder (Q5) |
 
 Still out of scope: an admin role or console, real escrow or payouts in the
@@ -122,19 +122,30 @@ student prototype, not a legal contract.
 
 - **The running integration is unchanged:** Stripe test mode, the deposit
   confirmed by webhook, no funds held, no payouts.
-- **Planned model, shown in prototype screens only, labelled "Planned":**
-  the client pays for each milestone up front. NextNode holds that payment
-  until the client reviews and approves the milestone, then releases it to the
-  team. The deposit is released after the first milestone is approved. If
-  nothing has been approved yet, the client can cancel and ask for a refund.
-  After a milestone is approved, its payment belongs to the team. The signed
-  agreement is one part of the Team Lead's wider solution for cancellation
-  and code-handover disputes. The rest is still to be designed.
+- **Planned model, shown in prototype screens only, labelled "Planned"**
+  (corrected by the Team Lead, 17 Nov 2026). The amounts are the original
+  plan: a **20 % deposit** when the project starts and the **final payment**
+  when the client approves the finished project. Nothing is paid per
+  milestone. Only the deposit's timing changes: NextNode **holds the deposit
+  until the client approves the milestone they chose (1 or 2)**, then
+  releases it to the team. Until then the client can cancel and get the
+  deposit back **minus Stripe's processing fee**. After that it is no longer
+  refundable. The signed agreement is one part of the Team Lead's wider
+  solution for cancellation and code-handover disputes. The rest is still to
+  be designed.
+  - Why (internal reasoning, not shown to clients or developers): the client
+    gets their money back if the team produces nothing, and the team gets
+    paid once it has shown working progress.
 - **The deposit percentage is a term on the offer**, 20 % by default, and the
   client and Lead may agree a higher one, such as 30 % or 40 % (stakeholder
   Q1). Prototype only. The live deposit stays at `DEPOSIT_PERCENT`.
-- **Every payment gets a receipt** (stakeholder Q5). Fees are shown in full.
-  The refund fee is to be defined.
+- **Every payment gets a receipt** (stakeholder Q5). Fees are shown in full:
+  no NextNode fee; a refund costs **Stripe's processing fee**, which Stripe
+  keeps on the original charge. The client is told this before they pay and
+  again before they request a refund.
+  - The fee is not a NextNode percentage. The real amount is read from the
+    charge's Stripe balance transaction. Prototype screens show an example
+    (2.9 % + CAD 0.30, a typical Canadian card rate).
 - **Backend note:** holding and releasing funds needs Stripe Connect (separate
   charges and transfers to connected accounts, with KYC). That is a
   production-scale decision for the group's Team Lead and is not built in
@@ -144,8 +155,9 @@ student prototype, not a legal contract.
 
 - **Deposit release milestone: the client chooses it.** When the client
   accepts the offer, they pick the milestone whose approval releases the
-  deposit. A tooltip explains that this milestone is proof of work in
-  progress. The deposit is still paid up front, but it is held and
+  deposit. A tooltip explains when the deposit is released and that it is
+  refundable until then (the "proof of work" reasoning is internal and not
+  shown). The deposit is still paid up front, but it is held and
   refundable until that milestone is approved. After approval it is
   released to the team and is no longer refundable. This may change later.
   - **Limited to milestone 1 or 2** (Team Lead, 17 Nov), so the team is
@@ -153,10 +165,10 @@ student prototype, not a legal contract.
     **every client-project offer has at least 3 milestones**. Watch for
     small or short projects where three milestones feel forced; revisit if
     it becomes a problem.
-- **Refund: full refund, no fee.** While nothing has been approved, the
-  client gets the whole held amount back. No fee is charged or shown.
-  - Business note, not a product rule: in live mode Stripe keeps its own
-    processing fee on a refund, so NextNode would absorb that cost.
+- **Refund: the held deposit minus Stripe's processing fee** (Team Lead,
+  17 Nov, replacing "full refund, no fee"), so NextNode does not lose money
+  on refunds. Clients are told that a refund fee applies and that it is only
+  what Stripe keeps.
 - **Ratings:** the client rates the Team Lead and the team; the Lead rates
   each member; once per project, only after completion. **Hovering over (or
   focusing, or tapping on a phone) a developer's rating** opens a small card
@@ -179,7 +191,15 @@ student prototype, not a legal contract.
 
 ## Still open
 
-Nothing for Phase 2.
+1. ~~How the deposit and milestone payments add up~~: resolved 17 Nov.
+   There are no milestone payments; see Payments.
+2. ~~The remaining 80 %~~: resolved 17 Nov. **One final payment** when the
+   client approves the finished project (Team Lead). The stakeholder's
+   per-milestone suggestion is not adopted: the client should not have to
+   keep paying, and the deposit is the client's show of good will and
+   commitment to the final delivery.
+
+Nothing else is open for Phase 2 payments.
 
 ## Future builds (not Phase 2)
 

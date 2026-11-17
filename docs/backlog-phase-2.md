@@ -125,8 +125,9 @@ Backend note: a `confidential` flag on Project, honoured by NN-17's portfolio up
 - the role being accepted is shown
 - at least 3 milestones per offer
 - the client accepts all milestones together and **picks milestone 1 or 2**
-  as the one whose approval releases the deposit, with a tooltip saying it
-  is proof of work in progress (held and refundable until then)
+  as the one whose approval releases the deposit, with a tooltip saying the
+  deposit is held and refundable (minus Stripe's processing fee) until then.
+  Do not mention "proof of work" in the UI.
 - the working Phase 1 offer form stays as is
 
 Backend note: Milestone rows on the offer version (at least 3); amounts add
@@ -140,18 +141,23 @@ release milestone (1 or 2) stored on the acceptance.
 
 Backend note: milestone transitions as domain methods, review history.
 
-**NN-37 · Payments: planned held flow, receipts, cancel and refund**.
+**NN-37 · Payments: planned deposit holding, receipts, cancel and refund**.
 Tavoiri (Team Lead; all Stripe work). Trace: Q1, Q5.
-- per-milestone payment timeline labelled "Planned": paid by client → held →
-  released to the team on approval; the deposit is held until the milestone
-  the client chose is approved
+- payment schedule labelled "Planned": 20 % deposit at the start, held until
+  the client approves the milestone they chose (1 or 2), then released to
+  the team; the final payment when the client approves the finished project
 - a receipt for every payment
-- cancel and **full refund** request (no fee), only while nothing is approved
-- fees panel (no hidden fees)
+- cancel and refund while the deposit is held: the deposit back **minus
+  Stripe's processing fee**
+- fees panel (no NextNode fee; the refund fee is Stripe's processing fee)
+- built: `/projects/[id]/payments` (client: totals, schedule, milestones,
+  receipts, cancel and refund; Team Lead and members: totals and schedule),
+  linked from the project page
 
-Backend note: Stripe Connect (separate charges and transfers, KYC) and refund
-handling. A Team Lead decision; not built in Phase 2. The live deposit is
-unchanged.
+Backend note: holding the deposit and releasing it to the team needs Stripe
+Connect (separate charges and transfers, KYC); refunds read Stripe's fee from
+the charge's balance transaction and refund the rest. A Team Lead decision;
+not built in Phase 2. The live deposit is unchanged.
 
 **NN-17 · Final approval, archive, portfolio update**. Kai.
 - final approval screen
