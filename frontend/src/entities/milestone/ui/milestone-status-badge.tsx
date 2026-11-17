@@ -4,6 +4,7 @@ import { MILESTONE_STATUS_LABEL, type MilestoneStatus } from "../model/milestone
 
 const VARIANT: Record<MilestoneStatus, "outline" | "secondary" | "default"> = {
   pending_deposit: "outline",
+  not_started: "outline",
   in_progress: "secondary",
   under_review: "secondary",
   completed: "default",
