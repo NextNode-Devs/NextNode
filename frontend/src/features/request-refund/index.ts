@@ -1,1 +1,1 @@
-export { RequestRefundButton } from "./ui/request-refund-button";
+export { RequestRefundButton, type RefundLine } from "./ui/request-refund-button";

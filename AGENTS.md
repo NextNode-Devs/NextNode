@@ -42,8 +42,8 @@ may also be listed; it does not apply to NextNode and must be ignored here.
   (developer joins a team) distinct. Teams are 5–7 people including the Lead.
 - Payments are Stripe test mode with webhook-confirmed status. The running
   integration holds no funds and makes no payouts, and nothing may claim
-  otherwise. Phase 2 prototype screens may show the planned milestone-held
-  flow only when it is labelled "Planned".
+  otherwise. Phase 2 prototype screens may show the planned deposit holding
+  (released on milestone 1 or 2) only when it is labelled "Planned".
 - Phase 2 prototype screens never change a working Phase 1 flow; sample data
   stays in prototype screens and is labelled.
 - No file over 500 lines. Imports follow each project's layer direction.

@@ -19,7 +19,7 @@ import { MilestonePayments } from "@/widgets/milestone-payments";
 type Props = { projectId: Promise<string> };
 
 /**
- * `/projects/[id]/payments`: the PLANNED milestone-held payments for a client
+ * `/projects/[id]/payments`: the PLANNED deposit holding for a client
  * project (Phase 2 prototype, NN-37 #96). Access is real (the project's
  * client, Team Lead and members); the payments are sample data.
  */
@@ -115,13 +115,13 @@ async function PaymentsScreen({ projectId }: Props) {
         <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Payments</h1>
         <p className="text-muted-foreground">
           {is_owner
-            ? "What you've paid, what's held until you approve a milestone, and your receipts."
-            : "What the client has paid, and what's held until each milestone is approved."}
+            ? "What you've paid, when your deposit goes to the team, and your receipts."
+            : "What the client has paid, and when the deposit is released to the team."}
         </p>
       </header>
       <PrototypeNotice title="Planned payment model, sample data">
         Nothing on this page charges, holds or moves money. The live deposit on the project page works as before
-        (Stripe test mode). Holding and releasing payments is planned for a later build.
+        (Stripe test mode). Holding the deposit until a milestone is approved is planned for a later build.
       </PrototypeNotice>
       <MilestonePayments
         viewer={is_owner ? "client" : "team"}
