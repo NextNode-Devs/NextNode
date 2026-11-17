@@ -17,6 +17,7 @@ import { ProjectStartStatus } from "@/widgets/project-start-status";
 import { RequirementDocuments } from "@/widgets/requirement-documents";
 import { TeamRoster } from "@/widgets/team-roster";
 
+import { PaymentsLink } from "./payments-link";
 import { PrimaryAction } from "./primary-action";
 import { ProjectChats } from "./project-chats";
 import { ProjectBrief } from "./project-sections";
@@ -153,6 +154,7 @@ async function ProjectScreen({ projectId, notice }: Props) {
         </div>
         <aside className="space-y-4">
           <PrimaryAction project={project} />
+          <PaymentsLink project={project} />
           <Suspense fallback={<LoadingCards count={1} label="Loading the team" />}>
             <TeamRoster project={project} />
           </Suspense>
