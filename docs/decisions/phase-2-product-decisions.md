@@ -148,9 +148,11 @@ student prototype, not a legal contract.
   progress. The deposit is still paid up front, but it is held and
   refundable until that milestone is approved. After approval it is
   released to the team and is no longer refundable. This may change later.
-  - Recommendation (pending the Team Lead): limit the choice to the first two
-    milestones, so the team is never left until the last milestone with a
-    refundable deposit.
+  - **Limited to milestone 1 or 2** (Team Lead, 17 Nov), so the team is
+    never left until the last milestone with a refundable deposit. So
+    **every client-project offer has at least 3 milestones**. Watch for
+    small or short projects where three milestones feel forced; revisit if
+    it becomes a problem.
 - **Refund: full refund, no fee.** While nothing has been approved, the
   client gets the whole held amount back. No fee is charged or shown.
   - Business note, not a product rule: in live mode Stripe keeps its own
@@ -177,8 +179,7 @@ student prototype, not a legal contract.
 
 ## Still open
 
-1. Should the deposit-release choice be limited to the first two milestones?
-   (recommendation above)
+Nothing for Phase 2.
 
 ## Future builds (not Phase 2)
 

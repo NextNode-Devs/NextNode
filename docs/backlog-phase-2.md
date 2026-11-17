@@ -97,13 +97,15 @@ Backend note: a `confidential` flag on Project, honoured by NN-17's portfolio up
 - prototype section on the offer: milestones, each with an amount and due date
 - deposit % term (20 % default; higher if agreed)
 - the role being accepted is shown
-- the client accepts all milestones together and **picks the milestone whose
-  approval releases the deposit**, with a tooltip saying it is proof of work
-  in progress (held and refundable until then)
+- at least 3 milestones per offer
+- the client accepts all milestones together and **picks milestone 1 or 2**
+  as the one whose approval releases the deposit, with a tooltip saying it
+  is proof of work in progress (held and refundable until then)
 - the working Phase 1 offer form stays as is
 
-Backend note: Milestone rows on the offer version; amounts add up to the
-total; a deposit % field; the deposit computed from it.
+Backend note: Milestone rows on the offer version (at least 3); amounts add
+up to the total; a deposit % field; the deposit computed from it; the
+release milestone (1 or 2) stored on the acceptance.
 
 **NN-16b · Milestone delivery and review**. Kai (`KaiNabea`). Trace: Q1.
 - Lead submits milestone work

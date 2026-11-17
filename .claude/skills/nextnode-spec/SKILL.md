@@ -31,7 +31,8 @@ In short:
   Lead inactivity members are asked to confirm the project is active (hidden
   from the open-projects feed and suggestions meanwhile); no answer in 7 days
   closes it. Prototype screens; backend later.
-- **Deposit:** the client picks the milestone whose approval releases it; held
+- **Deposit:** the client picks milestone 1 or 2 (offers have at least 3
+  milestones) as the one whose approval releases it; held
   and fully refundable (no fee) until then. Prototype, labelled "Planned".
 - **Client projects:** Lead replacement is proposed by the team and approved
   by the client; the new Lead signs the current offer. Leavers lose access.
