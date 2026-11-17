@@ -12,8 +12,34 @@ shows the "under construction" toast for actions that are not built yet. The
 "Backend note" says what the real version needs. Backend work is allowed but
 UI comes first.
 
-Owners are taken from each member's reflection in the stakeholder meeting
-file. Where nobody claimed an item, the owner is marked *proposed*.
+Owners come from each member's reflection in the stakeholder meeting file;
+the Team Lead assigned the rest (17 Nov 2026).
+
+## GitHub issues (created 17 Nov 2026)
+
+Milestone "Phase 2: Prototype Refinement" (due 22 Nov), label `phase-2`.
+Owners confirmed by the Team Lead on 17 Nov 2026.
+
+| Backlog | Issue | Owner |
+| --- | --- | --- |
+| NN-31 | [#87](https://github.com/NextNode-Devs/NextNode/issues/87) | `shar-hylton` |
+| NN-32 | [#88](https://github.com/NextNode-Devs/NextNode/issues/88) | `Kaushalya-123` |
+| NN-19 | [#89](https://github.com/NextNode-Devs/NextNode/issues/89) | `Kaushalya-123` |
+| NN-26 | [#90](https://github.com/NextNode-Devs/NextNode/issues/90) | `Kaushalya-123` |
+| NN-33 | [#91](https://github.com/NextNode-Devs/NextNode/issues/91) | `Kaushalya-123`, `Hardik33` |
+| NN-15b | [#92](https://github.com/NextNode-Devs/NextNode/issues/92) | `Isabella-Enriquez` |
+| NN-41 | [#93](https://github.com/NextNode-Devs/NextNode/issues/93) | `Isabella-Enriquez` |
+| NN-16a | [#94](https://github.com/NextNode-Devs/NextNode/issues/94) | `AliyaaAli` |
+| NN-16b | [#95](https://github.com/NextNode-Devs/NextNode/issues/95) | `KaiNabea` |
+| NN-37 | [#96](https://github.com/NextNode-Devs/NextNode/issues/96) | `shar-hylton` |
+| NN-17 | [#97](https://github.com/NextNode-Devs/NextNode/issues/97) | `KaiNabea` |
+| NN-35 | [#98](https://github.com/NextNode-Devs/NextNode/issues/98) | `KaiNabea` |
+| NN-36 | [#99](https://github.com/NextNode-Devs/NextNode/issues/99) | `KaiNabea` |
+| NN-38 | [#100](https://github.com/NextNode-Devs/NextNode/issues/100) | `Hardik33`, `AliyaaAli` |
+| NN-39 | [#101](https://github.com/NextNode-Devs/NextNode/issues/101) | `jayparmarsectionA` |
+| NN-34 | [#102](https://github.com/NextNode-Devs/NextNode/issues/102) | `jayparmarsectionA` |
+| NN-40 | [#103](https://github.com/NextNode-Devs/NextNode/issues/103) | `AliyaaAli` |
+| NN-42 | [#104](https://github.com/NextNode-Devs/NextNode/issues/104) | `shar-hylton` |
 
 ## Schedule
 
@@ -166,7 +192,7 @@ Backend note: membership `Left` / `Removed` states; roster changes while
 an inactivity job.
 
 **NN-39 · Assistant Lead and inactivity (developer projects)**. Jay
-(`jayparmarsectionA`), *proposed* (shared authorization rules). Trace: Team
+(`jayparmarsectionA`) (shared authorization rules). Trace: Team
 Lead, 17 Nov.
 - the Lead chooses an Assistant Lead
 - the Assistant Lead's permissions shown on the roster (cannot remove the Lead)
@@ -190,7 +216,7 @@ Backend note: profile fields and a migration (a good first real backend
 slice); certificates through `FileStorage` (PDF, PNG, JPG); GitHub sign-in
 through Clerk.
 
-**NN-40 · Disputes and support**. Aliya, *proposed*. Trace: Q5.
+**NN-40 · Disputes and support**. Aliya. Trace: Q5.
 - "Raise an issue with your Team Lead" entry in the workspace
 - "Contact support" button opening the NN-31 modal
 
@@ -206,7 +232,7 @@ refined each part), short notes on the enhancements.
 `Project_Prototype_Phase2_Group1.zip` (no `.env`, `node_modules`, `.venv` or
 build output).
 
-## Testing and refinement (cross-testing pairs, *proposed*)
+## Testing and refinement (cross-testing pairs, )
 
 Each owner tests their own screens before opening a PR, and Tavoiri reviews
 before merging. A second member then tests each area at 375, 768 and 1280 px,
