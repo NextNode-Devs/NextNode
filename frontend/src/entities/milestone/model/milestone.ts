@@ -10,8 +10,12 @@
  * prototype (#96) build on it.
  */
 
-/** Proposal FR6: `Pending Deposit → In Progress → Under Review → Completed`. */
-export type MilestoneStatus = "pending_deposit" | "in_progress" | "under_review" | "completed";
+/**
+ * Proposal FR6: `Pending Deposit → In Progress → Under Review → Completed`,
+ * plus `not_started` for later milestones once the deposit is paid (otherwise
+ * they would still read "Pending deposit" after the client has paid it).
+ */
+export type MilestoneStatus = "pending_deposit" | "not_started" | "in_progress" | "under_review" | "completed";
 
 export type Milestone = {
   id: number;
@@ -55,6 +59,7 @@ export const MILESTONE_RULES = {
 
 export const MILESTONE_STATUS_LABEL: Record<MilestoneStatus, string> = {
   pending_deposit: "Pending deposit",
+  not_started: "Not started",
   in_progress: "In progress",
   under_review: "Under review",
   completed: "Completed",
