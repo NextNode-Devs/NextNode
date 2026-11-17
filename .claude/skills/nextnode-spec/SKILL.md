@@ -32,12 +32,14 @@ In short:
   from the open-projects feed and suggestions meanwhile); no answer in 7 days
   closes it. Prototype screens; backend later.
 - **Deposit:** the client picks milestone 1 or 2 (offers have at least 3
-  milestones) as the one whose approval releases it; held
-  and fully refundable (no fee) until then. Prototype, labelled "Planned".
+  milestones) as the one whose approval releases it to the team; held and
+  refundable minus Stripe's processing fee until then. Amounts unchanged:
+  20 % deposit, final payment on approval, nothing paid per milestone.
+  Prototype, labelled "Planned".
 - **Client projects:** Lead replacement is proposed by the team and approved
   by the client; the new Lead signs the current offer. Leavers lose access.
 - **Payments:** live integration unchanged (no held funds, no payouts).
-  The milestone-held flow appears only on prototype screens labelled
+  Deposit holding appears only on prototype screens labelled
   "Planned". Real holding needs Stripe Connect, a Team Lead decision.
 - **Legal wording** (code ownership, confidentiality) is "To be defined".
 - **Disputes:** Team Lead internally; escalation via the Contact support

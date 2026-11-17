@@ -1,10 +1,11 @@
 export { getDeposit } from "./api/get-deposit";
 export type { Deposit, DepositState } from "./model/deposit";
-// Phase 2 prototype (#96): the PLANNED milestone-held model. Not live.
+// Phase 2 prototype (#96): the PLANNED deposit holding. Not live.
 export {
   PLANNED_PAYMENT_STATE_LABEL,
   plannedPaymentTotals,
   refundableNow,
+  refundAmountCents,
   type PlannedPayment,
   type PlannedPaymentKind,
   type PlannedPaymentState,
