@@ -174,6 +174,22 @@ feedback, forms, mobile, accessibility, tokens). Read it before building any
 screen. For design decisions use `ui-ux-pro-max`; for shadcn/Tailwind
 mechanics use `ui-styling`; for token structure use `design-system`.
 
+## 9a. Phase 2 prototype kit (NN-31)
+
+Prototype screens (`docs/backlog-phase-2.md`) use these, never their own copies:
+
+| Need | Use |
+| --- | --- |
+| An action that is not built yet | `onClick={() => underConstruction("Release payment")}` from `@/shared/lib/toast` |
+| Any other feedback message | `toast({ title, description?, tone? })` from `@/shared/lib/toast` |
+| Mark a screen or section | `<PrototypeNotice />` at the top of the screen, `<PrototypeBadge />` (or `label="Planned"` for payment flows) on sections |
+| A modal | `MotionDialog` from `@/shared/ui/organisms/motion-dialog`; pass the opening button as `trigger` so focus returns to it |
+| Escalation / disputes | `ContactSupportButton` from `@/features/contact-support` (already in the app header) |
+| Sample data | `entities/<noun>/model/sample.ts`, typed to the planned API shape and exported through the entity's `index.ts`; only prototype screens import it |
+
+Animation is Motion (`motion/react`); respect `useReducedMotion()` (fade
+only). No `window.alert`. Never import sample data into a Phase 1 screen.
+
 ## 10. Checklist before finishing
 
 - [ ] Every file under 500 lines.

@@ -10,6 +10,39 @@ project-based squads, build software for clients (founders, small businesses)
 or for their own portfolios, and the shipped work lands in verified
 portfolios. *Build as a squad. Ship real projects. Prove it in your portfolio.*
 
+## Phase 2 (current, due 23 Nov 2026, target 22 Nov)
+
+Read `docs/decisions/phase-2-product-decisions.md` and
+`docs/backlog-phase-2.md` first. They override this file where they conflict.
+In short:
+
+- **Agile.** Stakeholder Meeting 1 moved ratings, notifications, invitation
+  links, milestones, final approval/archive, workspace extras, replacement
+  flows and profile growth into scope, **as UI prototypes**. The Phase 1
+  "Out of scope" and "Deferred" lists below are historical for those items.
+- **UI first.** Screens and navigation; unbuilt actions show the shared Motion
+  toast "This is a prototype. This function is under construction." Backend is
+  allowed where it helps debugging or fixes a contract, never by changing a
+  working Phase 1 flow.
+- **Matching** is rule-based with a visible reason; AI matching is future.
+- **Developer projects:** the creator stays Lead and may choose an
+  **Assistant Lead** (add/remove members except the Lead, update details,
+  complete/close; cannot remove the Lead or override them). After 30 days of
+  Lead inactivity members are asked to confirm the project is active (hidden
+  from the open-projects feed and suggestions meanwhile); no answer in 7 days
+  closes it. Prototype screens; backend later.
+- **Deposit:** the client picks milestone 1 or 2 (offers have at least 3
+  milestones) as the one whose approval releases it; held
+  and fully refundable (no fee) until then. Prototype, labelled "Planned".
+- **Client projects:** Lead replacement is proposed by the team and approved
+  by the client; the new Lead signs the current offer. Leavers lose access.
+- **Payments:** live integration unchanged (no held funds, no payouts).
+  The milestone-held flow appears only on prototype screens labelled
+  "Planned". Real holding needs Stripe Connect, a Team Lead decision.
+- **Legal wording** (code ownership, confidentiality) is "To be defined".
+- **Disputes:** Team Lead internally; escalation via the Contact support
+  modal (prototype).
+
 ## Sources of truth, in order of precedence
 
 1. **Approved decisions** recorded in this skill (§ Approved decisions) and in
