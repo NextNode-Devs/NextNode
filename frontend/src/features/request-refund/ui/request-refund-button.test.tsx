@@ -1,33 +1,35 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 
-import { SAMPLE_PLANNED_PAYMENTS, type PlannedPayment } from "@/entities/payment";
+import { RequestRefundButton, type RefundLine } from "./request-refund-button";
 
-import { RequestRefundButton } from "./request-refund-button";
-
-// The payment entity's index also exports a server-only API call.
-vi.mock("server-only", () => ({}));
-
-const held = SAMPLE_PLANNED_PAYMENTS.filter((item) => item.state === "held");
-const released = SAMPLE_PLANNED_PAYMENTS.filter((item) => item.state === "released");
+const deposit: RefundLine = { id: 1, label: "Deposit", amount_cents: 120_000, fee_cents: 3_510, refund_cents: 116_490 };
 
 describe("RequestRefundButton", () => {
-  it("cannot confirm when nothing is held", async () => {
+  it("cannot confirm once the deposit has been released", async () => {
     const user = userEvent.setup();
-    const nothingHeld: PlannedPayment[] = [];
-    render(<RequestRefundButton refundable={nothingHeld} released={released} />);
+    render(<RequestRefundButton lines={[]} />);
     await user.click(screen.getByRole("button", { name: "Cancel and request a refund" }));
     const dialog = await screen.findByRole("dialog");
-    expect(dialog).toHaveAccessibleDescription("Nothing is held right now, so there is nothing to refund.");
+    expect(dialog).toHaveAccessibleDescription(
+      "Your deposit has already been released to the team, so there is nothing to refund.",
+    );
     expect(screen.getByRole("button", { name: "Request refund" })).toBeDisabled();
   });
 
-  it("closes without doing anything from Keep the project", async () => {
+  it("shows the amount, Stripe's fee and what comes back", async () => {
     const user = userEvent.setup();
-    render(<RequestRefundButton refundable={held} released={released} />);
-    const trigger = screen.getByRole("button", { name: "Cancel and request a refund" });
-    await user.click(trigger);
+    render(<RequestRefundButton lines={[deposit]} />);
+    await user.click(screen.getByRole("button", { name: "Cancel and request a refund" }));
+    expect(await screen.findByText("Stripe processing fee (not refunded)")).toBeInTheDocument();
+    expect(screen.getByText("You get back").nextSibling).toHaveTextContent("CAD 1,164.90");
+  });
+
+  it("closes without doing anything from Keep the project, returning focus", async () => {
+    const user = userEvent.setup();
+    render(<RequestRefundButton lines={[deposit]} />);
+    await user.click(screen.getByRole("button", { name: "Cancel and request a refund" }));
     await user.click(await screen.findByRole("button", { name: "Keep the project" }));
     expect(await screen.findByRole("button", { name: "Cancel and request a refund" })).toHaveFocus();
   });

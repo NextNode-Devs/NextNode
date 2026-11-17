@@ -1,5 +1,5 @@
 import { type MilestonePlan, milestonesTotalCents } from "@/entities/milestone";
-import { plannedPaymentTotals, refundableNow, type PlannedPayment } from "@/entities/payment";
+import { plannedPaymentTotals, refundableNow, refundAmountCents, type PlannedPayment } from "@/entities/payment";
 import { RequestRefundButton } from "@/features/request-refund";
 import { formatMoney } from "@/shared/lib/format-money";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/shadcn/card";
@@ -17,13 +17,24 @@ type Props = {
 };
 
 /**
- * PLANNED milestone-held payments for one client project (Phase 2 prototype,
- * NN-37 #96). Shows sample data; nothing here charges, holds or moves money.
+ * PLANNED payments for one client project (Phase 2 prototype, NN-37 #96):
+ * the deposit is held until the client approves the milestone they chose.
+ * Shows sample data; nothing here charges, holds or moves money.
  */
 export function MilestonePayments({ viewer, plan, payments }: Props) {
   const totals = plannedPaymentTotals(payments);
   const offerTotal = milestonesTotalCents(plan.milestones);
   const money = (cents: number) => formatMoney(cents, "CAD");
+  const deposit = payments.find((item) => item.kind === "deposit");
+  const depositCents = Math.round((offerTotal * plan.deposit_percent) / 100);
+  const releaseOn = plan.deposit_release_milestone ? `milestone ${plan.deposit_release_milestone}` : "the milestone you chose";
+  const refundLines = refundableNow(payments).map((item) => ({
+    id: item.id,
+    label: item.kind === "deposit" ? "Deposit" : "Final payment",
+    amount_cents: item.amount_cents,
+    fee_cents: item.processing_fee_cents ?? 0,
+    refund_cents: refundAmountCents(item),
+  }));
   const stats = [
     { label: viewer === "client" ? "Paid by you" : "Paid by the client", value: totals.paid_cents },
     { label: "Held (refundable)", value: totals.held_cents },
@@ -43,7 +54,7 @@ export function MilestonePayments({ viewer, plan, payments }: Props) {
             </div>
           ))}
         </section>
-        <PaymentSchedule viewer={viewer} payments={payments} milestones={plan.milestones} />
+        <PaymentSchedule viewer={viewer} plan={plan} payments={payments} />
         {viewer === "client" ? <ReceiptsList payments={payments} /> : null}
       </div>
       <aside className="min-w-0 space-y-4">
@@ -58,18 +69,21 @@ export function MilestonePayments({ viewer, plan, payments }: Props) {
             <dl className="grid grid-cols-[1fr_auto] gap-x-3 gap-y-1.5 text-sm">
               <dt className="text-muted-foreground">Offer total</dt>
               <dd className="tabular-nums">{money(offerTotal)}</dd>
-              <dt className="text-muted-foreground">Deposit ({plan.deposit_percent} %)</dt>
-              <dd className="tabular-nums">{money(Math.round((offerTotal * plan.deposit_percent) / 100))}</dd>
+              <dt className="text-muted-foreground">Deposit ({plan.deposit_percent} %), at the start</dt>
+              <dd className="tabular-nums">{money(depositCents)}</dd>
+              <dt className="text-muted-foreground">Final payment, on approval</dt>
+              <dd className="tabular-nums">{money(offerTotal - depositCents)}</dd>
               <dt className="text-muted-foreground">Deposit released on</dt>
               <dd>{plan.deposit_release_milestone ? `Milestone ${plan.deposit_release_milestone}` : "Not chosen"}</dd>
               <dt className="text-muted-foreground">NextNode fee</dt>
               <dd>None</dd>
               <dt className="text-muted-foreground">Refund fee</dt>
-              <dd>None</dd>
+              <dd>Stripe&apos;s processing fee</dd>
             </dl>
             <p className="mt-3 text-sm text-muted-foreground">
-              The deposit covers {plan.deposit_percent} % of every milestone, so each milestone payment is the rest.
-              You never pay more than the offer total.
+              You pay the offer total and nothing more. If the deposit is refunded, Stripe keeps its processing fee
+              {deposit?.processing_fee_cents ? ` (${money(deposit.processing_fee_cents)} on your deposit)` : ""}, so
+              that amount is not returned.
             </p>
           </CardContent>
         </Card>
@@ -80,14 +94,12 @@ export function MilestonePayments({ viewer, plan, payments }: Props) {
                 <h2>Cancel the project</h2>
               </CardTitle>
               <CardDescription>
-                Anything still held comes back to you in full. Money for approved milestones has gone to the team.
+                Until you approve {releaseOn}, you can cancel and get your deposit back, minus Stripe&apos;s
+                processing fee. After that, the deposit has gone to the team.
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <RequestRefundButton
-                refundable={refundableNow(payments)}
-                released={payments.filter((item) => item.state === "released")}
-              />
+              <RequestRefundButton lines={refundLines} />
             </CardContent>
           </Card>
         ) : null}
