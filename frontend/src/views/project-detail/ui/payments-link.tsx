@@ -7,7 +7,7 @@ import { Button } from "@/shared/ui/shadcn/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/shadcn/card";
 
 /**
- * Phase 2 prototype entry point (#96): the planned milestone payments page.
+ * Phase 2 prototype entry point (#96): the planned payments page.
  * Client projects only, for the client, the Team Lead and members. It sits
  * beside the Phase 1 sections and changes none of them.
  */
@@ -23,7 +23,7 @@ export function PaymentsLink({ project }: { project: Project }) {
           <PrototypeBadge label="Planned" />
         </CardTitle>
         <CardDescription>
-          {is_owner ? "Milestone payments, what's held, and your receipts." : "What the client has paid and what's held."}
+          {is_owner ? "Your deposit, the final payment, and your receipts." : "What the client has paid and what's held."}
         </CardDescription>
       </CardHeader>
       <CardContent>
