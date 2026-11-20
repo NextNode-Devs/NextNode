@@ -1,9 +1,10 @@
-import { UserButton } from "@clerk/nextjs";
 import Link from "next/link";
-import { Suspense, type ReactNode } from "react";
+import type { ReactNode } from "react";
 
 import { ContactSupportButton } from "@/features/contact-support";
 import { isAuthConfigured } from "@/shared/config/env.public";
+
+import { AccountMenu } from "./account-menu";
 
 type Props = {
   /** The current top-level page, marked with `aria-current`. */
@@ -49,11 +50,7 @@ export function AppHeader({ current, status }: Props) {
         <div className="ml-auto flex items-center gap-3 sm:ml-0">
           {status}
           <ContactSupportButton variant="compact" />
-          {isAuthConfigured() ? (
-            <Suspense fallback={<span className="size-7 rounded-full bg-muted" aria-hidden />}>
-              <UserButton />
-            </Suspense>
-          ) : null}
+          {isAuthConfigured() ? <AccountMenu /> : null}
         </div>
       </div>
     </header>

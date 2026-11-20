@@ -30,6 +30,9 @@ export default defineConfig({
   testDir: "./e2e",
   globalSetup: "./e2e/global.setup.ts",
   fullyParallel: true,
+  // Pages render on the server per request. With every spec running in parallel against one
+  // local backend, a navigation can take longer than Playwright's default 5 s check.
+  expect: { timeout: 10_000 },
   // `next dev` compiles each route on first visit, so give it room and fewer parallel visitors.
   ...(DEV ? { timeout: 90_000, workers: 2 } : {}),
   forbidOnly: !!process.env.CI,
