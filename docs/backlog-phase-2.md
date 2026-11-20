@@ -108,7 +108,14 @@ the developer's skills and availability. AI matching is a future iteration.
 - members-only access state
 
 Backend note: VideoLink and ProjectUpdate models; access follows team
-membership.
+membership. Shapes the prototype expects (`entities/video-link`,
+`entities/project-update`): a VideoLink is either one meeting (`starts_at`)
+or weekly (`days` + `time`); a ProjectUpdate records the milestone in
+progress when it was posted (`milestone_sequence`, null before work starts)
+so the feed can group by milestone. The client and the Team Lead add
+(and later remove) meetings (Team Lead decision, 20 Nov); the tab is
+called "Meetings". Chat stays the Phase 1 team
+conversation, which the client is not part of.
 
 **NN-41 · Confidential briefs and search filters**. Isabella. Trace: Q4, Q5.
 - "Confidential" toggle on the brief, which keeps the project out of portfolios

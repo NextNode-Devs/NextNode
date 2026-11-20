@@ -156,13 +156,17 @@ jobs:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('frontend/package-lock.json') }}
       - name: Install Playwright system dependencies (retried; a stalled apt mirror must not hang the job)
-        timeout-minutes: 10
+        timeout-minutes: 15
         working-directory: frontend
         run: |
-          echo 'Acquire::Retries "3"; Acquire::http::Timeout "30"; Acquire::https::Timeout "30";' \
+          # DPkg::Lock::Timeout: wait for apt's lock instead of failing at once. The runner's own
+          # background apt, or an apt-get still running after an earlier attempt timed out (timeout
+          # stops npx, not the apt-get it started), can hold it: "Could not get lock
+          # /var/lib/dpkg/lock-frontend". Never kill that apt-get: it can leave dpkg half-configured.
+          echo 'Acquire::Retries "3"; Acquire::http::Timeout "30"; Acquire::https::Timeout "30"; DPkg::Lock::Timeout "240";' \
             | sudo tee /etc/apt/apt.conf.d/80-retries > /dev/null
           for attempt in 1 2 3; do
-            timeout 180 npx playwright install-deps chromium && exit 0
+            timeout 270 npx playwright install-deps chromium && exit 0
             echo "Attempt $attempt failed; retrying."; sleep 5
           done
           exit 1
