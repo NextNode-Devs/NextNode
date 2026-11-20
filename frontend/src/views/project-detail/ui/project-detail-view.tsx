@@ -14,6 +14,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/shared/ui/shadcn/alert";
 import { Button } from "@/shared/ui/shadcn/button";
 import { AppHeader } from "@/widgets/app-header";
 import { ProjectStartStatus } from "@/widgets/project-start-status";
+import { isInWorkspace, ProjectTabs, workspacePrivacyNote } from "@/widgets/project-tabs";
 import { RequirementDocuments } from "@/widgets/requirement-documents";
 import { TeamRoster } from "@/widgets/team-roster";
 
@@ -133,6 +134,7 @@ async function ProjectScreen({ projectId, notice }: Props) {
           </p>
         ) : null}
       </header>
+      <ProjectTabs project={project} current="overview" />
 
       <div className="grid gap-6 lg:grid-cols-[1fr_20rem]">
         <div className="space-y-6">
@@ -145,12 +147,13 @@ async function ProjectScreen({ projectId, notice }: Props) {
           <ProjectBrief project={project} />
           {project.kind === "client" && project.viewer.can_read_documents ? (
             <RequirementDocuments projectId={project.id} canUpload={project.viewer.can_upload_documents} />
-          ) : project.kind === "client" ? (
+          ) : null}
+          {isInWorkspace(project) ? null : (
             <p className="flex items-start gap-1.5 text-sm text-muted-foreground">
               <LockIcon className="mt-0.5 size-4 shrink-0" aria-hidden />
-              This project has private requirement documents for its client and team. You&apos;ll see them if you join.
+              {workspacePrivacyNote(project, me.role)}
             </p>
-          ) : null}
+          )}
         </div>
         <aside className="space-y-4">
           <PrimaryAction project={project} />
