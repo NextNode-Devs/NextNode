@@ -218,7 +218,15 @@ test.describe("Project start gate", () => {
     await expect(graceCard.getByText(/not a legal contract/)).toBeVisible();
     await grace.page.getByRole("button", { name: "Decline…" }).click();
     await grace.page.getByLabel(/Why are you declining/).fill("Our budget is closer to CAD 9,000.");
+    // Wait for the server to record the decline before Ada reloads. The reason text alone is not
+    // proof: it is also the value of the textarea Grace just typed into, so it was "visible" before
+    // the request was even sent, and on a busy CI runner Ada could reload first and still see
+    // version 1 waiting (seen in CI on 20 Nov 2026).
+    const declined = grace.page.waitForResponse(
+      (response) => response.request().method() === "POST" && /\/api\/offers\/\d+\/decline\/$/.test(response.url()),
+    );
     await grace.page.getByRole("button", { name: "Decline version 1" }).click();
+    expect((await declined).status()).toBe(200);
     await expect(graceCard.getByText("Our budget is closer to CAD 9,000.")).toBeVisible({ timeout: 20_000 });
 
     // --- The Lead sees the reason and sends a revised version 2 ---
