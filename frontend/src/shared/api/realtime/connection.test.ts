@@ -32,6 +32,9 @@ class FakeSocket {
 const latest = () => FakeSocket.instances.at(-1)!;
 const flush = () => vi.advanceTimersByTimeAsync(0);
 
+/** Every connection a test makes, stopped afterwards so its window listeners don't leak into later tests. */
+const made: RealtimeConnection[] = [];
+
 function make(getToken = vi.fn(async (): Promise<string | null> => "tok")) {
   const connection = new RealtimeConnection({
     url: "ws://api.test/ws",
@@ -40,6 +43,7 @@ function make(getToken = vi.fn(async (): Promise<string | null> => "tok")) {
     random: () => 1,
     isOnline: () => true,
   });
+  made.push(connection);
   const states: ConnectionState["status"][] = [];
   connection.subscribe((s) => states.push(s.status));
   return { connection, states, getToken };
@@ -56,7 +60,10 @@ beforeEach(() => {
   vi.useFakeTimers();
   FakeSocket.instances = [];
 });
-afterEach(() => vi.useRealTimers());
+afterEach(() => {
+  for (const connection of made.splice(0)) connection.stop();
+  vi.useRealTimers();
+});
 
 describe("RealtimeConnection", () => {
   it("sends the token in the first frame, not the URL, then reports connected", async () => {
@@ -124,6 +131,25 @@ describe("RealtimeConnection", () => {
     await connect(connection);
     latest().reply({ type: "realtime.test", n: 1 });
     expect(listener).toHaveBeenCalledWith({ type: "realtime.test", n: 1 });
+  });
+
+  it("drops the socket when the browser goes offline, and opens a fresh one when it's back", async () => {
+    const { connection, states } = make();
+    await connect(connection);
+    const first = latest();
+    // The browser goes offline, but this socket never reports a close (it can survive a short spell).
+    first.close = vi.fn();
+    window.dispatchEvent(new Event("offline"));
+    expect(states.at(-1)).toBe("offline");
+    expect(first.close).toHaveBeenCalled();
+    expect(connection.send({ type: "ping" })).toBe(false);
+
+    window.dispatchEvent(new Event("online"));
+    expect(FakeSocket.instances).toHaveLength(2);
+    latest().open();
+    await flush();
+    latest().reply({ type: "auth.ok", expires_at: new Date(Date.now() + 60_000).toISOString() });
+    expect(states.at(-1)).toBe("connected");
   });
 
   it("caps backoff at 30 seconds", () => {
