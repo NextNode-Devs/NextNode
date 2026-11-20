@@ -1,9 +1,8 @@
 "use client";
 
 import { BriefcaseIcon, CodeIcon } from "lucide-react";
-import { useSyncExternalStore } from "react";
-
 import type { Role } from "@/entities/viewer";
+import { useHydrated } from "@/shared/lib/use-hydrated";
 import { cn } from "@/shared/lib/utils";
 import { RadioGroup, RadioGroupItem } from "@/shared/ui/shadcn/radio-group";
 
@@ -21,13 +20,6 @@ const OPTIONS: { value: Role; title: string; description: string; icon: typeof C
     icon: BriefcaseIcon,
   },
 ];
-
-const subscribeNever = () => () => {};
-
-/** False while the server-rendered HTML is still being hydrated, true afterwards. */
-function useHydrated(): boolean {
-  return useSyncExternalStore(subscribeNever, () => true, () => false);
-}
 
 type Props = { value: Role | null; onChange: (role: Role) => void; error?: string };
 

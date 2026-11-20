@@ -72,10 +72,17 @@ REST_FRAMEWORK = {
 # --- Real time (#1) ----------------------------------------------------------
 # Redis carries socket events between backend processes. Unit tests swap in
 # the in-memory layer (tests/conftest.py); docs/proposals/realtime-messaging.md.
+#
+# The layer waits up to 5 s for each message (BZPOPMIN, `brpop_timeout`).
+# redis-py 8 also times out a socket read after 5 s by default, so the two
+# raced: the read could expire first, crash the layer's receive loop and drop
+# live sockets (`TimeoutError: Timeout reading from ...`). The read timeout
+# must stay longer than the wait; it still catches a dead connection.
+REDIS_READ_TIMEOUT_SECONDS = 15
 CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
-        "CONFIG": {"hosts": [ENV.redis_url]},
+        "CONFIG": {"hosts": [{"address": ENV.redis_url, "socket_timeout": REDIS_READ_TIMEOUT_SECONDS}]},
     }
 }
 
