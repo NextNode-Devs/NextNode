@@ -48,13 +48,29 @@ export function stripeSignature(body: string, secret = E2E_WEBHOOK_SECRET): stri
   return `t=${timestamp},v1=${digest}`;
 }
 
-/** Delivers a checkout event to the backend's webhook, as Stripe would. */
+/** A connection reset before any response: Node reused a keep-alive socket the server had just closed. */
+function isConnectionReset(error: unknown): boolean {
+  const cause = (error as { cause?: { code?: string } })?.cause;
+  return error instanceof TypeError && cause?.code === "ECONNRESET";
+}
+
+/**
+ * Delivers a checkout event to the backend's webhook, as Stripe would. Like
+ * Stripe, it redelivers once if the connection drops before any response;
+ * that is safe because the backend ignores an event id it has already seen.
+ */
 export async function sendWebhook(event: CheckoutEvent, signature?: string): Promise<number> {
   const body = payload(event);
-  const response = await fetch(WEBHOOK, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "Stripe-Signature": signature ?? stripeSignature(body) },
-    body,
-  });
-  return response.status;
+  const send = () =>
+    fetch(WEBHOOK, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Stripe-Signature": signature ?? stripeSignature(body) },
+      body,
+    });
+  try {
+    return (await send()).status;
+  } catch (error) {
+    if (!isConnectionReset(error)) throw error;
+    return (await send()).status;
+  }
 }

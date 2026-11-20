@@ -201,6 +201,14 @@ export class RealtimeConnection {
 
   private onOffline = () => {
     if (this.stopped) return;
+    // Don't trust the socket across an offline spell: it may survive it without
+    // a close event, and then `onOnline` (which only opens when there's no
+    // socket) would leave us "offline" for good. Drop it, so coming back always
+    // opens a fresh, authenticated socket and the chat catches up.
+    const socket = this.socket;
+    this.socket = null;
+    this.clearTimers();
+    socket?.close(1000);
     this.setState({ status: "offline", reason: "You're offline. We'll reconnect when you're back." });
   };
 }
