@@ -167,7 +167,7 @@ test.describe("Confidential briefs and developer filters", () => {
     await expect(zone.getByRole("option", { name: "Eastern (Toronto) · EST (UTC-05:00)" })).toBeAttached();
 
     await filters.getByRole("button", { name: "Explain the new talent filter" }).click();
-    await expect(page.getByText(/only a few projects in their portfolio/)).toBeVisible();
+    await expect(page.getByText(/joined NextNode in the past 15 days/)).toBeVisible();
     await shot(page, "directory-info");
     await page.keyboard.press("Escape");
 

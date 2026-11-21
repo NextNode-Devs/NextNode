@@ -57,13 +57,17 @@ export function DirectoryResults({ filters, page }: { filters: DirectoryFilters;
 
   const from = (page.page - 1) * page.page_size + 1;
   const to = from + page.results.length - 1;
-  // PROTOTYPE (#93): time zone and new talent come from sample profile values
-  // (#102) and narrow this page only, until the API can filter on them.
+  // PROTOTYPE (#93): the time zone comes from sample profile values (#102). New
+  // talent is real (the API's `is_new_talent`), but both filters still narrow
+  // this page only, until the API can filter on them.
   const planned = hasPlannedFilters(filters);
   // The total counts only what the API filtered on (search, skills, availability).
   const apiFiltered = hasFilters({ ...filters, time_zone: "", new_talent: false });
   const shown = page.results
-    .map((developer) => ({ developer, growth: sampleProfileGrowth(developer.account_id) }))
+    .map((developer) => ({
+      developer,
+      growth: { ...sampleProfileGrowth(developer.account_id), is_new_talent: developer.is_new_talent },
+    }))
     .filter(({ growth }) => matchesPlannedFilters(growth, filters));
   return (
     <div className="space-y-4">

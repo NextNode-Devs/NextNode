@@ -117,7 +117,16 @@ def test_every_developer_is_listed_by_name_and_no_client_ever_is(get, people):
 
 def test_a_card_has_what_the_directory_shows_and_nothing_verified(get, people):
     card = get("?q=ada").json()["data"]["results"][0]
-    assert set(card) == {"account_id", "display_name", "headline", "skills", "is_available", "project_count"}
+    assert set(card) == {
+        "account_id",
+        "display_name",
+        "headline",
+        "skills",
+        "is_available",
+        "project_count",
+        "joined_at",
+        "is_new_talent",
+    }
     assert [s["label"] for s in card["skills"]] == ["Django", "React"]
     assert "verif" not in str(get().json()).lower()
 
@@ -173,3 +182,18 @@ def test_pages_split_the_results_without_overlap(get, db):
 def test_the_directory_page_runs_a_fixed_number_of_queries(get, people, django_assert_max_num_queries):
     with django_assert_max_num_queries(8):  # auth + count + page + 2 prefetches, whatever the page holds
         assert get().status_code == 200
+
+
+def test_new_talent_means_the_account_was_created_in_the_past_15_days(get, people):
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    from nextnode.infrastructure.persistence.models import AccountModel
+
+    assert get("?q=ada").json()["data"]["results"][0]["is_new_talent"] is True  # just created
+    AccountModel.objects.filter(display_name="Ada Lovelace").update(
+        created_at=timezone.now() - timedelta(days=16)
+    )
+    card = get("?q=ada").json()["data"]["results"][0]
+    assert card["is_new_talent"] is False and card["joined_at"]

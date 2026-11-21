@@ -7,12 +7,15 @@ same URL always means the same search."""
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Protocol
 
 from nextnode.application.access import AccessPolicy, ResourceRef
 from nextnode.application.accounts.dto import SkillView
 from nextnode.application.accounts.ports import DeveloperPortfolio
+from nextnode.application.conversations.ports import Clock
 from nextnode.application.ports import Actor
+from nextnode.domain.accounts import is_new_talent
 from nextnode.domain.errors import ValidationError
 
 PAGE_SIZE = 20
@@ -48,9 +51,11 @@ class DeveloperCardView:
     skills: list[SkillView]
     is_available: bool
     project_count: int
+    joined_at: str | None
+    is_new_talent: bool  # account created within the past 15 days
 
     @classmethod
-    def of(cls, found: DeveloperPortfolio) -> DeveloperCardView:
+    def of(cls, found: DeveloperPortfolio, now: datetime) -> DeveloperCardView:
         portfolio = found.portfolio
         return cls(
             account_id=found.account_id,
@@ -59,6 +64,8 @@ class DeveloperCardView:
             skills=[SkillView.of(skill) for skill in portfolio.profile.skills],
             is_available=portfolio.is_available,
             project_count=len(portfolio.projects),
+            joined_at=found.joined_at.isoformat() if found.joined_at else None,
+            is_new_talent=is_new_talent(found.joined_at, now),
         )
 
 
@@ -100,9 +107,10 @@ def parse_query(q: str | None, skills: str | None, available: str | None, page: 
 class SearchDevelopers:
     """Any signed-in, onboarded user may browse the directory."""
 
-    def __init__(self, search: DeveloperSearch, policy: AccessPolicy) -> None:
+    def __init__(self, search: DeveloperSearch, policy: AccessPolicy, clock: Clock) -> None:
         self._search = search
         self._policy = policy
+        self._clock = clock
 
     def execute(
         self,
@@ -116,8 +124,9 @@ class SearchDevelopers:
         self._policy.check(actor, "read", ResourceRef("developer_directory", "all"))
         query = parse_query(q, skills, available, page)
         found = self._search.search(query, offset=(query.page - 1) * PAGE_SIZE, limit=PAGE_SIZE)
+        now = self._clock.now()
         return DirectoryView(
-            results=[DeveloperCardView.of(developer) for developer in found.developers],
+            results=[DeveloperCardView.of(developer, now) for developer in found.developers],
             page=query.page,
             page_size=PAGE_SIZE,
             total=found.total,

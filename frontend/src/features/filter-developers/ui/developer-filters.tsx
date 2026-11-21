@@ -160,8 +160,8 @@ export function DeveloperFilters({ initial, basePath }: Props) {
               onChange={(checked) => apply({ new_talent: checked })}
             />
             <InfoTip label="Explain the new talent filter">
-              Developers with only a few projects in their portfolio so far. Use it to give less experienced
-              developers a chance on your team.
+              Developers who joined NextNode in the past 15 days. Use it to give newcomers a chance on your
+              team.
             </InfoTip>
           </div>
           <div className="flex items-center gap-1">
