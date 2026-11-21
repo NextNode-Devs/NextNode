@@ -53,13 +53,14 @@ describe("EditPortfolioForm", () => {
     render(<EditPortfolioForm portfolio={PORTFOLIO} save={save} />);
 
     await user.clear(screen.getByLabelText(/Headline/));
-    await user.type(screen.getByLabelText(/Resume link/), "example.com/cv");
+    await user.clear(screen.getByLabelText(/^Repository link/));
+    await user.type(screen.getByLabelText(/^Repository link/), "example.com/engine");
     await user.click(screen.getByRole("button", { name: "Save portfolio" }));
 
     expect(save).not.toHaveBeenCalled();
     expect(screen.getByRole("alert")).toHaveTextContent("Your portfolio wasn't saved");
     expect(errorOn(screen.getByLabelText(/Headline/))).toBe("Enter your headline.");
-    expect(errorOn(screen.getByLabelText(/Resume link/))).toMatch(/starting with https:\/\//);
+    expect(errorOn(screen.getByLabelText(/^Repository link/))).toMatch(/starting with https:\/\//);
     expect(screen.getByLabelText(/^Title/)).toHaveAttribute("aria-invalid", "false");
   });
 
@@ -114,5 +115,36 @@ describe("EditPortfolioForm", () => {
     expect(screen.getByText(/That's the most you can add \(6\)/)).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Remove Engine" }));
     expect(add).toBeEnabled();
+  });
+
+  it("shows how complete the portfolio is, in steps of 10 %, as the form changes (NN-34)", async () => {
+    const user = userEvent.setup();
+    render(<EditPortfolioForm portfolio={PORTFOLIO} save={vi.fn()} />);
+    // Headline, skills, a project and GitHub: 4 of 6 is 66 %, shown as 60 %.
+    const bar = screen.getByRole("progressbar", { name: "Profile completeness" });
+    expect(bar).toHaveAttribute("aria-valuenow", "60");
+    expect(screen.getByText("60% complete")).toBeInTheDocument();
+    expect(screen.getByText("Still to add: Bio, A certificate.")).toBeInTheDocument();
+
+    await user.type(screen.getByLabelText(/^Bio/), "I build engines.");
+    expect(bar).toHaveAttribute("aria-valuenow", "80"); // 5 of 6 is 83 %
+  });
+
+  it("counts an uploaded certificate, and no longer offers a resume link but keeps a stored one", async () => {
+    const user = userEvent.setup();
+    const save = vi.fn<Save>(async () => ({ code: "", message: "", fields: {} }));
+    const certificate = { id: "c1", filename: "aws.pdf", size_bytes: 10, uploaded_at: null };
+    render(
+      <EditPortfolioForm
+        portfolio={{ ...PORTFOLIO, bio: "Engines.", resume_url: "https://example.com/cv.pdf" }}
+        certificates={[certificate]}
+        save={save}
+      />,
+    );
+    expect(screen.getByRole("progressbar", { name: "Profile completeness" })).toHaveAttribute("aria-valuenow", "100");
+    expect(screen.queryByLabelText(/Resume link/)).not.toBeInTheDocument();
+    expect(screen.getByRole("list", { name: "Your certificates" })).toHaveTextContent("aws.pdf");
+    await user.click(screen.getByRole("button", { name: "Save portfolio" }));
+    expect(save.mock.calls[0][0].resume_url).toBe("https://example.com/cv.pdf");
   });
 });

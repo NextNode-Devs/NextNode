@@ -24,7 +24,6 @@ describe("validateDraft (mirrors the backend's portfolio rules)", () => {
   it.each(["github.com/ada", "ftp://example.com/x", "javascript:alert(1)", "https://localhost", "https://exa mple.com"])(
     "refuses %s as a link, on the field it was typed in",
     (url) => {
-      expect(validateDraft(draft({ resume_url: url }))).toEqual({ resume_url: LINK_HINT });
       expect(validateDraft(draft({ projects: project({ demo_url: url }) }))).toEqual({ "projects.0.demo_url": LINK_HINT });
     },
   );
@@ -38,9 +37,13 @@ describe("validateDraft (mirrors the backend's portfolio rules)", () => {
 
   it("refuses over-long text and too many projects", () => {
     expect(validateDraft(draft({ headline: "h".repeat(121) })).headline).toBe("Use at most 120 characters.");
-    expect(validateDraft(draft({ resume_url: `https://example.com/${"a".repeat(200)}` })).resume_url).toBe(
-      "Use at most 200 characters.",
-    );
+    expect(
+      validateDraft(draft({ projects: project({ demo_url: `https://example.com/${"a".repeat(200)}` }) }))[
+        "projects.0.demo_url"
+      ],
+    ).toBe("Use at most 200 characters.");
+    // The hidden resume link is never checked here (NN-34): nothing on the form could fix it.
+    expect(validateDraft(draft({ resume_url: "not a link" }))).toEqual({});
     const seven = Array.from({ length: 7 }, (_, i) => ({ key: `${i}`, title: "P", repository_url: REPO, demo_url: "" }));
     expect(validateDraft(draft({ projects: seven })).projects).toBe("Add at most 6 projects.");
   });

@@ -1,4 +1,4 @@
-import { CodeIcon, ExternalLinkIcon, FileTextIcon, FolderGit2Icon } from "lucide-react";
+import { CodeIcon, ExternalLinkIcon, FolderGit2Icon } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui/shadcn/card";
@@ -10,10 +10,12 @@ type Props = {
   portfolio: Portfolio;
   /** Beside the name: the owner's edit button, or #4/#5's invite actions. */
   actions?: ReactNode;
+  /** The uploaded certificates with their preview (NN-34), in place of the old resume link. */
+  certificates?: ReactNode;
 };
 
 /** A developer's portfolio as everyone sees it. Links open as entered; none is "verified". */
-export function PortfolioProfile({ portfolio, actions }: Props) {
+export function PortfolioProfile({ portfolio, actions, certificates }: Props) {
   const { projects } = portfolio;
   return (
     <div className="space-y-6">
@@ -91,18 +93,11 @@ export function PortfolioProfile({ portfolio, actions }: Props) {
                   </OutLink>
                 </li>
               ) : null}
-              {portfolio.resume_url ? (
-                <li>
-                  <OutLink href={portfolio.resume_url} icon={<FileTextIcon aria-hidden />}>
-                    Resume
-                  </OutLink>
-                </li>
-              ) : null}
-              {!portfolio.github_url && !portfolio.resume_url ? (
-                <li className="text-muted-foreground">No GitHub profile or resume added.</li>
-              ) : null}
+              {!portfolio.github_url ? <li className="text-muted-foreground">No GitHub profile added.</li> : null}
             </ul>
             <p className="text-xs text-muted-foreground">Links are shown as the developer entered them.</p>
+            {/* The resume link is no longer shown (NN-34); a stored one is kept. */}
+            {certificates}
           </CardContent>
         </Card>
       </div>

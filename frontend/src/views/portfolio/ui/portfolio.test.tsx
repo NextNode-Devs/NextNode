@@ -37,7 +37,13 @@ describe("PortfolioProfile", () => {
     const github = screen.getByRole("link", { name: /GitHub: ada/ });
     expect(github).toHaveAttribute("target", "_blank");
     expect(github.getAttribute("rel")).toContain("noopener");
-    expect(screen.getByRole("link", { name: /Resume/ })).toHaveAttribute("href", "https://example.com/cv.pdf");
+    // NN-34: certificates replace the resume link, which is no longer shown.
+    expect(screen.queryByRole("link", { name: /Resume/ })).not.toBeInTheDocument();
+  });
+
+  it("shows the certificates it is given in place of the resume link (NN-34)", () => {
+    render(<PortfolioProfile portfolio={PORTFOLIO} certificates={<p>certificate list</p>} />);
+    expect(screen.getByText("certificate list")).toBeInTheDocument();
   });
 
   it("never says verified", () => {
@@ -46,8 +52,9 @@ describe("PortfolioProfile", () => {
   });
 
   it("never turns a non-web link into something clickable", () => {
-    render(<PortfolioProfile portfolio={{ ...PORTFOLIO, resume_url: "javascript:alert(1)" }} />);
-    expect(screen.queryByRole("link", { name: /Resume/ })).not.toBeInTheDocument();
+    const unsafe = [{ title: "Engine", repository_url: "https://github.com/ada/engine", demo_url: "javascript:alert(1)" }];
+    render(<PortfolioProfile portfolio={{ ...PORTFOLIO, projects: unsafe }} />);
+    expect(screen.queryByRole("link", { name: /Live demo/ })).not.toBeInTheDocument();
   });
 
   it("says plainly what a new portfolio doesn't have yet", () => {
@@ -55,7 +62,7 @@ describe("PortfolioProfile", () => {
     render(<PortfolioProfile portfolio={{ ...empty, is_available: false }} />);
     expect(screen.getByText("No bio yet.")).toBeInTheDocument();
     expect(screen.getByText("No projects added yet.")).toBeInTheDocument();
-    expect(screen.getByText("No GitHub profile or resume added.")).toBeInTheDocument();
+    expect(screen.getByText("No GitHub profile added.")).toBeInTheDocument();
     expect(screen.queryByText("Available for work")).not.toBeInTheDocument();
   });
 });
