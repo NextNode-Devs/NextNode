@@ -1,6 +1,6 @@
 from django.urls import path
 
-from nextnode.presentation.api import start_gate, stewardship, teams
+from nextnode.presentation.api import certificates, start_gate, stewardship, teams
 from nextnode.presentation.api.accounts import AccountView, MeView, OnboardingView, SkillsView
 from nextnode.presentation.api.conversations import (
     ConversationDetailView,
@@ -45,6 +45,22 @@ urlpatterns = [
     # Portfolios (#2). "me/" comes first so it isn't read as an id.
     path("developers/", DeveloperDirectoryView.as_view(), name="developers"),
     path("developers/me/portfolio/", MyPortfolioView.as_view(), name="my-portfolio"),
+    path("developers/me/certificates/", certificates.MyCertificatesView.as_view(), name="my-certificates"),
+    path(
+        "developers/me/certificates/<uuid:certificate_id>/",
+        certificates.MyCertificateView.as_view(),
+        name="my-certificate",
+    ),
+    path(
+        "developers/<int:account_id>/certificates/",
+        certificates.DeveloperCertificatesView.as_view(),
+        name="developer-certificates",
+    ),
+    path(
+        "developers/<int:account_id>/certificates/<uuid:certificate_id>/file/",
+        certificates.CertificateFileView.as_view(),
+        name="certificate-file",
+    ),
     path("developers/<int:account_id>/", DeveloperPortfolioView.as_view(), name="developer"),
     path("conversations/", ConversationListView.as_view(), name="conversations"),
     path("conversations/<uuid:conversation_id>/", ConversationDetailView.as_view(), name="conversation"),

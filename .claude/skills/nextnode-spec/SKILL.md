@@ -36,6 +36,12 @@ In short:
   gets the `Closed` status (developer projects only); the daily job is
   `manage.py check_project_activity`. Only closing works for the Assistant
   Lead today; their other permissions are shown as "Planned".
+- **Certificates and completeness (NN-34, 21 Nov 2026, real):** certificates
+  (PDF only, 10 MB, 10 per developer, never "verified") replace the resume
+  link on portfolios, with an in-page preview; the resume link is hidden but
+  kept. The edit page shows a completeness bar over six fields (headline,
+  bio, skills, a project, GitHub username, a certificate), rounded down to a
+  multiple of 10 %.
 - **New talent tag (21 Nov 2026):** shown on a developer only while their
   account is **at most 15 days old** (`NEW_TALENT_DAYS`), worked out by the
   API from the account's creation time; never self-declared or stored.

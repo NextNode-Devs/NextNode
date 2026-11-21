@@ -3,7 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
-import { getMyPortfolio } from "@/entities/developer";
+import { getCertificates, getMyPortfolio } from "@/entities/developer";
 import { getViewer, routeFor } from "@/entities/viewer";
 import { EditPortfolioForm } from "@/features/edit-portfolio";
 import { authedServerApi } from "@/shared/api/server-client";
@@ -60,7 +60,11 @@ async function EditScreen() {
     );
   }
 
-  const result = await getMyPortfolio(authedServerApi);
+  // Both at once, so the certificates (NN-34) don't make the page wait twice.
+  const [result, certificates] = await Promise.all([
+    getMyPortfolio(authedServerApi),
+    getCertificates(authedServerApi, route.viewer.account.id),
+  ]);
   if (!result.ok) {
     return (
       <>
@@ -69,15 +73,26 @@ async function EditScreen() {
       </>
     );
   }
+  if (!certificates.ok) {
+    return (
+      <>
+        <h1 className="sr-only">Edit your portfolio</h1>
+        <LoadError title="We couldn't load your certificates" message={certificates.error.message} />
+      </>
+    );
+  }
   return (
-    <>
-      <header className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Edit your portfolio</h1>
-        <p className="text-muted-foreground">
-          Clients and other developers see this when they open your portfolio from the directory.
-        </p>
-      </header>
-      <EditPortfolioForm portfolio={result.data} />
-    </>
+    <EditPortfolioForm
+      portfolio={result.data}
+      certificates={certificates.data}
+      heading={
+        <header className="space-y-1">
+          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Edit your portfolio</h1>
+          <p className="text-muted-foreground">
+            Clients and other developers see this when they open your portfolio from the directory.
+          </p>
+        </header>
+      }
+    />
   );
 }

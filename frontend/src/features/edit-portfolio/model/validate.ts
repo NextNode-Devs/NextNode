@@ -60,6 +60,6 @@ export function validateDraft(draft: PortfolioDraft): FieldErrors {
     set(`projects.${i}.repository_url`, linkProblem(project.repository_url, "repository link", true));
     set(`projects.${i}.demo_url`, linkProblem(project.demo_url, "live demo link", false));
   });
-  set("resume_url", linkProblem(draft.resume_url, "resume link", false));
+  // The resume link is no longer on the form (NN-34); the backend still checks a stored one.
   return errors;
 }

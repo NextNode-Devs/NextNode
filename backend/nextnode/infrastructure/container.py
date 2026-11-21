@@ -91,6 +91,7 @@ from nextnode.application.teams.use_cases import TeamUseCases
 from nextnode.domain.projects import UploadLimits
 from nextnode.infrastructure.access_rules import build_access_policy
 from nextnode.infrastructure.auth.clerk import ClerkTokenVerifier, UnconfiguredTokenVerifier
+from nextnode.infrastructure.certificate_wiring import CertificateWiring
 from nextnode.infrastructure.payments.fake_checkout import FakeCheckoutGateway
 from nextnode.infrastructure.payments.stripe_gateway import StripeGateway, UnconfiguredPaymentGateway
 from nextnode.infrastructure.persistence.accounts import (
@@ -132,7 +133,7 @@ from nextnode.infrastructure.storage.local import LocalPrivateStorage
 
 
 @dataclass(frozen=True)
-class Container(StewardshipWiring):  # NN-39 adds ``container.stewardship``
+class Container(StewardshipWiring, CertificateWiring):  # NN-39, NN-34: wiring kept in their own modules
     token_verifier: TokenVerifier
     database: DatabaseProbe
     payment_gateway: PaymentGateway
