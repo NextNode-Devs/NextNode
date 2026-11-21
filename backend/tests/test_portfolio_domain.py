@@ -113,3 +113,16 @@ def test_nothing_in_a_portfolio_is_called_verified():
         name.lower() for name in make().projects[0].__dataclass_fields__
     }
     assert not any("verif" in name for name in names)
+
+
+def test_new_talent_lasts_15_days_from_account_creation():
+    from datetime import UTC, datetime, timedelta
+
+    from nextnode.domain.accounts import NEW_TALENT_DAYS, is_new_talent
+
+    joined = datetime(2026, 11, 1, 9, tzinfo=UTC)
+    assert NEW_TALENT_DAYS == 15
+    assert is_new_talent(joined, joined)
+    assert is_new_talent(joined, joined + timedelta(days=15))
+    assert not is_new_talent(joined, joined + timedelta(days=15, seconds=1))
+    assert not is_new_talent(None, joined)

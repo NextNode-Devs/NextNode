@@ -7,7 +7,8 @@ export const TEAM_SIZES = [5, 6, 7] as const;
 export type TeamMember = {
   account_id: number;
   display_name: string;
-  role: "lead" | "member";
+  /** `assistant_lead`: a member the Team Lead chose, developer projects only (NN-39). */
+  role: "lead" | "assistant_lead" | "member";
   joined_at: string | null;
   portfolio_url: string;
 };

@@ -3,7 +3,15 @@
 
 export type ProjectKind = "client" | "developer";
 
-export type ProjectStatus = "Posted" | "OfferSent" | "Assigned" | "InProgress" | "Completed" | "Archived";
+export type ProjectStatus =
+  | "Posted"
+  | "OfferSent"
+  | "Assigned"
+  | "InProgress"
+  | "Completed"
+  | "Archived"
+  /** Developer projects only: closed for inactivity or by the Lead / Assistant Lead (NN-39). */
+  | "Closed";
 
 export type Skill = { key: string; label: string };
 
@@ -90,6 +98,7 @@ export const STATUS_LABEL: Record<ProjectStatus, string> = {
   InProgress: "In progress",
   Completed: "Completed",
   Archived: "Archived",
+  Closed: "Closed",
 };
 
 export const projectHref = (id: number) => `/projects/${id}`;

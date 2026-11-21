@@ -1,5 +1,6 @@
 from contextlib import AbstractContextManager
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Protocol
 
 from nextnode.domain.accounts import Account, Portfolio, SkillName
@@ -12,6 +13,7 @@ class DeveloperPortfolio:
     account_id: int
     display_name: str
     portfolio: Portfolio
+    joined_at: datetime | None = None  # when the account was created (the New talent tag)
 
 
 class AccountRepository(Protocol):

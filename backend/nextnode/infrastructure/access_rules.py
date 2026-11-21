@@ -5,6 +5,7 @@ from nextnode.application.access import AccessPolicy, ResourceRef
 from nextnode.application.ports import Actor
 from nextnode.infrastructure.persistence.conversations import is_participant
 from nextnode.infrastructure.persistence.projects import is_document_reader
+from nextnode.infrastructure.persistence.stewardship import is_team_participant, is_team_steward
 
 
 def own_account(actor: Actor, resource: ResourceRef) -> bool:
@@ -25,6 +26,16 @@ def project_document_reader(actor: Actor, resource: ResourceRef) -> bool:
     return is_document_reader(resource.id, actor.account_id)
 
 
+def project_team_participant(actor: Actor, resource: ResourceRef) -> bool:
+    """A project's Team Lead and approved members (NN-39)."""
+    return is_team_participant(resource.id, actor.account_id)
+
+
+def project_team_steward(actor: Actor, resource: ResourceRef) -> bool:
+    """The Team Lead or the Assistant Lead: never the other members (NN-39)."""
+    return is_team_steward(resource.id, actor.account_id)
+
+
 def build_access_policy() -> AccessPolicy:
     policy = AccessPolicy()
     policy.register("account", "read", own_account)
@@ -35,4 +46,6 @@ def build_access_policy() -> AccessPolicy:
     policy.register("project_document", "read", project_document_reader)
     policy.register("conversation", "post", conversation_participant)
     policy.register("team", "read", any_onboarded_user)
+    policy.register("project_team", "read", project_team_participant)
+    policy.register("project_team", "steward", project_team_steward)
     return policy

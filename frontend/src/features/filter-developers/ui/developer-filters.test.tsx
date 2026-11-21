@@ -64,7 +64,7 @@ describe("DeveloperFilters", () => {
     const user = userEvent.setup();
     renderFilters();
     await user.click(screen.getByRole("button", { name: "Explain the new talent filter" }));
-    expect(await screen.findByText(/only a few projects in their portfolio/)).toBeInTheDocument();
+    expect(await screen.findByText(/joined NextNode in the past 15 days/)).toBeInTheDocument();
     await user.keyboard("{Escape}");
     await user.click(screen.getByRole("button", { name: "Explain the availability filter" }));
     expect(await screen.findByText(/marked themselves as available for work/)).toBeInTheDocument();
