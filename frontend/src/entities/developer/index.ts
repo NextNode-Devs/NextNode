@@ -6,8 +6,11 @@ export {
   type ApiGetter,
 } from "./api/developer-api";
 export {
+  apiDirectoryQuery,
   directoryQuery,
   hasFilters,
+  hasPlannedFilters,
+  matchesPlannedFilters,
   NO_FILTERS,
   normalizeSkills,
   parseDirectoryParams,
@@ -25,6 +28,8 @@ export {
 export {
   TIME_ZONE_OPTIONS,
   timeZoneLabel,
+  timeZoneOptionLabel,
+  timeZoneWithCode,
   type Certificate,
   type ProfileGrowth,
   type TimeZoneValue,

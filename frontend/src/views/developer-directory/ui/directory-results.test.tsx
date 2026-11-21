@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
-import { NO_FILTERS, type DeveloperCardData, type DirectoryPage } from "@/entities/developer";
+import { NO_FILTERS, sampleProfileGrowth, type DeveloperCardData, type DirectoryPage } from "@/entities/developer";
 
 import { DirectoryResults } from "./directory-results";
 
@@ -41,6 +41,27 @@ describe("DirectoryResults", () => {
     expect(screen.getByRole("link", { name: "Grace" })).toHaveAttribute("href", "/developers/2");
     expect(screen.getAllByText("Available for work")).toHaveLength(1);
     expect(screen.getByRole("status")).toHaveTextContent("Showing 1–2 of 2 developers");
+  });
+
+  it("narrows the page by the planned filters, using each developer's sample profile values", () => {
+    const results = Array.from({ length: 9 }, (_, i) => card(i + 1, `Dev ${i + 1}`));
+    const newcomers = results.filter((dev) => sampleProfileGrowth(dev.account_id).is_new_talent);
+    expect(newcomers.length).toBeGreaterThan(0);
+    render(<DirectoryResults filters={{ ...NO_FILTERS, new_talent: true }} page={page({ results, total: 9 })} />);
+    const list = screen.getByRole("list", { name: "Developers" });
+    expect(list.querySelectorAll(":scope > li")).toHaveLength(newcomers.length);
+    expect(screen.getAllByText("New talent")).toHaveLength(newcomers.length);
+    expect(screen.getByRole("status")).toHaveTextContent(
+      `Showing 1–9 of 9 developers. ${newcomers.length} on this page match the time zone and new talent filters.`,
+    );
+  });
+
+  it("says when nobody on the page matches the planned filters, and offers to clear just those", () => {
+    const zone = "Asia/Manila";
+    const results = [card(1, "Ada"), card(2, "Grace")].filter((dev) => sampleProfileGrowth(dev.account_id).time_zone !== zone);
+    render(<DirectoryResults filters={{ ...NO_FILTERS, skills: ["React"], time_zone: zone }} page={page({ results, total: 2 })} />);
+    expect(screen.getByRole("heading", { name: "No developers on this page match" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Clear time zone and new talent" })).toHaveAttribute("href", "/developers?skills=React");
   });
 
   it("pages keep the filters and the first page can't go back", () => {
