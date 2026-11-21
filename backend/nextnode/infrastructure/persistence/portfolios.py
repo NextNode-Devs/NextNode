@@ -37,7 +37,9 @@ def portfolio_from_row(row: DeveloperProfileModel) -> Portfolio:
 
 def developer_portfolio_from_row(row: DeveloperProfileModel) -> DeveloperPortfolio:
     """Needs ``account`` selected alongside the row."""
-    return DeveloperPortfolio(row.account_id, row.account.display_name, portfolio_from_row(row))
+    return DeveloperPortfolio(
+        row.account_id, row.account.display_name, portfolio_from_row(row), row.account.created_at
+    )
 
 
 class DjangoPortfolioRepository:

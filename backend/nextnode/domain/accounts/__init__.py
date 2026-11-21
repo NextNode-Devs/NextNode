@@ -1,4 +1,5 @@
 from nextnode.domain.accounts.account import Account, AlreadyOnboardedError
+from nextnode.domain.accounts.new_talent import NEW_TALENT_DAYS, is_new_talent
 from nextnode.domain.accounts.portfolio import (
     MAX_PROJECTS,
     PROJECT_TITLE_MAX,
@@ -26,6 +27,7 @@ __all__ = [
     "INDUSTRY_MAX",
     "MAX_PROJECTS",
     "MAX_SKILLS",
+    "NEW_TALENT_DAYS",
     "PROJECT_TITLE_MAX",
     "SKILL_MAX_LENGTH",
     "URL_MAX",
@@ -37,5 +39,6 @@ __all__ = [
     "PortfolioProject",
     "Role",
     "SkillName",
+    "is_new_talent",
     "normalize_skills",
 ]

@@ -62,6 +62,8 @@ class Team:
     lead_account_id: int | None = None
     team_size: int | None = None  # total people, Lead included; None until the Lead sets it
     member_account_ids: tuple[int, ...] = field(default_factory=tuple)  # approved, Lead excluded
+    # Developer projects only (NN-39): one of the members, chosen by the Lead or elected.
+    assistant_lead_account_id: int | None = None
 
     @classmethod
     def for_new_project(cls, lead_account_id: int | None = None) -> Team:
@@ -92,6 +94,13 @@ class Team:
 
     def is_member(self, account_id: int | None) -> bool:
         return account_id is not None and account_id in self.member_account_ids
+
+    def is_assistant_lead(self, account_id: int | None) -> bool:
+        return account_id is not None and account_id == self.assistant_lead_account_id
+
+    def is_steward(self, account_id: int | None) -> bool:
+        """The Team Lead or the Assistant Lead: who may close a developer project."""
+        return self.is_lead(account_id) or self.is_assistant_lead(account_id)
 
     def assign_lead(self, developer_account_id: int) -> Team:
         """#4 calls this when a client hires a Team Lead. One Lead per project."""
@@ -144,6 +153,23 @@ class Team:
         """Takes one open spot. Never over-fills: a full team refuses."""
         self.ensure_can_join(account_id)
         return replace(self, member_account_ids=(*self.member_account_ids, account_id))
+
+    # --- the Assistant Lead (NN-39) ---------------------------------------------------
+
+    def with_assistant_lead(self, actor_id: int | None, member_account_id: int) -> Team:
+        """Only the Team Lead chooses, and only one of the members. Choosing
+        someone else replaces the current Assistant Lead."""
+        self.ensure_lead(actor_id, "choose the Assistant Lead")
+        return self.elect_assistant_lead(member_account_id)
+
+    def elect_assistant_lead(self, member_account_id: int) -> Team:
+        """The members' choice while the Lead is inactive. Never the Lead themselves."""
+        if not self.is_member(member_account_id):
+            raise ValidationError(
+                "The Assistant Lead must be one of the team's members.",
+                {"account_id": ["Choose a member of this team."]},
+            )
+        return replace(self, assistant_lead_account_id=member_account_id)
 
     # --- the start gate (#6) ---------------------------------------------------------
 

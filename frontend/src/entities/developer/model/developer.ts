@@ -29,6 +29,10 @@ export type DeveloperCard = {
   skills: Skill[];
   is_available: boolean;
   project_count: number;
+  /** When the account was created. */
+  joined_at: string | null;
+  /** Account created within the past 15 days (`NEW_TALENT_DAYS`); worked out by the API. */
+  is_new_talent: boolean;
 };
 
 export type DirectoryPage = {

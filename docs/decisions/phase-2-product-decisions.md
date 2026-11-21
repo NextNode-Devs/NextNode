@@ -189,6 +189,33 @@ student prototype, not a legal contract.
   developer filter component (NN-33 filters). Kaushalya reuses it in Hire
   Devs. The only thing she builds on is NN-31, which is done.
 
+## Decisions of 21 Nov 2026 (NN-39, Jayraj)
+
+- **New talent = account created in the past 15 days.** The "New talent" tag
+  on developer cards, and the "New talent only" filter, show a developer only
+  while their account is at most 15 days old. The API works it out from the
+  account's creation time on every request (`is_new_talent`, `joined_at` on
+  each directory card), so it expires by itself and nobody can set it. This
+  replaces the sample value the prototype used (#102 left the rule open).
+- **Assistant Lead and inactivity are built for real** (NN-39, #101), with
+  these choices:
+  - **Activity** is the Team Lead's messages in the project's workspace chat.
+    Milestones will count too once they exist. A developer project gets its
+    workspace chat when it starts, so only started projects are checked.
+  - **Election:** the first member to answer "Yes, still active" becomes
+    Assistant Lead if the team has none. If the Lead writes in the chat or
+    answers themselves, the check ends. After any answer the 30 days restart.
+  - **Closing** sets a new `Closed` status, allowed only on developer
+    projects that are `Posted` or `InProgress`. The Lead or the Assistant Lead
+    can also close the project themselves. The chat and history stay.
+  - **Assistant Lead permissions:** closing works today. Adding and removing
+    members, editing details and marking the project complete are shown as
+    "Planned" until those flows accept the Assistant Lead.
+  - **Scheduling:** `manage.py check_project_activity` runs the daily check
+    (`--every` keeps it running; `--as-of` simulates a date for demos).
+  - There is no project suggestion pool yet, so only the open-projects feed
+    hides projects waiting for an answer.
+
 ## Still open
 
 1. ~~How the deposit and milestone payments add up~~: resolved 17 Nov.

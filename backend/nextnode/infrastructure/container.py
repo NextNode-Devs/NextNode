@@ -126,12 +126,13 @@ from nextnode.infrastructure.persistence.start_gate import (
 from nextnode.infrastructure.persistence.teams import DjangoTeamCandidacies, DjangoTeamMembers
 from nextnode.infrastructure.realtime.conversation_events import OnCommitConversationEvents
 from nextnode.infrastructure.realtime.publisher import ChannelsEventPublisher
+from nextnode.infrastructure.stewardship_wiring import StewardshipWiring
 from nextnode.infrastructure.storage.links import DjangoLinkSigner
 from nextnode.infrastructure.storage.local import LocalPrivateStorage
 
 
 @dataclass(frozen=True)
-class Container:
+class Container(StewardshipWiring):  # NN-39 adds ``container.stewardship``
     token_verifier: TokenVerifier
     database: DatabaseProbe
     payment_gateway: PaymentGateway
@@ -202,7 +203,7 @@ class Container:
 
     @property
     def search_developers(self) -> SearchDevelopers:
-        return SearchDevelopers(self.developer_search, self.access_policy)
+        return SearchDevelopers(self.developer_search, self.access_policy, self.clock)
 
     # --- hiring conversations (#4) ---------------------------------------------
 

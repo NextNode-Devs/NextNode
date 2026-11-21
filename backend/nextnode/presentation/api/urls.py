@@ -1,6 +1,6 @@
 from django.urls import path
 
-from nextnode.presentation.api import start_gate, teams
+from nextnode.presentation.api import start_gate, stewardship, teams
 from nextnode.presentation.api.accounts import AccountView, MeView, OnboardingView, SkillsView
 from nextnode.presentation.api.conversations import (
     ConversationDetailView,
@@ -146,4 +146,17 @@ urlpatterns = [
         name="deposit-checkout",
     ),
     path("payments/stripe/webhook/", StripeWebhookView.as_view(), name="stripe-webhook"),
+    # Assistant Lead and inactivity on developer projects (NN-39)
+    path("projects/<int:project_id>/stewardship/", stewardship.StewardshipView.as_view(), name="stewardship"),
+    path(
+        "projects/<int:project_id>/assistant-lead/",
+        stewardship.AssistantLeadView.as_view(),
+        name="assistant-lead",
+    ),
+    path(
+        "projects/<int:project_id>/activity-check/confirm/",
+        stewardship.ConfirmActiveView.as_view(),
+        name="activity-confirm",
+    ),
+    path("projects/<int:project_id>/close/", stewardship.CloseProjectView.as_view(), name="project-close"),
 ]

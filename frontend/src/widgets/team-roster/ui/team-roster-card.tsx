@@ -1,4 +1,4 @@
-import { CrownIcon, UserIcon, UsersIcon } from "lucide-react";
+import { CrownIcon, ShieldCheckIcon, UserIcon, UsersIcon } from "lucide-react";
 import Link from "next/link";
 
 import type { Project } from "@/entities/project";
@@ -70,12 +70,14 @@ function Roster({ project, team }: { project: Project; team: TeamProfile }) {
         <ul aria-label="Team members" className="space-y-2">
           {team.members.map((member) => {
             const lead = member.role === "lead";
-            const Icon = lead ? CrownIcon : UserIcon;
+            const assistant = member.role === "assistant_lead";
+            const Icon = lead ? CrownIcon : assistant ? ShieldCheckIcon : UserIcon;
             return (
               <li key={member.account_id} className="flex items-start gap-2">
                 <Icon className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />
                 <span className="min-w-0">
                   {lead ? <span className="text-muted-foreground">Team Lead: </span> : null}
+                  {assistant ? <span className="text-muted-foreground">Assistant Lead: </span> : null}
                   <Link href={member.portfolio_url} className="font-medium break-words underline-offset-4 hover:underline">
                     {member.display_name}
                   </Link>

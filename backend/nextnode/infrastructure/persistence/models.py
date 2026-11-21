@@ -289,6 +289,7 @@ class ProjectModel(models.Model):
         IN_PROGRESS = "InProgress"
         COMPLETED = "Completed"
         ARCHIVED = "Archived"
+        CLOSED = "Closed"
 
     kind = models.CharField(max_length=16, choices=Kind.choices)
     owner = models.ForeignKey(AccountModel, on_delete=models.PROTECT, related_name="owned_projects")
@@ -315,6 +316,9 @@ class ProjectModel(models.Model):
             models.CheckConstraint(
                 condition=Q(kind="client") | ~Q(status__in=["OfferSent", "Assigned"]),
                 name="project_idea_never_offered",
+            ),
+            models.CheckConstraint(
+                condition=Q(kind="developer") | ~Q(status="Closed"), name="project_only_ideas_closed"
             ),
         )
 
@@ -358,6 +362,7 @@ class TeamMembershipModel(models.Model):
     class Role(models.TextChoices):
         LEAD = "lead"
         MEMBER = "member"
+        ASSISTANT_LEAD = "assistant_lead"  # a member the Lead chose (NN-39)
 
     class Status(models.TextChoices):
         PENDING = "pending"
@@ -376,6 +381,9 @@ class TeamMembershipModel(models.Model):
             models.UniqueConstraint(fields=["team", "account"], name="team_membership_once"),
             models.UniqueConstraint(
                 fields=["team"], condition=Q(role="lead"), name="team_membership_one_lead"
+            ),
+            models.UniqueConstraint(
+                fields=["team"], condition=Q(role="assistant_lead"), name="team_membership_one_assistant_lead"
             ),
         )
 
@@ -455,7 +463,8 @@ class RequirementDocumentModel(models.Model):
         return self.filename
 
 
-# The start gate (#6) keeps its tables in their own module; importing them registers them.
+# The start gate (#6) and NN-39 keep their tables in their own modules; importing them registers them.
 from nextnode.infrastructure.persistence.start_gate_models import OfferModel, ProjectTimelineModel  # noqa: E402
+from nextnode.infrastructure.persistence.stewardship_models import ActivityCheckModel  # noqa: E402
 
-__all__ = ["OfferModel", "ProjectTimelineModel"]
+__all__ = ["ActivityCheckModel", "OfferModel", "ProjectTimelineModel"]

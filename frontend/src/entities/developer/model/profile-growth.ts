@@ -26,8 +26,9 @@ export type ProfileGrowth = {
   time_zone: string | null;
   /**
    * Marks a developer as new to NextNode, so Team Leads can filter for
-   * newcomers. How it is set (self-declared, or automatic until a first
-   * completed project) is Jayraj's call in #102; prototypes treat it as given.
+   * newcomers. Decided 21 Nov 2026: automatic, for 15 days after the account
+   * is created. The directory now gets it from the API (`DeveloperCard.is_new_talent`);
+   * other prototypes may still use the sample value until they read the API.
    */
   is_new_talent: boolean;
   /** Shown "as provided", never "verified". */
