@@ -10,6 +10,7 @@ export type PortfolioDraft = {
   github_username: string;
   skills: string[];
   projects: ProjectDraft[];
+  /** No longer on the form (NN-34: certificates replace it). Kept and sent back unchanged, so a stored link isn't lost. */
   resume_url: string;
   is_available: boolean;
 };

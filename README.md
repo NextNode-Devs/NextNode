@@ -297,6 +297,14 @@ confirm becomes Assistant Lead; no answer in 7 days closes the project
 "New talent" tag on developer cards now means the account was created in the
 past 15 days, worked out by the API. Details: `README-NN-39.md`.
 
+Built by the NN-34 follow-up (#102): developers upload PDF certificates on
+`/developers/me/edit` (10 MB each, 10 at most), which replace the resume link;
+`/developers/[id]` lists them and opens each in a preview pop-up. The edit page
+shows a profile completeness bar (six fields, in steps of 10 %). The resume
+link is hidden but kept. API: `GET /api/developers/{id}/certificates/`,
+`POST` and `DELETE /api/developers/me/certificates/`, and
+`GET /api/developers/{id}/certificates/{cid}/file/`.
+
 Not built yet:
 workspace extras, milestones and the final payment (see `docs/backlog.md`). CI is active; there is no deployment target yet
 (`staging.yml` gates `staging` on CI; its deploy job is off and deploys nothing).

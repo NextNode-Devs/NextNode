@@ -18,6 +18,9 @@ export type BrowserApi = {
   patch<T>(path: string, body?: unknown): Promise<ApiResult<T>>;
   /** POST a multipart form (file uploads). The browser sets the boundary header. */
   postForm<T>(path: string, form: FormData): Promise<ApiResult<T>>;
+  delete<T>(path: string): Promise<ApiResult<T>>;
+  /** GET a file (e.g. a PDF to preview) with the session token. Errors still arrive as `ApiResult`. */
+  getBlob(path: string): Promise<ApiResult<Blob>>;
 };
 
 const TIMEOUT_MS = 8000;
@@ -43,12 +46,27 @@ export function createBrowserApi(getToken: GetToken, baseUrl = publicEnv.apiBase
       return { ok: false, error: UNREACHABLE };
     }
   }
+  async function getBlob(path: string): Promise<ApiResult<Blob>> {
+    const token = await getToken().catch(() => null);
+    try {
+      const response = await fetch(`${baseUrl}${path}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        signal: AbortSignal.timeout(UPLOAD_TIMEOUT_MS),
+      });
+      if (!response.ok) return (await readEnvelope<Blob>(response)) as ApiResult<Blob>;
+      return { ok: true, data: await response.blob() };
+    } catch {
+      return { ok: false, error: UNREACHABLE };
+    }
+  }
   return {
     get: (path) => request("GET", path),
     post: (path, body) => request("POST", path, body),
     put: (path, body) => request("PUT", path, body),
     patch: (path, body) => request("PATCH", path, body),
     postForm: (path, form) => request("POST", path, form),
+    delete: (path) => request("DELETE", path),
+    getBlob,
   };
 }
 

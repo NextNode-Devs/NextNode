@@ -238,7 +238,10 @@ suggestion pool yet, so only the feed is filtered.
 **NN-34 · Developer profile growth**. Jay. Trace: Q4.
 - time-zone field, new-talent flag, profile completeness bar (new talent
   decided 21 Nov 2026: automatic for 15 days after the account is created,
-  served by the directory API; see NN-39)
+  served by the directory API; see NN-39). *Built for real (21 Nov 2026):*
+  PDF certificate upload replacing the resume link, with a preview on the
+  portfolio, and the completeness bar on the edit page (see the Phase 2
+  decisions of 21 Nov).
 - certificate upload (shown "as provided", never "verified")
 - "Import from GitHub" entry point
 - onboarding and upload screens work well on a phone
