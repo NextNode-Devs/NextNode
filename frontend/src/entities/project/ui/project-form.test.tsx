@@ -44,6 +44,32 @@ describe("ProjectForm", () => {
     expect(submit).toHaveBeenCalledWith(expect.objectContaining({ budget: "2,500", tech_stack: ["React"] }));
   });
 
+  it("offers a client the prototype Confidential switch and legal panel, and doesn't send the switch", async () => {
+    const submit = show("client");
+    const user = await fill("client");
+    await user.type(screen.getByLabelText(/^Proposed budget/), "2,500");
+
+    const confidential = screen.getByRole("switch", { name: "Confidential project" });
+    expect(confidential).toHaveAccessibleDescription(/Not saved yet: this is a prototype/);
+    expect(screen.getAllByText("To be defined")).toHaveLength(2);
+    expect(screen.getByText("These terms need legal review.")).toBeInTheDocument();
+    expect(screen.queryByText("Kept out of the team's portfolios")).not.toBeInTheDocument();
+
+    await user.click(confidential);
+    expect(confidential).toBeChecked();
+    expect(screen.getByText("Kept out of the team's portfolios")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Publish" }));
+    expect(submit).toHaveBeenCalledOnce();
+    expect(submit.mock.calls[0][0]).not.toHaveProperty("confidential");
+  });
+
+  it("never shows the confidentiality section on a developer idea", () => {
+    show("developer");
+    expect(screen.queryByRole("switch")).not.toBeInTheDocument();
+    expect(screen.queryByText("To be defined")).not.toBeInTheDocument();
+  });
+
   it("never shows a budget field for a developer idea", () => {
     show("developer");
     expect(screen.queryByLabelText(/budget/i)).not.toBeInTheDocument();
