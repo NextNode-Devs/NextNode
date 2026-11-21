@@ -14,6 +14,7 @@ import { Textarea } from "@/shared/ui/shadcn/textarea";
 
 import { validateDraft, type FieldErrors, type ProjectDraft } from "../model/draft";
 import { PROJECT_LIMITS as L, type ProjectKind } from "../model/project";
+import { ConfidentialitySection } from "./confidentiality-section";
 
 export type SaveFailure = { message: string; fields: FieldErrors };
 
@@ -169,6 +170,8 @@ export function ProjectForm(props: Props) {
           </FormField>
         ) : null}
       </div>
+
+      {kind === "client" ? <ConfidentialitySection /> : null}
 
       <div className="flex flex-col-reverse gap-3 sm:flex-row">
         <Button asChild variant="outline" size="lg">
