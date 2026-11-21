@@ -3,7 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
-import { getProject, KindBadge, StatusBadge, type Project } from "@/entities/project";
+import { getProject, KindBadge, LegalTermsCard, StatusBadge, type Project } from "@/entities/project";
 import { getViewer, routeFor } from "@/entities/viewer";
 import { RealtimeProvider } from "@/shared/api/realtime";
 import { authedServerApi } from "@/shared/api/server-client";
@@ -161,6 +161,7 @@ async function ProjectScreen({ projectId, notice }: Props) {
           <Suspense fallback={<LoadingCards count={1} label="Loading the team" />}>
             <TeamRoster project={project} />
           </Suspense>
+          {project.kind === "client" ? <LegalTermsCard /> : null}
         </aside>
       </div>
       {chats}

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { TIME_ZONE_OPTIONS, timeZoneLabel } from "./profile-growth";
+import { TIME_ZONE_OPTIONS, timeZoneLabel, timeZoneOptionLabel, timeZoneWithCode } from "./profile-growth";
 import { sampleProfileGrowth } from "./sample";
 
 describe("planned profile fields", () => {
@@ -8,6 +8,13 @@ describe("planned profile fields", () => {
     expect(timeZoneLabel("America/Toronto")).toBe("Eastern (Toronto)");
     expect(timeZoneLabel("Pacific/Auckland")).toBe("Pacific/Auckland");
     expect(timeZoneLabel(null)).toBe("Not set");
+  });
+
+  it("adds the standard-time code, and the offset for filter options (#93)", () => {
+    expect(timeZoneWithCode("America/Toronto")).toBe("Eastern (Toronto) · EST");
+    expect(timeZoneOptionLabel(TIME_ZONE_OPTIONS[0])).toBe("Newfoundland (St. John's) · NST (UTC-03:30)");
+    expect(timeZoneWithCode("Pacific/Auckland")).toBe("Pacific/Auckland");
+    expect(timeZoneWithCode(null)).toBe("Not set");
   });
 
   it("offers each zone once", () => {

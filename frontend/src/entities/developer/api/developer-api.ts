@@ -1,6 +1,6 @@
 import type { ApiResult } from "@/shared/api/types";
 
-import { directoryQuery, type DirectoryFilters } from "../lib/directory-params";
+import { apiDirectoryQuery, type DirectoryFilters } from "../lib/directory-params";
 import type { DirectoryPage, Portfolio } from "../model/developer";
 
 /** Any client that can GET: the browser client, or a server-side wrapper of `apiGet`. */
@@ -17,5 +17,5 @@ export function getMyPortfolio(api: ApiGetter): Promise<ApiResult<Portfolio>> {
 }
 
 export function searchDevelopers(api: ApiGetter, filters: DirectoryFilters): Promise<ApiResult<DirectoryPage>> {
-  return api.get<DirectoryPage>(`/api/developers/${directoryQuery(filters)}`);
+  return api.get<DirectoryPage>(`/api/developers/${apiDirectoryQuery(filters)}`);
 }

@@ -40,6 +40,8 @@ export {
   type RequirementDocument,
   type ViewerAction,
 } from "./model/project";
+// Phase 2 prototype (#93): the "To be defined" legal terms.
+export { LegalTerms, LegalTermsCard } from "./ui/legal-terms";
 export { KindBadge, ProposedBudget, StatusBadge, TechStack } from "./ui/project-bits";
 export { ProjectCard } from "./ui/project-card";
 export { ProjectForm, type SaveFailure, type TechStackInputProps } from "./ui/project-form";

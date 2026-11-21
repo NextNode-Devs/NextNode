@@ -3,17 +3,17 @@ import { Suspense } from "react";
 
 import { directoryQuery, parseDirectoryParams, searchDevelopers, type DirectoryFilters as Filters } from "@/entities/developer";
 import { getViewer, routeFor } from "@/entities/viewer";
+import { DeveloperFilters } from "@/features/filter-developers";
 import { authedServerApi } from "@/shared/api/server-client";
 import { LoadError, LoadingCards } from "@/shared/ui/load-states";
 import { Skeleton } from "@/shared/ui/shadcn/skeleton";
 import { AppHeader } from "@/widgets/app-header";
 
-import { DirectoryFilters } from "./directory-filters";
 import { DirectoryResults } from "./directory-results";
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
-/** `/developers`: find developers by name, headline, skills and availability. */
+/** `/developers`: find developers by name, headline, skills, availability, time zone and new talent. */
 export function DeveloperDirectoryView({ searchParams }: { searchParams: Promise<SearchParams> }) {
   return (
     <>
@@ -38,7 +38,7 @@ async function Directory({ searchParams }: { searchParams: Promise<SearchParams>
   const query = directoryQuery(filters);
   return (
     <>
-      <DirectoryFilters initial={filters} />
+      <DeveloperFilters initial={filters} basePath="/developers" />
       <Suspense key={query} fallback={<LoadingCards count={6} label="Loading developers" />}>
         <Results filters={filters} path={`/developers${query}`} />
       </Suspense>

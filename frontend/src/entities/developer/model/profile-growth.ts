@@ -34,19 +34,24 @@ export type ProfileGrowth = {
   certificates: Certificate[];
 };
 
-/** Time zones offered in the profile form and the filters: Canada first, then common team locations. */
+/**
+ * Time zones offered in the profile form and the filters: Canada first, then
+ * common team locations. `code` and `offset` are the zone's STANDARD time
+ * (EST, UTC-05:00), fixed so server and browser render the same text; daylight
+ * saving moves some zones an hour ahead in summer (#93).
+ */
 export const TIME_ZONE_OPTIONS = [
-  { value: "America/St_Johns", label: "Newfoundland (St. John's)" },
-  { value: "America/Halifax", label: "Atlantic (Halifax)" },
-  { value: "America/Toronto", label: "Eastern (Toronto)" },
-  { value: "America/Winnipeg", label: "Central (Winnipeg)" },
-  { value: "America/Edmonton", label: "Mountain (Edmonton)" },
-  { value: "America/Vancouver", label: "Pacific (Vancouver)" },
-  { value: "Europe/London", label: "UK (London)" },
-  { value: "Europe/Berlin", label: "Central Europe (Berlin)" },
-  { value: "Africa/Lagos", label: "West Africa (Lagos)" },
-  { value: "Asia/Kolkata", label: "India (Kolkata)" },
-  { value: "Asia/Manila", label: "Philippines (Manila)" },
+  { value: "America/St_Johns", label: "Newfoundland (St. John's)", code: "NST", offset: "UTC-03:30" },
+  { value: "America/Halifax", label: "Atlantic (Halifax)", code: "AST", offset: "UTC-04:00" },
+  { value: "America/Toronto", label: "Eastern (Toronto)", code: "EST", offset: "UTC-05:00" },
+  { value: "America/Winnipeg", label: "Central (Winnipeg)", code: "CST", offset: "UTC-06:00" },
+  { value: "America/Edmonton", label: "Mountain (Edmonton)", code: "MST", offset: "UTC-07:00" },
+  { value: "America/Vancouver", label: "Pacific (Vancouver)", code: "PST", offset: "UTC-08:00" },
+  { value: "Europe/London", label: "UK (London)", code: "GMT", offset: "UTC+00:00" },
+  { value: "Europe/Berlin", label: "Central Europe (Berlin)", code: "CET", offset: "UTC+01:00" },
+  { value: "Africa/Lagos", label: "West Africa (Lagos)", code: "WAT", offset: "UTC+01:00" },
+  { value: "Asia/Kolkata", label: "India (Kolkata)", code: "IST", offset: "UTC+05:30" },
+  { value: "Asia/Manila", label: "Philippines (Manila)", code: "PHT", offset: "UTC+08:00" },
 ] as const;
 
 export type TimeZoneValue = (typeof TIME_ZONE_OPTIONS)[number]["value"];
@@ -55,4 +60,15 @@ export type TimeZoneValue = (typeof TIME_ZONE_OPTIONS)[number]["value"];
 export function timeZoneLabel(zone: string | null): string {
   if (!zone) return "Not set";
   return TIME_ZONE_OPTIONS.find((option) => option.value === zone)?.label ?? zone;
+}
+
+/** "Eastern (Toronto) · EST" for a listed zone (cards); otherwise the same as `timeZoneLabel`. */
+export function timeZoneWithCode(zone: string | null): string {
+  const option = TIME_ZONE_OPTIONS.find((candidate) => candidate.value === zone);
+  return option ? `${option.label} · ${option.code}` : timeZoneLabel(zone);
+}
+
+/** "Eastern (Toronto) · EST (UTC-05:00)": a time zone option in the filters. */
+export function timeZoneOptionLabel(option: (typeof TIME_ZONE_OPTIONS)[number]): string {
+  return `${option.label} · ${option.code} (${option.offset})`;
 }
