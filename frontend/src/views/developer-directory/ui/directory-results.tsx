@@ -5,6 +5,9 @@ import {
   DeveloperCard,
   directoryQuery,
   hasFilters,
+  hasPlannedFilters,
+  matchesPlannedFilters,
+  sampleProfileGrowth,
   type DirectoryFilters,
   type DirectoryPage,
 } from "@/entities/developer";
@@ -54,19 +57,41 @@ export function DirectoryResults({ filters, page }: { filters: DirectoryFilters;
 
   const from = (page.page - 1) * page.page_size + 1;
   const to = from + page.results.length - 1;
+  // PROTOTYPE (#93): time zone and new talent come from sample profile values
+  // (#102) and narrow this page only, until the API can filter on them.
+  const planned = hasPlannedFilters(filters);
+  // The total counts only what the API filtered on (search, skills, availability).
+  const apiFiltered = hasFilters({ ...filters, time_zone: "", new_talent: false });
+  const shown = page.results
+    .map((developer) => ({ developer, growth: sampleProfileGrowth(developer.account_id) }))
+    .filter(({ growth }) => matchesPlannedFilters(growth, filters));
   return (
     <div className="space-y-4">
       <p role="status" className="text-sm text-muted-foreground">
         {page.total === 1 ? "1 developer" : `Showing ${from}–${to} of ${page.total} developers`}
-        {filtered ? " matching your filters" : ""}
+        {apiFiltered ? " matching your filters" : ""}
+        {planned ? `. ${shown.length} on this page match the time zone and new talent filters.` : ""}
       </p>
-      <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {page.results.map((developer) => (
-          <li key={developer.account_id}>
-            <DeveloperCard developer={developer} />
-          </li>
-        ))}
-      </ul>
+      {shown.length ? (
+        <ul aria-label="Developers" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {shown.map(({ developer, growth }) => (
+            <li key={developer.account_id}>
+              <DeveloperCard developer={developer} growth={growth} />
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <StateCard
+          icon={<SearchXIcon aria-hidden />}
+          title="No developers on this page match"
+          message="Time zone and New talent only filter the page you're on for now. Try another page, or clear those two filters."
+          action={
+            <Button asChild variant="outline">
+              <Link href={href({ ...filters, time_zone: "", new_talent: false })}>Clear time zone and new talent</Link>
+            </Button>
+          }
+        />
+      )}
       {page.total_pages > 1 ? <Pagination filters={filters} page={page} /> : null}
     </div>
   );

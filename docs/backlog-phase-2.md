@@ -124,7 +124,11 @@ conversation, which the client is not part of.
   time zone, new talent), used by the directory search and reused by
   Kaushalya in Hire Devs. Isabella depends only on NN-31.
 
-Backend note: a `confidential` flag on Project, honoured by NN-17's portfolio update.
+Backend note: a `confidential` flag on Project (set from the brief form's
+switch, shown on the project page), honoured by NN-17's portfolio update.
+`GET /api/developers/` filters on `tz` (an IANA zone) and `new_talent=true`,
+using NN-34's profile fields; until then the directory narrows the loaded page
+with sample values. Legal terms stay "To be defined".
 
 **NN-16a · Offer with milestones**. Aliya (`AliyaaAli`). Trace: Q1.
 - prototype section on the offer: milestones, each with an amount and due date
