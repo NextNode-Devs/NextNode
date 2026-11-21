@@ -216,6 +216,30 @@ student prototype, not a legal contract.
   - There is no project suggestion pool yet, so only the open-projects feed
     hides projects waiting for an answer.
 
+## Decisions of 21 Nov 2026 (NN-34 follow-up, Jayraj)
+
+Built for real, not as a prototype:
+
+- **Certificates replace the resume link on portfolios.** On the edit page a
+  developer uploads certificates from their computer; on the portfolio
+  (`/developers/{id}`) everyone signed in sees the list, and clicking one
+  opens a preview in a pop-up with a close button at the top right.
+  - **PDF only** (checked by the extension and by the file's bytes); no DOCX,
+    so no document-conversion package is added. Up to 10 MB each and **10
+    per developer**. Shown "as provided"; NextNode never says a certificate is
+    verified.
+  - Files are private: served only through the API to a signed-in user, never
+    by a public link.
+- **The resume link is hidden, not deleted.** It no longer appears on the edit
+  or view page. The API still accepts it, and saving the form sends a stored
+  value back unchanged, so nothing is lost.
+- **Profile completeness bar** at the top of the edit page: the share of six
+  fields that are filled in, rounded **down** to a multiple of 10 % (4 of 6 is
+  66 %, shown as 60 %). The six: headline, bio, skills, at least one project
+  (title and repository link), GitHub username, at least one certificate.
+  "Available for work" is a yes/no switch and isn't counted. It updates as the
+  form changes.
+
 ## Still open
 
 1. ~~How the deposit and milestone payments add up~~: resolved 17 Nov.

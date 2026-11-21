@@ -3,8 +3,9 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
-import { getPortfolio, PortfolioProfile, portfolioHref } from "@/entities/developer";
+import { getCertificates, getPortfolio, PortfolioProfile, portfolioHref } from "@/entities/developer";
 import { getViewer, routeFor } from "@/entities/viewer";
+import { CertificateList } from "@/features/view-certificate";
 import { authedServerApi } from "@/shared/api/server-client";
 import { LoadError, LoadingCards } from "@/shared/ui/load-states";
 import { StateCard } from "@/shared/ui/molecules/state-card";
@@ -76,7 +77,10 @@ async function PortfolioScreen({ developerId, saved }: Props) {
   }
 
   const accountId = /^\d+$/.test(id) ? Number(id) : null;
-  const result = accountId ? await getPortfolio(authedServerApi, accountId) : null;
+  // Both at once: the certificates (NN-34) shouldn't make the page wait twice.
+  const [result, certificates] = accountId
+    ? await Promise.all([getPortfolio(authedServerApi, accountId), getCertificates(authedServerApi, accountId)])
+    : [null, null];
   if (!result || (!result.ok && result.error.code === "NOT_FOUND")) {
     return (
       <StateCard
@@ -121,6 +125,15 @@ async function PortfolioScreen({ developerId, saved }: Props) {
       ) : null}
       <PortfolioProfile
         portfolio={portfolio}
+        certificates={
+          certificates?.ok ? (
+            <CertificateList accountId={portfolio.account_id} certificates={certificates.data} />
+          ) : (
+            <p role="alert" className="text-sm text-destructive">
+              We couldn&apos;t load the certificates. {certificates?.ok === false ? certificates.error.message : ""}
+            </p>
+          )
+        }
         actions={
           portfolio.is_owner ? (
             <Button asChild>
