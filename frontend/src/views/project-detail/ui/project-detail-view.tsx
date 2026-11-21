@@ -14,6 +14,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/shared/ui/shadcn/alert";
 import { Button } from "@/shared/ui/shadcn/button";
 import { AppHeader } from "@/widgets/app-header";
 import { ProjectStartStatus } from "@/widgets/project-start-status";
+import { ProjectStewardship } from "@/widgets/project-stewardship";
 import { isInWorkspace, ProjectTabs, workspacePrivacyNote } from "@/widgets/project-tabs";
 import { RequirementDocuments } from "@/widgets/requirement-documents";
 import { TeamRoster } from "@/widgets/team-roster";
@@ -139,6 +140,10 @@ async function ProjectScreen({ projectId, notice }: Props) {
       <div className="grid gap-6 lg:grid-cols-[1fr_20rem]">
         <div className="space-y-6">
           {/* Its client, Team Lead and members see what the project still needs to start (#6). */}
+          {/* Developer projects: the Assistant Lead and the inactivity check (NN-39). */}
+          <Suspense fallback={<LoadingCards count={1} label="Loading the Assistant Lead and activity" />}>
+            <ProjectStewardship project={project} />
+          </Suspense>
           {project.viewer.is_owner || project.viewer.is_lead || project.viewer.is_member ? (
             <Suspense fallback={<LoadingCards count={1} label="Loading the project start" />}>
               <ProjectStartStatus project={project} />

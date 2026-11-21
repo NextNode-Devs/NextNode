@@ -90,6 +90,12 @@ describe("TeamRosterCard", () => {
     expect(screen.queryByRole("link", { name: "Find developers to invite" })).not.toBeInTheDocument();
   });
 
+  it("marks the Assistant Lead on developer projects (NN-39)", () => {
+    const assistant = { ...MEMBER, role: "assistant_lead" as const };
+    render(<TeamRosterCard project={project()} team={team({ members: [LEAD, assistant] })} loadError={null} />);
+    expect(screen.getByText("Assistant Lead:")).toBeInTheDocument();
+  });
+
   it("says when the team can't be loaded", () => {
     render(<TeamRosterCard project={project()} team={null} loadError="The API could not be reached." />);
     expect(screen.getByRole("alert")).toHaveTextContent("The API could not be reached.");

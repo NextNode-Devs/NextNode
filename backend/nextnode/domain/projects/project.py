@@ -37,6 +37,7 @@ class ProjectStatus(StrEnum):
     IN_PROGRESS = "InProgress"
     COMPLETED = "Completed"
     ARCHIVED = "Archived"
+    CLOSED = "Closed"  # developer projects only: closed for inactivity or by their Lead (NN-39)
 
 
 _CLIENT_FLOW = {
@@ -163,6 +164,20 @@ class Project:
 
     def archive(self) -> Project:
         return self._move(ProjectStatus.ARCHIVED)
+
+    @property
+    def is_open(self) -> bool:
+        """Still running: not yet completed, archived or closed."""
+        return self.status in (ProjectStatus.POSTED, ProjectStatus.IN_PROGRESS)
+
+    def close(self) -> Project:
+        """``Posted`` or ``InProgress -> Closed``, developer projects only (NN-39).
+        Client projects end through their offer and payments instead."""
+        if self.is_client_project:
+            raise InvalidStateTransitionError("Client projects can't be closed this way.")
+        if not self.is_open:
+            raise InvalidStateTransitionError(f"A {self.status} project can't be closed.")
+        return replace(self, status=ProjectStatus.CLOSED)
 
     def _move(self, target: ProjectStatus) -> Project:
         flow = _CLIENT_FLOW if self.is_client_project else _DEVELOPER_FLOW
