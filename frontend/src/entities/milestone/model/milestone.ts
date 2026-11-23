@@ -54,8 +54,19 @@ export const MILESTONE_RULES = {
   minPerOffer: 3,
   depositReleaseChoices: [1, 2] as const satisfies readonly DepositReleaseChoice[],
   defaultDepositPercent: 20,
+  /** 20 % unless the client and Team Lead agree more, e.g. for a long or large project (stakeholder Q1). */
+  depositPercentOptions: [20, 25, 30, 35, 40] as const,
   titleMax: 120,
 } as const;
+
+/** The deposit for an offer total at a deposit %, in whole cents (rounded to the nearest cent). */
+export function depositCentsFor(offerTotalCents: number, depositPercent: number): number {
+  return Math.round((offerTotalCents * depositPercent) / 100);
+}
+
+export function isDepositPercentOption(percent: number): boolean {
+  return (MILESTONE_RULES.depositPercentOptions as readonly number[]).includes(percent);
+}
 
 export const MILESTONE_STATUS_LABEL: Record<MilestoneStatus, string> = {
   pending_deposit: "Pending deposit",

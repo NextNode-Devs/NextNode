@@ -201,3 +201,28 @@ export function sampleMilestoneSituation(situation: MilestoneSampleSituation): M
       return { milestones: SAMPLE_MILESTONES, reviews: SAMPLE_MILESTONE_REVIEWS };
   }
 }
+
+/* ---------- Offer milestone draft (NN-16a #94) ---------- */
+
+/** The first three milestones a Team Lead starts from: 30 / 40 / 30 % of the offer total. */
+const DRAFT_SHAPE = [
+  { title: "Designs and project setup", share: 30, due_date: "2027-01-15" },
+  { title: "Core features on staging", share: 40, due_date: "2027-02-12" },
+  { title: "Launch and handover", share: 30, due_date: "2027-03-05" },
+] as const;
+
+export type MilestoneDraftRow = { key: string; title: string; amount: string; due_date: string };
+
+/**
+ * A starting schedule for the offer-milestones prototype: three rows that add
+ * up to the offer total exactly (the last row takes any rounding). Fixed
+ * dates, so server and browser renders match.
+ */
+export function sampleMilestoneDraft(offerTotalCents: number): MilestoneDraftRow[] {
+  let left = offerTotalCents;
+  return DRAFT_SHAPE.map((row, index) => {
+    const cents = index === DRAFT_SHAPE.length - 1 ? left : Math.round((offerTotalCents * row.share) / 100);
+    left -= cents;
+    return { key: `m${index + 1}`, title: row.title, amount: (cents / 100).toFixed(2), due_date: row.due_date };
+  });
+}
