@@ -21,6 +21,7 @@ import { TeamRoster } from "@/widgets/team-roster";
 
 import { HireDevsLink } from "./hire-devs-link";
 import { InviteLinkSection } from "./invite-link-section";
+import { FinishLink } from "./finish-link";
 import { PaymentsLink } from "./payments-link";
 import { PrimaryAction } from "./primary-action";
 import { ProjectChats } from "./project-chats";
@@ -167,6 +168,7 @@ async function ProjectScreen({ projectId, notice }: Props) {
         <aside className="space-y-4">
           <PrimaryAction project={project} />
           <PaymentsLink project={project} />
+          <FinishLink project={project} />
           <Suspense fallback={<LoadingCards count={1} label="Loading the team" />}>
             <TeamRoster project={project} />
           </Suspense>

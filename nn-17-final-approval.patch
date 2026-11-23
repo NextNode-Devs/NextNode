@@ -1,0 +1,1624 @@
+diff --git a/docs/backlog-phase-2.md b/docs/backlog-phase-2.md
+index b5bb375..87818e2 100644
+--- a/docs/backlog-phase-2.md
++++ b/docs/backlog-phase-2.md
+@@ -198,13 +198,28 @@ the charge's balance transaction and refund the rest. A Team Lead decision;
+ not built in Phase 2. The live deposit is unchanged.
+ 
+ **NN-17 · Final approval, archive, portfolio update**. Kai.
++*Prototype complete 23 Nov 2026.*
+ - final approval screen
+ - archived project view, read-only, conversations greyed
+ - "Shipped projects" on the portfolio, without confidential projects
+ - code ownership "to be defined"
++- built: a "Finishing the project" card on client projects (client, Team Lead,
++  members) opens `/projects/[id]/final-approval` (the client approves and pays
++  the final payment, labelled "Planned"; the Lead and members see where it
++  stands) and `/projects/[id]/archived` (read-only; each viewer sees only the
++  conversations they were in, greyed with the composer closed). "Shipped
++  projects" is a prototype section on `/developers/[id]`; its owner is told
++  how many confidential projects are kept off. Confidential is a sample flag
++  until NN-41 adds it to Project
+ 
+ Backend note: FinalPayment, project `Completed → Archived`, team `Archived`,
+-portfolio entries.
++portfolio entries. The prototype assumes `InProgress → Completed` once every
++milestone is approved, and that final approval charges the final payment and
++archives the project and team in one step (`archived_at` = approval time).
++Portfolio entries are written for every team member then, never for a
++confidential project. Planned shapes: `ProjectClosing`
++(`entities/project/model/closing.ts`) and `ShippedProject`
++(`entities/developer/model/shipped-project.ts`).
+ 
+ **NN-35 · Ratings and references**. Kai. Trace: Q4.
+ - rating form after completion: the client rates the Lead and the team; the
+diff --git a/frontend/src/app/projects/[projectId]/archived/page.tsx b/frontend/src/app/projects/[projectId]/archived/page.tsx
+new file mode 100644
+index 0000000..aa5dfaf
+--- /dev/null
++++ b/frontend/src/app/projects/[projectId]/archived/page.tsx
+@@ -0,0 +1,13 @@
++import { ArchivedProjectView } from "@/views/project-closing";
++
++export const metadata = { title: "Archived project" };
++
++export default function Page({ params, searchParams }: PageProps<"/projects/[projectId]/archived">) {
++  // Resolved inside the view's Suspense boundary, so the page shell renders at once.
++  return (
++    <ArchivedProjectView
++      projectId={params.then((p) => p.projectId)}
++      confidential={searchParams.then((s) => s.confidential === "1")}
++    />
++  );
++}
+diff --git a/frontend/src/app/projects/[projectId]/final-approval/page.tsx b/frontend/src/app/projects/[projectId]/final-approval/page.tsx
+new file mode 100644
+index 0000000..1cc334f
+--- /dev/null
++++ b/frontend/src/app/projects/[projectId]/final-approval/page.tsx
+@@ -0,0 +1,8 @@
++import { FinalApprovalView } from "@/views/project-closing";
++
++export const metadata = { title: "Final approval" };
++
++export default function Page({ params }: PageProps<"/projects/[projectId]/final-approval">) {
++  // Resolved inside the view's Suspense boundary, so the page shell renders at once.
++  return <FinalApprovalView projectId={params.then((p) => p.projectId)} />;
++}
+diff --git a/frontend/src/entities/developer/index.ts b/frontend/src/entities/developer/index.ts
+index f4ab28b..b2eb8e2 100644
+--- a/frontend/src/entities/developer/index.ts
++++ b/frontend/src/entities/developer/index.ts
+@@ -45,7 +45,14 @@ export {
+   type MatchScore,
+ } from "./model/match";
+ // Prototype sample data: import only from Phase 2 prototype screens.
+-export { SAMPLE_HIRE_DEVS_POOL, sampleProfileGrowth } from "./model/sample";
++export { SAMPLE_HIRE_DEVS_POOL, sampleProfileGrowth, sampleShippedProjects } from "./model/sample";
++// Phase 2 prototype (NN-17 #97): "Shipped projects" on the portfolio.
++export {
++  hiddenConfidentialCount,
++  listedShippedProjects,
++  SHIPPED_ROLE_LABEL,
++  type ShippedProject,
++} from "./model/shipped-project";
+ export { NewTalentBadge } from "./ui/new-talent-badge";
+ export { DeveloperCard } from "./ui/developer-card";
+ export { DeveloperMatchCard } from "./ui/developer-match-card";
+diff --git a/frontend/src/entities/developer/model/sample.ts b/frontend/src/entities/developer/model/sample.ts
+index 76379ca..c0aa90f 100644
+--- a/frontend/src/entities/developer/model/sample.ts
++++ b/frontend/src/entities/developer/model/sample.ts
+@@ -9,6 +9,7 @@
+  */
+ import type { DeveloperCard, Skill } from "./developer";
+ import { TIME_ZONE_OPTIONS, type ProfileGrowth } from "./profile-growth";
++import type { ShippedProject } from "./shipped-project";
+ 
+ export function sampleProfileGrowth(accountId: number): ProfileGrowth {
+   const zones = TIME_ZONE_OPTIONS;
+@@ -54,3 +55,45 @@ export const SAMPLE_HIRE_DEVS_POOL: readonly DeveloperCard[] = [
+   { account_id: 9009, display_name: "Sofia Rossi", headline: "Next.js and TypeScript, first projects", skills: skills("Next.js", "TypeScript", "React", "Docker"), is_available: true, project_count: 1, joined_at: "2026-11-10T15:00:00Z", is_new_talent: true },
+   { account_id: 9010, display_name: "Arjun Mehta", headline: "Cloud and infrastructure", skills: skills("AWS", "Docker", "Terraform", "Python"), is_available: true, project_count: 4, joined_at: "2026-06-30T15:00:00Z", is_new_talent: false },
+ ];
++
++/* ---------- Shipped projects (NN-17 #97) ---------- */
++
++const SHIPPED: ShippedProject[] = [
++  {
++    project_id: 9101,
++    title: "Clinic booking app",
++    summary: "Online booking, reminders and payments for a family clinic.",
++    role: "lead",
++    tech_stack: skills("Next.js", "Django", "PostgreSQL"),
++    shipped_at: "2027-01-22T16:30:00Z",
++    confidential: false,
++  },
++  {
++    project_id: 9102,
++    title: "Food bank tracker",
++    summary: "Stock and volunteer shifts for a neighbourhood food bank.",
++    role: "member",
++    tech_stack: skills("React", "Node.js"),
++    shipped_at: "2026-10-03T18:00:00Z",
++    confidential: false,
++  },
++  {
++    project_id: 9103,
++    title: "Internal payroll dashboard",
++    summary: "A confidential client project.",
++    role: "member",
++    tech_stack: skills("TypeScript"),
++    shipped_at: "2026-08-15T18:00:00Z",
++    confidential: true,
++  },
++];
++
++/**
++ * Stable sample shipped projects for any real developer: every third
++ * developer has none yet (the empty state); the rest have two public ones
++ * and one confidential one, which their portfolio never lists.
++ */
++export function sampleShippedProjects(accountId: number): ShippedProject[] {
++  if (accountId % 3 === 0) return [];
++  return SHIPPED.map((p) => ({ ...p, role: accountId % 2 === 0 && p.role === "lead" ? "member" : p.role }));
++}
+diff --git a/frontend/src/entities/developer/model/shipped-project.test.ts b/frontend/src/entities/developer/model/shipped-project.test.ts
+new file mode 100644
+index 0000000..f50eb9e
+--- /dev/null
++++ b/frontend/src/entities/developer/model/shipped-project.test.ts
+@@ -0,0 +1,18 @@
++import { describe, expect, it } from "vitest";
++
++import { sampleShippedProjects } from "./sample";
++import { hiddenConfidentialCount, listedShippedProjects } from "./shipped-project";
++
++describe("shipped projects", () => {
++  it("never lists a confidential project, and lists the newest first", () => {
++    const all = sampleShippedProjects(1);
++    const listed = listedShippedProjects(all);
++    expect(listed.map((p) => p.title)).toEqual(["Clinic booking app", "Food bank tracker"]);
++    expect(listed.some((p) => p.confidential)).toBe(false);
++    expect(hiddenConfidentialCount(all)).toBe(1);
++  });
++
++  it("gives some developers none yet (the empty state)", () => {
++    expect(sampleShippedProjects(3)).toEqual([]);
++  });
++});
+diff --git a/frontend/src/entities/developer/model/shipped-project.ts b/frontend/src/entities/developer/model/shipped-project.ts
+new file mode 100644
+index 0000000..b0f9516
+--- /dev/null
++++ b/frontend/src/entities/developer/model/shipped-project.ts
+@@ -0,0 +1,37 @@
++import type { Skill } from "./developer";
++
++/**
++ * "Shipped projects" on a developer's portfolio (Phase 2 prototype, NN-17
++ * #97). A portfolio entry is written for every team member when a client
++ * gives final approval and the project is archived.
++ *
++ * PROTOTYPE: planned `GET /api/developers/{id}/shipped-projects/`. The real
++ * API never returns confidential projects to anyone; the sample keeps the
++ * flag so the screen can show the rule (NN-41 adds `confidential` to Project).
++ */
++export type ShippedProject = {
++  project_id: number;
++  title: string;
++  summary: string;
++  role: "lead" | "member";
++  tech_stack: Skill[];
++  /** When the project was archived after final approval. */
++  shipped_at: string;
++  /** SAMPLE FLAG until NN-41: confidential projects are never listed. */
++  confidential: boolean;
++};
++
++export const SHIPPED_ROLE_LABEL: Record<ShippedProject["role"], string> = {
++  lead: "Team Lead",
++  member: "Developer",
++};
++
++/** What a portfolio lists: never a confidential project, newest first. */
++export function listedShippedProjects(projects: readonly ShippedProject[]): ShippedProject[] {
++  return projects.filter((p) => !p.confidential).sort((a, b) => b.shipped_at.localeCompare(a.shipped_at));
++}
++
++/** How many of a developer's own shipped projects are kept off their portfolio. */
++export function hiddenConfidentialCount(projects: readonly ShippedProject[]): number {
++  return projects.filter((p) => p.confidential).length;
++}
+diff --git a/frontend/src/entities/project/index.ts b/frontend/src/entities/project/index.ts
+index 54c3017..681df96 100644
+--- a/frontend/src/entities/project/index.ts
++++ b/frontend/src/entities/project/index.ts
+@@ -50,7 +50,25 @@ export {
+   type ProjectRole,
+ } from "./model/dashboard";
+ // Prototype sample data: import only from Phase 2 prototype screens.
+-export { sampleDashboard, type SampleDashboard } from "./model/sample";
++export {
++  CLOSING_SAMPLE_SITUATIONS,
++  SAMPLE_ARCHIVED_CONVERSATIONS,
++  sampleClosing,
++  sampleDashboard,
++  type ArchivedConversation,
++  type ArchivedMessage,
++  type ClosingSampleSituation,
++  type SampleDashboard,
++} from "./model/sample";
++// Phase 2 prototype (NN-17 #97): final approval and archiving.
++export {
++  approvedMilestones,
++  closingStage,
++  finalApprovalSteps,
++  type ClosingMilestone,
++  type ClosingStage,
++  type ProjectClosing,
++} from "./model/closing";
+ export { ProjectRoleBadge } from "./ui/project-role-badge";
+ // Phase 2 prototype (#93): the "To be defined" legal terms.
+ export { LegalTerms, LegalTermsCard } from "./ui/legal-terms";
+diff --git a/frontend/src/entities/project/model/closing.test.ts b/frontend/src/entities/project/model/closing.test.ts
+new file mode 100644
+index 0000000..165b511
+--- /dev/null
++++ b/frontend/src/entities/project/model/closing.test.ts
+@@ -0,0 +1,32 @@
++import { describe, expect, it } from "vitest";
++
++import { approvedMilestones, closingStage, finalApprovalSteps } from "./closing";
++import { sampleClosing } from "./sample";
++
++describe("closingStage", () => {
++  it("waits for every milestone, then for final approval, then is archived", () => {
++    expect(closingStage(sampleClosing("milestones_open", 1))).toBe("milestones_open");
++    expect(closingStage(sampleClosing("awaiting_final_approval", 1))).toBe("awaiting_final_approval");
++    expect(closingStage(sampleClosing("archived", 1))).toBe("archived");
++  });
++
++  it("never offers final approval with no milestones", () => {
++    expect(closingStage({ milestones: [], archived_at: null })).toBe("milestones_open");
++  });
++});
++
++describe("sample closing", () => {
++  it("adds up: deposit plus final payment is the offer total", () => {
++    const c = sampleClosing("awaiting_final_approval", 7);
++    expect(c.deposit_cents + c.final_payment_cents).toBe(c.total_cents);
++    expect(c.project_id).toBe(7);
++    expect(approvedMilestones(sampleClosing("milestones_open", 7))).toBe(2);
++  });
++});
++
++describe("finalApprovalSteps", () => {
++  it("keeps confidential projects off portfolios", () => {
++    expect(finalApprovalSteps(false).at(-1)).toMatch(/Shipped projects/);
++    expect(finalApprovalSteps(true).at(-1)).toMatch(/kept off every portfolio/);
++  });
++});
+diff --git a/frontend/src/entities/project/model/closing.ts b/frontend/src/entities/project/model/closing.ts
+new file mode 100644
+index 0000000..e50df49
+--- /dev/null
++++ b/frontend/src/entities/project/model/closing.ts
+@@ -0,0 +1,66 @@
++/**
++ * Finishing a client project (Phase 2 prototype, NN-17 #97).
++ *
++ *   In progress ──(every milestone approved)──▶ Completed
++ *   Completed ──(client's final approval + final payment)──▶ Archived
++ *
++ * Once archived the project is read-only, its conversations are kept but
++ * closed, the team is archived, and the project is listed under "Shipped
++ * projects" on each team member's portfolio, unless it is confidential.
++ *
++ * PROTOTYPE: there is no API for this yet. These are the planned shapes
++ * (backend note: FinalPayment, project `Completed → Archived`, team
++ * `Archived`, portfolio entries). The payment parts are PLANNED (see
++ * `entities/payment`, planned-payment.ts). Code ownership after the final
++ * payment is "To be defined" (phase-2 decisions, "Legal wording").
++ */
++
++/** Planned `GET /api/projects/{id}/closing/`. */
++export type ProjectClosing = {
++  project_id: number;
++  milestones: ClosingMilestone[];
++  currency: "CAD";
++  /** The accepted offer's total. */
++  total_cents: number;
++  /** Paid at the start; released to the team when the chosen milestone was approved. */
++  deposit_cents: number;
++  /** The rest of the total, charged when the client gives final approval. */
++  final_payment_cents: number;
++  final_approved_at: string | null;
++  /** Set together with the final approval: the project and team are archived. */
++  archived_at: string | null;
++  /**
++   * SAMPLE FLAG until NN-41 adds `confidential` to Project: a confidential
++   * project never appears in anyone's "Shipped projects".
++   */
++  confidential: boolean;
++};
++
++export type ClosingMilestone = { sequence: number; title: string; approved_at: string | null };
++
++/** Where the project is in finishing: milestones still open, waiting for final approval, or archived. */
++export type ClosingStage = "milestones_open" | "awaiting_final_approval" | "archived";
++
++export function closingStage(closing: Pick<ProjectClosing, "milestones" | "archived_at">): ClosingStage {
++  if (closing.archived_at) return "archived";
++  return closing.milestones.length > 0 && closing.milestones.every((m) => m.approved_at)
++    ? "awaiting_final_approval"
++    : "milestones_open";
++}
++
++export function approvedMilestones(closing: Pick<ProjectClosing, "milestones">): number {
++  return closing.milestones.filter((m) => m.approved_at).length;
++}
++
++/** What final approval sets in motion, in the order it happens. */
++export function finalApprovalSteps(confidential: boolean): string[] {
++  return [
++    "The client's final payment is charged and they get a receipt.",
++    "The project is archived: everything stays readable, but nothing can be changed.",
++    "Conversations are kept, read-only. Nobody can send new messages.",
++    "The team is archived. Members keep access to the archived project.",
++    confidential
++      ? "The project is confidential, so it is kept off every portfolio."
++      : "The project is listed under \"Shipped projects\" on each team member's portfolio.",
++  ];
++}
+diff --git a/frontend/src/entities/project/model/sample.ts b/frontend/src/entities/project/model/sample.ts
+index d34272c..b28f39b 100644
+--- a/frontend/src/entities/project/model/sample.ts
++++ b/frontend/src/entities/project/model/sample.ts
+@@ -7,6 +7,7 @@
+  * latest update shows; the others have none yet. Sample ids (9001+) are not
+  * real projects, so screens never link to them.
+  */
++import type { ProjectClosing } from "./closing";
+ import type { AttentionItem, DashboardProject } from "./dashboard";
+ 
+ export type SampleDashboard = { projects: DashboardProject[]; attention: AttentionItem[] };
+@@ -93,3 +94,84 @@ const CLIENT: SampleDashboard = {
+ export function sampleDashboard(accountRole: "developer" | "client"): SampleDashboard {
+   return accountRole === "client" ? CLIENT : DEVELOPER;
+ }
++
++/* ---------- Finishing a project (NN-17 #97) ---------- */
++
++/** Prototype only: the points in finishing a project a tester can switch between. */
++export type ClosingSampleSituation = "milestones_open" | "awaiting_final_approval" | "archived";
++
++export const CLOSING_SAMPLE_SITUATIONS: { value: ClosingSampleSituation; label: string }[] = [
++  { value: "milestones_open", label: "Milestones still open" },
++  { value: "awaiting_final_approval", label: "Ready for final approval" },
++  { value: "archived", label: "Approved and archived" },
++];
++
++const CLOSING_MILESTONES = [
++  { sequence: 1, title: "Designs and project setup", approved_at: "2026-12-04T14:05:00Z" },
++  { sequence: 2, title: "Accounts and booking flow", approved_at: "2026-12-18T21:00:00Z" },
++  { sequence: 3, title: "Payments and notifications", approved_at: "2027-01-07T21:00:00Z" },
++  { sequence: 4, title: "Launch and handover", approved_at: "2027-01-21T21:00:00Z" },
++];
++
++/**
++ * The clinic booking app (CAD 6,000, 20 % deposit), matching the planned
++ * payments in `entities/payment`. `confidential` is a sample flag (NN-41).
++ */
++export function sampleClosing(situation: ClosingSampleSituation, projectId: number, confidential = false): ProjectClosing {
++  const base: ProjectClosing = {
++    project_id: projectId,
++    milestones: CLOSING_MILESTONES,
++    currency: "CAD",
++    total_cents: 600_000,
++    deposit_cents: 120_000,
++    final_payment_cents: 480_000,
++    final_approved_at: null,
++    archived_at: null,
++    confidential,
++  };
++  switch (situation) {
++    case "milestones_open":
++      return {
++        ...base,
++        milestones: CLOSING_MILESTONES.map((m) => (m.sequence >= 3 ? { ...m, approved_at: null } : m)),
++      };
++    case "archived":
++      return { ...base, final_approved_at: "2027-01-22T16:30:00Z", archived_at: "2027-01-22T16:30:00Z" };
++    case "awaiting_final_approval":
++    default:
++      return base;
++  }
++}
++
++/** One message in an archived conversation (read-only preview). */
++export type ArchivedMessage = { id: number; author_name: string; body: string; sent_at: string };
++
++export type ArchivedConversation = {
++  id: string;
++  title: string;
++  /** Who was in it, in words: "Client and Team Lead", "Team only". */
++  audience: string;
++  messages: ArchivedMessage[];
++};
++
++/** Prototype only: the archived project's conversations, kept read-only. */
++export const SAMPLE_ARCHIVED_CONVERSATIONS: ArchivedConversation[] = [
++  {
++    id: "client-lead",
++    title: "Client and Team Lead",
++    audience: "Grace (client) and Ada (Team Lead)",
++    messages: [
++      { id: 1, author_name: "Ada", body: "Launch is done and the handover notes are in Documents.", sent_at: "2027-01-21T20:10:00Z" },
++      { id: 2, author_name: "Grace", body: "Thank you all. Approving everything now.", sent_at: "2027-01-22T16:25:00Z" },
++    ],
++  },
++  {
++    id: "team",
++    title: "Team chat",
++    audience: "The team (the client is not part of it)",
++    messages: [
++      { id: 3, author_name: "Margaret", body: "Production deploy is green.", sent_at: "2027-01-21T18:40:00Z" },
++      { id: 4, author_name: "Lee", body: "Great working with everyone!", sent_at: "2027-01-22T17:05:00Z" },
++    ],
++  },
++];
+diff --git a/frontend/src/features/give-final-approval/index.ts b/frontend/src/features/give-final-approval/index.ts
+new file mode 100644
+index 0000000..60c1a8f
+--- /dev/null
++++ b/frontend/src/features/give-final-approval/index.ts
+@@ -0,0 +1 @@
++export { GiveFinalApprovalButton } from "./ui/give-final-approval-button";
+diff --git a/frontend/src/features/give-final-approval/ui/give-final-approval-button.tsx b/frontend/src/features/give-final-approval/ui/give-final-approval-button.tsx
+new file mode 100644
+index 0000000..832f8fb
+--- /dev/null
++++ b/frontend/src/features/give-final-approval/ui/give-final-approval-button.tsx
+@@ -0,0 +1,66 @@
++"use client";
++
++import { BadgeCheckIcon } from "lucide-react";
++import { useState } from "react";
++
++import { formatMoney } from "@/shared/lib/format-money";
++import { underConstruction } from "@/shared/lib/toast";
++import { PrototypeBadge } from "@/shared/ui/molecules/prototype-badge";
++import { MotionDialog } from "@/shared/ui/organisms/motion-dialog";
++import { Button } from "@/shared/ui/shadcn/button";
++
++type Props = {
++  finalPaymentCents: number;
++  currency: string;
++  /** Moves the sample on screen to "archived" (prototype preview; nothing is saved or charged). */
++  onApproved: () => void;
++};
++
++/**
++ * The client's final approval (NN-17, prototype): approves the finished
++ * project and pays the final payment (PLANNED). Confirming says it is under
++ * construction: nothing is charged and the project is not archived.
++ */
++export function GiveFinalApprovalButton({ finalPaymentCents, currency, onApproved }: Props) {
++  const [open, setOpen] = useState(false);
++  const amount = formatMoney(finalPaymentCents, currency);
++
++  function confirm() {
++    onApproved();
++    setOpen(false);
++    underConstruction("Final approval and final payment");
++  }
++
++  return (
++    <MotionDialog
++      open={open}
++      onOpenChange={setOpen}
++      title="Give final approval?"
++      description="You confirm the project is finished. This can't be undone: the project is archived and becomes read-only."
++      trigger={
++        <Button type="button" className="w-full sm:w-auto">
++          <BadgeCheckIcon aria-hidden data-icon="inline-start" />
++          Give final approval
++        </Button>
++      }
++      footer={
++        <>
++          <Button type="button" variant="outline" onClick={() => setOpen(false)}>
++            Not yet
++          </Button>
++          <Button type="button" onClick={confirm}>
++            Approve and pay {amount}
++          </Button>
++        </>
++      }
++    >
++      <div className="space-y-2 rounded-lg border p-3 text-sm">
++        <PrototypeBadge label="Planned" />
++        <p>
++          Your final payment of <strong>{amount}</strong> is charged to your card and goes to the team. You get a
++          receipt.
++        </p>
++      </div>
++    </MotionDialog>
++  );
++}
+diff --git a/frontend/src/views/portfolio/ui/portfolio-view.tsx b/frontend/src/views/portfolio/ui/portfolio-view.tsx
+index 4d53288..d53680e 100644
+--- a/frontend/src/views/portfolio/ui/portfolio-view.tsx
++++ b/frontend/src/views/portfolio/ui/portfolio-view.tsx
+@@ -3,7 +3,7 @@ import Link from "next/link";
+ import { redirect } from "next/navigation";
+ import { Suspense } from "react";
+ 
+-import { getCertificates, getPortfolio, PortfolioProfile, portfolioHref } from "@/entities/developer";
++import { getCertificates, getPortfolio, PortfolioProfile, portfolioHref, sampleShippedProjects } from "@/entities/developer";
+ import { getViewer, routeFor } from "@/entities/viewer";
+ import { CertificateList } from "@/features/view-certificate";
+ import { authedServerApi } from "@/shared/api/server-client";
+@@ -12,6 +12,7 @@ import { StateCard } from "@/shared/ui/molecules/state-card";
+ import { Alert, AlertDescription, AlertTitle } from "@/shared/ui/shadcn/alert";
+ import { Button } from "@/shared/ui/shadcn/button";
+ import { AppHeader } from "@/widgets/app-header";
++import { ShippedProjects } from "@/widgets/shipped-projects";
+ 
+ import { PortfolioActions } from "./portfolio-actions";
+ 
+@@ -146,6 +147,8 @@ async function PortfolioScreen({ developerId, saved }: Props) {
+           )
+         }
+       />
++      {/* Phase 2 prototype section (NN-17 #97): sample entries, clearly badged. */}
++      <ShippedProjects projects={sampleShippedProjects(portfolio.account_id)} isOwner={portfolio.is_owner} />
+     </>
+   );
+ }
+diff --git a/frontend/src/views/project-closing/index.ts b/frontend/src/views/project-closing/index.ts
+new file mode 100644
+index 0000000..0908bb7
+--- /dev/null
++++ b/frontend/src/views/project-closing/index.ts
+@@ -0,0 +1,2 @@
++export { ArchivedProjectView } from "./ui/archived-project-view";
++export { FinalApprovalView } from "./ui/final-approval-view";
+diff --git a/frontend/src/views/project-closing/ui/archived-project-view.tsx b/frontend/src/views/project-closing/ui/archived-project-view.tsx
+new file mode 100644
+index 0000000..8ed3340
+--- /dev/null
++++ b/frontend/src/views/project-closing/ui/archived-project-view.tsx
+@@ -0,0 +1,68 @@
++import { ArrowLeftIcon } from "lucide-react";
++import Link from "next/link";
++import { Suspense } from "react";
++
++import { SAMPLE_ARCHIVED_CONVERSATIONS, sampleClosing } from "@/entities/project";
++import { LoadingCards } from "@/shared/ui/load-states";
++import { PrototypeNotice } from "@/shared/ui/molecules/prototype-notice";
++import { Badge } from "@/shared/ui/shadcn/badge";
++import { AppHeader } from "@/widgets/app-header";
++import { ArchivedProject } from "@/widgets/project-closing";
++
++import { loadClosingProject, type ClosingViewer } from "./load-closing-project";
++
++type Props = { projectId: Promise<string>; confidential: Promise<boolean> };
++
++/** The client isn't in the team chat; members aren't in the client's conversation with the Lead (#6). */
++const SEES: Record<ClosingViewer, string[]> = {
++  client: ["client-lead"],
++  lead: ["client-lead", "team"],
++  member: ["team"],
++};
++
++/**
++ * `/projects/[id]/archived` (Phase 2 prototype, NN-17 #97): how a client
++ * project looks once archived. Access is real; the record is sample data.
++ * `?confidential=1` shows the sample as a confidential project.
++ */
++export function ArchivedProjectView(props: Props) {
++  return (
++    <>
++      <AppHeader current="projects" />
++      <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-6 px-4 py-6 sm:px-6 sm:py-10">
++        <Suspense fallback={<LoadingCards count={2} label="Loading the archived project" />}>
++          <Screen {...props} />
++        </Suspense>
++      </main>
++    </>
++  );
++}
++
++async function Screen({ projectId, confidential }: Props) {
++  const loaded = await loadClosingProject(await projectId, "archived", "the archived project");
++  if (!loaded.ok) return loaded.screen;
++  const { project, viewer } = loaded;
++  const closing = sampleClosing("archived", project.id, await confidential);
++  return (
++    <div className="space-y-6">
++      <Link
++        href={`/projects/${project.id}`}
++        className="inline-flex w-fit items-center gap-1 text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
++      >
++        <ArrowLeftIcon className="size-4" aria-hidden /> Back to the project
++      </Link>
++      <header className="space-y-2">
++        <Badge variant="secondary">Archived</Badge>
++        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{project.title}</h1>
++      </header>
++      <PrototypeNotice>
++        A preview of this project once it&apos;s archived, with sample conversations, milestones and payments. It
++        isn&apos;t archived yet.
++      </PrototypeNotice>
++      <ArchivedProject
++        closing={closing}
++        conversations={SAMPLE_ARCHIVED_CONVERSATIONS.filter((c) => SEES[viewer].includes(c.id))}
++      />
++    </div>
++  );
++}
+diff --git a/frontend/src/views/project-closing/ui/final-approval-view.tsx b/frontend/src/views/project-closing/ui/final-approval-view.tsx
+new file mode 100644
+index 0000000..8846844
+--- /dev/null
++++ b/frontend/src/views/project-closing/ui/final-approval-view.tsx
+@@ -0,0 +1,59 @@
++import { ArrowLeftIcon } from "lucide-react";
++import Link from "next/link";
++import { Suspense } from "react";
++
++import { LoadingCards } from "@/shared/ui/load-states";
++import { PrototypeNotice } from "@/shared/ui/molecules/prototype-notice";
++import { AppHeader } from "@/widgets/app-header";
++import { FinalApprovalPanel } from "@/widgets/project-closing";
++
++import { loadClosingProject } from "./load-closing-project";
++
++type Props = { projectId: Promise<string> };
++
++/**
++ * `/projects/[id]/final-approval` (Phase 2 prototype, NN-17 #97). Access is
++ * real (the project's client, Team Lead and members); the milestones and the
++ * final payment are sample data.
++ */
++export function FinalApprovalView({ projectId }: Props) {
++  return (
++    <>
++      <AppHeader current="projects" />
++      <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-6 px-4 py-6 sm:px-6 sm:py-10">
++        <Suspense fallback={<LoadingCards count={2} label="Loading final approval" />}>
++          <Screen projectId={projectId} />
++        </Suspense>
++      </main>
++    </>
++  );
++}
++
++async function Screen({ projectId }: Props) {
++  const loaded = await loadClosingProject(await projectId, "final-approval", "final approval");
++  if (!loaded.ok) return loaded.screen;
++  const { project, viewer } = loaded;
++  return (
++    <div className="space-y-6">
++      <Link
++        href={`/projects/${project.id}`}
++        className="inline-flex w-fit items-center gap-1 text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
++      >
++        <ArrowLeftIcon className="size-4" aria-hidden /> {project.title}
++      </Link>
++      <header className="space-y-1">
++        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Final approval</h1>
++        <p className="text-muted-foreground">
++          {viewer === "client"
++            ? "Approve the finished project to pay the final payment and archive it."
++            : "When every milestone is approved, the client approves the finished project and it's archived."}
++        </p>
++      </header>
++      <PrototypeNotice>
++        This screen shows sample milestones and payments, not this project&apos;s. Final approval is under construction:
++        nothing is charged or archived.
++      </PrototypeNotice>
++      <FinalApprovalPanel projectId={project.id} viewer={viewer} />
++    </div>
++  );
++}
+diff --git a/frontend/src/views/project-closing/ui/load-closing-project.tsx b/frontend/src/views/project-closing/ui/load-closing-project.tsx
+new file mode 100644
+index 0000000..45d1059
+--- /dev/null
++++ b/frontend/src/views/project-closing/ui/load-closing-project.tsx
+@@ -0,0 +1,99 @@
++import { ArchiveIcon, LockIcon, SearchXIcon } from "lucide-react";
++import Link from "next/link";
++import { redirect } from "next/navigation";
++import type { ReactNode } from "react";
++
++import { getProject, type Project } from "@/entities/project";
++import { getViewer, routeFor } from "@/entities/viewer";
++import { authedServerApi } from "@/shared/api/server-client";
++import { LoadError } from "@/shared/ui/load-states";
++import { StateCard } from "@/shared/ui/molecules/state-card";
++import { Button } from "@/shared/ui/shadcn/button";
++
++export type ClosingViewer = "client" | "lead" | "member";
++
++type Loaded = { ok: true; project: Project; viewer: ClosingViewer } | { ok: false; screen: ReactNode };
++
++const projectsLink = (
++  <Button asChild variant="outline">
++    <Link href="/projects">Browse projects</Link>
++  </Button>
++);
++
++/**
++ * The real access check for the finishing screens (NN-17): signed in, the
++ * project exists, it is a client project, and the viewer is its client, Team
++ * Lead or a member. Anything else is drawn as a state screen.
++ */
++export async function loadClosingProject(rawId: string, path: string, what: string): Promise<Loaded> {
++  const route = routeFor(await getViewer());
++  if (route.kind === "sign-in") redirect(`/sign-in?redirect_url=/projects/${encodeURIComponent(rawId)}/${path}`);
++  if (route.kind === "onboarding") redirect("/onboarding");
++  if (route.kind === "error") return { ok: false, screen: <LoadError title={`We couldn't load ${what}`} message={route.message} /> };
++
++  const numeric = /^\d+$/.test(rawId) ? Number(rawId) : null;
++  const result = numeric ? await getProject(authedServerApi, numeric) : null;
++  if (!result || (!result.ok && result.error.code === "NOT_FOUND")) {
++    return {
++      ok: false,
++      screen: (
++        <StateCard
++          as="h1"
++          icon={<SearchXIcon aria-hidden />}
++          title="Project not found"
++          message="This link doesn't match a project on NextNode."
++          action={projectsLink}
++        />
++      ),
++    };
++  }
++  if (!result.ok) {
++    return {
++      ok: false,
++      screen:
++        result.error.code === "FORBIDDEN" ? (
++          <StateCard as="h1" icon={<LockIcon aria-hidden />} title="You can't view this project" message={result.error.message} action={projectsLink} />
++        ) : (
++          <LoadError title={`We couldn't load ${what}`} message={result.error.message} />
++        ),
++    };
++  }
++
++  const project = result.data;
++  const backLink = (
++    <Button asChild variant="outline">
++      <Link href={`/projects/${project.id}`}>Back to the project</Link>
++    </Button>
++  );
++  if (project.kind !== "client") {
++    return {
++      ok: false,
++      screen: (
++        <StateCard
++          as="h1"
++          icon={<ArchiveIcon aria-hidden />}
++          title="Only client projects are approved and archived"
++          message="A developer's own project has no client approval. Its Team Lead closes it instead."
++          action={backLink}
++        />
++      ),
++    };
++  }
++  const { is_owner, is_lead, is_member } = project.viewer;
++  const viewer: ClosingViewer | null = is_owner ? "client" : is_lead ? "lead" : is_member ? "member" : null;
++  if (!viewer) {
++    return {
++      ok: false,
++      screen: (
++        <StateCard
++          as="h1"
++          icon={<LockIcon aria-hidden />}
++          title={`${what[0].toUpperCase()}${what.slice(1)} is private`}
++          message="Only this project's client, Team Lead and team members can see it."
++          action={backLink}
++        />
++      ),
++    };
++  }
++  return { ok: true, project, viewer };
++}
+diff --git a/frontend/src/views/project-detail/ui/finish-link.test.tsx b/frontend/src/views/project-detail/ui/finish-link.test.tsx
+new file mode 100644
+index 0000000..7c93337
+--- /dev/null
++++ b/frontend/src/views/project-detail/ui/finish-link.test.tsx
+@@ -0,0 +1,28 @@
++import { render, screen } from "@testing-library/react";
++import { describe, expect, it } from "vitest";
++
++import type { Project } from "@/entities/project";
++
++import { FinishLink } from "./finish-link";
++
++const project = (viewer: Partial<Project["viewer"]>, kind: Project["kind"] = "client") =>
++  ({ id: 4, kind, viewer: { is_owner: false, is_lead: false, is_member: false, ...viewer } }) as Project;
++
++describe("FinishLink", () => {
++  it("takes the client, the Team Lead and members to final approval and the archived view", () => {
++    for (const viewer of [{ is_owner: true }, { is_lead: true }, { is_member: true }]) {
++      const { unmount } = render(<FinishLink project={project(viewer)} />);
++      expect(screen.getByRole("link", { name: "Final approval" })).toHaveAttribute("href", "/projects/4/final-approval");
++      expect(screen.getByRole("link", { name: "Archived view" })).toHaveAttribute("href", "/projects/4/archived");
++      expect(screen.getByText("Prototype")).toBeInTheDocument();
++      unmount();
++    }
++  });
++
++  it("is hidden from outsiders and on developer projects", () => {
++    const { container, rerender } = render(<FinishLink project={project({})} />);
++    expect(container).toBeEmptyDOMElement();
++    rerender(<FinishLink project={project({ is_lead: true }, "developer")} />);
++    expect(container).toBeEmptyDOMElement();
++  });
++});
+diff --git a/frontend/src/views/project-detail/ui/finish-link.tsx b/frontend/src/views/project-detail/ui/finish-link.tsx
+new file mode 100644
+index 0000000..789dd62
+--- /dev/null
++++ b/frontend/src/views/project-detail/ui/finish-link.tsx
+@@ -0,0 +1,47 @@
++import { ArchiveIcon, BadgeCheckIcon } from "lucide-react";
++import Link from "next/link";
++
++import type { Project } from "@/entities/project";
++import { PrototypeBadge } from "@/shared/ui/molecules/prototype-badge";
++import { Button } from "@/shared/ui/shadcn/button";
++import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/shadcn/card";
++
++/**
++ * Phase 2 prototype entry point (NN-17 #97): final approval and the archived
++ * view. Client projects only, for the client, the Team Lead and members. It
++ * sits beside the Phase 1 sections and changes none of them.
++ */
++export function FinishLink({ project }: { project: Project }) {
++  const { is_owner, is_lead, is_member } = project.viewer;
++  if (project.kind !== "client" || !(is_owner || is_lead || is_member)) return null;
++
++  return (
++    <Card>
++      <CardHeader>
++        <CardTitle className="flex items-center justify-between gap-2 text-base">
++          <h2>Finishing the project</h2>
++          <PrototypeBadge />
++        </CardTitle>
++        <CardDescription>
++          {is_owner
++            ? "Approve the finished project, pay the final payment, and see it archived."
++            : "The client's final approval, and the project once it's archived."}
++        </CardDescription>
++      </CardHeader>
++      <CardContent className="flex flex-col gap-2">
++        <Button asChild variant="outline" className="w-full">
++          <Link href={`/projects/${project.id}/final-approval`}>
++            <BadgeCheckIcon aria-hidden data-icon="inline-start" />
++            Final approval
++          </Link>
++        </Button>
++        <Button asChild variant="outline" className="w-full">
++          <Link href={`/projects/${project.id}/archived`}>
++            <ArchiveIcon aria-hidden data-icon="inline-start" />
++            Archived view
++          </Link>
++        </Button>
++      </CardContent>
++    </Card>
++  );
++}
+diff --git a/frontend/src/views/project-detail/ui/project-detail-view.tsx b/frontend/src/views/project-detail/ui/project-detail-view.tsx
+index 87ab82e..960e8ce 100644
+--- a/frontend/src/views/project-detail/ui/project-detail-view.tsx
++++ b/frontend/src/views/project-detail/ui/project-detail-view.tsx
+@@ -21,6 +21,7 @@ import { TeamRoster } from "@/widgets/team-roster";
+ 
+ import { HireDevsLink } from "./hire-devs-link";
+ import { InviteLinkSection } from "./invite-link-section";
++import { FinishLink } from "./finish-link";
+ import { PaymentsLink } from "./payments-link";
+ import { PrimaryAction } from "./primary-action";
+ import { ProjectChats } from "./project-chats";
+@@ -167,6 +168,7 @@ async function ProjectScreen({ projectId, notice }: Props) {
+         <aside className="space-y-4">
+           <PrimaryAction project={project} />
+           <PaymentsLink project={project} />
++          <FinishLink project={project} />
+           <Suspense fallback={<LoadingCards count={1} label="Loading the team" />}>
+             <TeamRoster project={project} />
+           </Suspense>
+diff --git a/frontend/src/widgets/project-closing/index.ts b/frontend/src/widgets/project-closing/index.ts
+new file mode 100644
+index 0000000..8389cf2
+--- /dev/null
++++ b/frontend/src/widgets/project-closing/index.ts
+@@ -0,0 +1,2 @@
++export { ArchivedProject } from "./ui/archived-project";
++export { FinalApprovalPanel } from "./ui/final-approval-panel";
+diff --git a/frontend/src/widgets/project-closing/ui/archived-project.test.tsx b/frontend/src/widgets/project-closing/ui/archived-project.test.tsx
+new file mode 100644
+index 0000000..6562925
+--- /dev/null
++++ b/frontend/src/widgets/project-closing/ui/archived-project.test.tsx
+@@ -0,0 +1,39 @@
++import { act, render, screen } from "@testing-library/react";
++import userEvent from "@testing-library/user-event";
++import { afterEach, describe, expect, it } from "vitest";
++
++import { SAMPLE_ARCHIVED_CONVERSATIONS, sampleClosing } from "@/entities/project";
++import { getToasts, resetToasts } from "@/shared/lib/toast";
++
++import { ArchivedProject } from "./archived-project";
++
++afterEach(() => act(() => resetToasts()));
++
++describe("ArchivedProject", () => {
++  it("is read-only: conversations are shown but nobody can write", () => {
++    render(<ArchivedProject closing={sampleClosing("archived", 3)} conversations={SAMPLE_ARCHIVED_CONVERSATIONS} />);
++    expect(screen.getByText(/Archived on Jan 22, 2027/)).toBeInTheDocument();
++    expect(screen.getByText("Production deploy is green.")).toBeInTheDocument();
++    for (const input of screen.getAllByRole("textbox")) {
++      expect(input).toBeDisabled();
++      expect(input).toHaveAccessibleDescription("This project is archived, so nobody can send new messages.");
++    }
++    expect(screen.getByText("Archived")).toBeInTheDocument();
++    expect(screen.getByText("Code ownership after final payment")).toBeInTheDocument();
++  });
++
++  it("says how the project shows on portfolios", () => {
++    const { rerender } = render(<ArchivedProject closing={sampleClosing("archived", 3)} conversations={[]} />);
++    expect(screen.getByText('Listed under "Shipped projects"')).toBeInTheDocument();
++    expect(screen.getByText(/weren't part of any conversation/)).toBeInTheDocument();
++    rerender(<ArchivedProject closing={sampleClosing("archived", 3, true)} conversations={[]} />);
++    expect(screen.getByText("Confidential: kept off portfolios")).toBeInTheDocument();
++  });
++
++  it("download is under construction", async () => {
++    const user = userEvent.setup();
++    render(<ArchivedProject closing={sampleClosing("archived", 3)} conversations={[]} />);
++    await user.click(screen.getByRole("button", { name: "Download the project archive" }));
++    expect(getToasts().at(-1)?.description).toBe("Download the project archive: this function is under construction.");
++  });
++});
+diff --git a/frontend/src/widgets/project-closing/ui/archived-project.tsx b/frontend/src/widgets/project-closing/ui/archived-project.tsx
+new file mode 100644
+index 0000000..cd792ca
+--- /dev/null
++++ b/frontend/src/widgets/project-closing/ui/archived-project.tsx
+@@ -0,0 +1,150 @@
++import { ArchiveIcon, LockIcon, MessagesSquareIcon } from "lucide-react";
++
++import {
++  approvedMilestones,
++  LegalTerms,
++  type ArchivedConversation,
++  type ProjectClosing,
++} from "@/entities/project";
++import { formatMessageTime, formatMomentDate } from "@/shared/lib/format-date";
++import { PrototypeBadge } from "@/shared/ui/molecules/prototype-badge";
++import { Alert, AlertDescription, AlertTitle } from "@/shared/ui/shadcn/alert";
++import { Badge } from "@/shared/ui/shadcn/badge";
++import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui/shadcn/card";
++
++import { MilestoneChecklist, PaymentSummary } from "./closing-parts";
++import { DownloadArchiveButton } from "./download-archive-button";
++
++type Props = {
++  closing: ProjectClosing;
++  /** Only the conversations this viewer was part of. */
++  conversations: ArchivedConversation[];
++};
++
++/**
++ * An archived client project (NN-17, prototype): read-only for everyone.
++ * Conversations stay readable but greyed, with the composer closed.
++ */
++export function ArchivedProject({ closing, conversations }: Props) {
++  return (
++    <div className="space-y-6">
++      <Alert>
++        <ArchiveIcon aria-hidden />
++        <AlertTitle>Archived on {formatMomentDate(closing.archived_at)} · read-only</AlertTitle>
++        <AlertDescription>
++          The client gave final approval. Everything stays readable, but nothing in this project can be changed.
++        </AlertDescription>
++      </Alert>
++
++      <div className="grid gap-6 lg:grid-cols-[1fr_20rem]">
++        <div className="space-y-6">
++          <section aria-labelledby="archived-conversations" className="space-y-3">
++            <div className="flex flex-wrap items-center justify-between gap-2">
++              <h2 id="archived-conversations" className="text-lg font-semibold">
++                Conversations
++              </h2>
++              <PrototypeBadge />
++            </div>
++            {conversations.length === 0 ? (
++              <p className="text-sm text-muted-foreground">You weren&apos;t part of any conversation in this project.</p>
++            ) : (
++              conversations.map((c) => <ArchivedConversationCard key={c.id} conversation={c} />)
++            )}
++          </section>
++          <MilestoneChecklist closing={closing} />
++        </div>
++        <aside className="space-y-4">
++          <Card>
++            <CardHeader>
++              <CardTitle className="text-base">
++                <h2>Project record</h2>
++              </CardTitle>
++            </CardHeader>
++            <CardContent>
++              <dl className="space-y-2 text-sm">
++                <Fact term="Final approval" value={formatMomentDate(closing.final_approved_at)} />
++                <Fact
++                  term="Milestones"
++                  value={`${approvedMilestones(closing)} of ${closing.milestones.length} approved`}
++                />
++                <Fact term="Team" value={<Badge variant="secondary">Archived</Badge>} />
++                <Fact
++                  term="Portfolios"
++                  value={closing.confidential ? "Confidential: kept off portfolios" : "Listed under \"Shipped projects\""}
++                />
++              </dl>
++              <div className="mt-4">
++                <DownloadArchiveButton />
++              </div>
++            </CardContent>
++          </Card>
++          <PaymentSummary closing={closing} paid />
++          <Card>
++            <CardHeader className="flex flex-wrap items-center justify-between gap-2">
++              <CardTitle className="text-base">
++                <h2>Code ownership</h2>
++              </CardTitle>
++              <PrototypeBadge />
++            </CardHeader>
++            <CardContent>
++              <LegalTerms layout="stacked" confidential={closing.confidential} />
++            </CardContent>
++          </Card>
++        </aside>
++      </div>
++    </div>
++  );
++}
++
++function Fact({ term, value }: { term: string; value: React.ReactNode }) {
++  return (
++    <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-0.5">
++      <dt className="text-muted-foreground">{term}</dt>
++      <dd className="text-right">{value}</dd>
++    </div>
++  );
++}
++
++function ArchivedConversationCard({ conversation }: { conversation: ArchivedConversation }) {
++  const noteId = `archived-${conversation.id}-note`;
++  return (
++    <Card aria-labelledby={`archived-${conversation.id}-title`} role="region" className="bg-muted/40">
++      <CardHeader className="gap-1">
++        <CardTitle className="flex items-center gap-2 text-base text-muted-foreground">
++          <MessagesSquareIcon aria-hidden className="size-4" />
++          <h3 id={`archived-${conversation.id}-title`}>{conversation.title}</h3>
++        </CardTitle>
++        <p className="text-xs text-muted-foreground">{conversation.audience}</p>
++      </CardHeader>
++      <CardContent className="space-y-3">
++        <ol className="space-y-2 text-muted-foreground">
++          {conversation.messages.map((m) => (
++            <li key={m.id} className="rounded-md border border-dashed bg-background/60 px-3 py-2 text-sm">
++              <p className="text-xs">
++                <span className="font-medium">{m.author_name}</span> ·{" "}
++                <time dateTime={m.sent_at}>{formatMessageTime(m.sent_at)}</time>
++              </p>
++              <p>{m.body}</p>
++            </li>
++          ))}
++        </ol>
++        <div className="flex items-center gap-2">
++          <label htmlFor={`archived-${conversation.id}-input`} className="sr-only">
++            Message {conversation.title}
++          </label>
++          <input
++            id={`archived-${conversation.id}-input`}
++            disabled
++            aria-describedby={noteId}
++            placeholder="Read-only"
++            className="h-10 min-w-0 flex-1 cursor-not-allowed rounded-md border bg-muted px-3 text-sm opacity-60"
++          />
++        </div>
++        <p id={noteId} className="flex items-center gap-1.5 text-xs text-muted-foreground">
++          <LockIcon aria-hidden className="size-3.5" />
++          This project is archived, so nobody can send new messages.
++        </p>
++      </CardContent>
++    </Card>
++  );
++}
+diff --git a/frontend/src/widgets/project-closing/ui/closing-parts.tsx b/frontend/src/widgets/project-closing/ui/closing-parts.tsx
+new file mode 100644
+index 0000000..77972e2
+--- /dev/null
++++ b/frontend/src/widgets/project-closing/ui/closing-parts.tsx
+@@ -0,0 +1,78 @@
++import { CircleCheckIcon, CircleDashedIcon } from "lucide-react";
++
++import { approvedMilestones, type ProjectClosing } from "@/entities/project";
++import { formatMoney } from "@/shared/lib/format-money";
++import { formatMomentDate } from "@/shared/lib/format-date";
++import { PrototypeBadge } from "@/shared/ui/molecules/prototype-badge";
++import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui/shadcn/card";
++
++/** Every milestone with a tick once the client approved it. */
++export function MilestoneChecklist({ closing }: { closing: ProjectClosing }) {
++  const done = approvedMilestones(closing);
++  return (
++    <Card>
++      <CardHeader className="flex flex-wrap items-baseline justify-between gap-2">
++        <CardTitle className="text-base">
++          <h2>Milestones</h2>
++        </CardTitle>
++        <p className="text-sm text-muted-foreground">
++          {done} of {closing.milestones.length} approved
++        </p>
++      </CardHeader>
++      <CardContent>
++        <ol className="space-y-2">
++          {closing.milestones.map((m) => (
++            <li key={m.sequence} className="flex items-start gap-2 text-sm">
++              {m.approved_at ? (
++                <CircleCheckIcon aria-hidden className="mt-0.5 size-4 shrink-0 text-success" />
++              ) : (
++                <CircleDashedIcon aria-hidden className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
++              )}
++              <span className="flex-1">
++                {m.sequence}. {m.title}
++              </span>
++              <span className="text-muted-foreground">
++                {m.approved_at ? `Approved ${formatMomentDate(m.approved_at)}` : "Not approved yet"}
++              </span>
++            </li>
++          ))}
++        </ol>
++      </CardContent>
++    </Card>
++  );
++}
++
++/** The offer total, the deposit and the final payment (PLANNED). */
++export function PaymentSummary({ closing, paid }: { closing: ProjectClosing; paid: boolean }) {
++  const money = (cents: number) => formatMoney(cents, closing.currency);
++  return (
++    <Card>
++      <CardHeader className="flex flex-wrap items-center justify-between gap-2">
++        <CardTitle className="text-base">
++          <h2>Final payment</h2>
++        </CardTitle>
++        <PrototypeBadge label="Planned" />
++      </CardHeader>
++      <CardContent>
++        <dl className="space-y-2 text-sm">
++          <Row term="Offer total" value={money(closing.total_cents)} />
++          <Row term="Deposit (paid, released to the team)" value={money(closing.deposit_cents)} />
++          <Row
++            term={paid ? "Final payment (paid)" : "Final payment (charged on final approval)"}
++            value={money(closing.final_payment_cents)}
++            strong
++          />
++        </dl>
++      </CardContent>
++    </Card>
++  );
++}
++
++function Row({ term, value, strong = false }: { term: string; value: string; strong?: boolean }) {
++  return (
++    <div className="flex flex-wrap justify-between gap-x-4 gap-y-0.5">
++      <dt className="text-muted-foreground">{term}</dt>
++      <dd className={strong ? "font-semibold" : undefined}>{value}</dd>
++    </div>
++  );
++}
+diff --git a/frontend/src/widgets/project-closing/ui/download-archive-button.tsx b/frontend/src/widgets/project-closing/ui/download-archive-button.tsx
+new file mode 100644
+index 0000000..838b679
+--- /dev/null
++++ b/frontend/src/widgets/project-closing/ui/download-archive-button.tsx
+@@ -0,0 +1,16 @@
++"use client";
++
++import { DownloadIcon } from "lucide-react";
++
++import { underConstruction } from "@/shared/lib/toast";
++import { Button } from "@/shared/ui/shadcn/button";
++
++/** Download the project's files and conversation history (prototype). */
++export function DownloadArchiveButton() {
++  return (
++    <Button type="button" variant="outline" className="w-full" onClick={() => underConstruction("Download the project archive")}>
++      <DownloadIcon aria-hidden data-icon="inline-start" />
++      Download the project archive
++    </Button>
++  );
++}
+diff --git a/frontend/src/widgets/project-closing/ui/final-approval-panel.test.tsx b/frontend/src/widgets/project-closing/ui/final-approval-panel.test.tsx
+new file mode 100644
+index 0000000..91b8fcc
+--- /dev/null
++++ b/frontend/src/widgets/project-closing/ui/final-approval-panel.test.tsx
+@@ -0,0 +1,49 @@
++import { act, render, screen, within } from "@testing-library/react";
++import userEvent from "@testing-library/user-event";
++import { afterEach, describe, expect, it } from "vitest";
++
++import { getToasts, resetToasts } from "@/shared/lib/toast";
++
++import { FinalApprovalPanel } from "./final-approval-panel";
++
++afterEach(() => act(() => resetToasts()));
++
++describe("FinalApprovalPanel", () => {
++  it("lets the client approve and pay; it says it's under construction and links to the archived view", async () => {
++    const user = userEvent.setup();
++    render(<FinalApprovalPanel projectId={12} viewer="client" />);
++    expect(screen.getByText("4 of 4 approved")).toBeInTheDocument();
++    expect(screen.getByText("CAD 4,800.00")).toBeInTheDocument();
++    expect(screen.getAllByText("To be defined").length).toBeGreaterThan(0);
++
++    await user.click(screen.getByRole("button", { name: "Give final approval" }));
++    const dialog = await screen.findByRole("dialog", { name: "Give final approval?" });
++    await user.click(within(dialog).getByRole("button", { name: "Approve and pay CAD 4,800.00" }));
++
++    expect(getToasts().at(-1)?.description).toBe("Final approval and final payment: this function is under construction.");
++    expect(screen.getByText("Preview only")).toBeInTheDocument();
++    expect(screen.getByRole("link", { name: "Open the archived project" })).toHaveAttribute("href", "/projects/12/archived");
++    expect(screen.queryByRole("button", { name: "Give final approval" })).not.toBeInTheDocument();
++  });
++
++  it("shows the Team Lead and members where it stands, with no approval button", () => {
++    render(<FinalApprovalPanel projectId={12} viewer="lead" />);
++    expect(screen.queryByRole("button", { name: "Give final approval" })).not.toBeInTheDocument();
++    expect(screen.getByText(/Waiting for the client's final approval/)).toBeInTheDocument();
++  });
++
++  it("waits while milestones are open", () => {
++    render(<FinalApprovalPanel projectId={12} viewer="client" initial="milestones_open" />);
++    expect(screen.getByText("Final approval opens when every milestone is approved")).toBeInTheDocument();
++    expect(screen.queryByRole("button", { name: "Give final approval" })).not.toBeInTheDocument();
++  });
++
++  it("keeps a confidential project off portfolios", async () => {
++    const user = userEvent.setup();
++    render(<FinalApprovalPanel projectId={12} viewer="client" />);
++    expect(screen.getByText(/listed under "Shipped projects"/)).toBeInTheDocument();
++    await user.click(screen.getByRole("switch", { name: "Sample: confidential project" }));
++    expect(screen.getByText(/kept off every portfolio/)).toBeInTheDocument();
++    expect(screen.getByText("Kept out of the team's portfolios")).toBeInTheDocument();
++  });
++});
+diff --git a/frontend/src/widgets/project-closing/ui/final-approval-panel.tsx b/frontend/src/widgets/project-closing/ui/final-approval-panel.tsx
+new file mode 100644
+index 0000000..08acdfa
+--- /dev/null
++++ b/frontend/src/widgets/project-closing/ui/final-approval-panel.tsx
+@@ -0,0 +1,159 @@
++"use client";
++
++import { ArchiveIcon, HourglassIcon } from "lucide-react";
++import Link from "next/link";
++import { useId, useState } from "react";
++
++import { GiveFinalApprovalButton } from "@/features/give-final-approval";
++import { ContactSupportButton } from "@/features/contact-support";
++import {
++  approvedMilestones,
++  CLOSING_SAMPLE_SITUATIONS,
++  closingStage,
++  finalApprovalSteps,
++  LegalTerms,
++  sampleClosing,
++  type ClosingSampleSituation,
++} from "@/entities/project";
++import { formatMomentDate } from "@/shared/lib/format-date";
++import { PrototypeBadge } from "@/shared/ui/molecules/prototype-badge";
++import { StateCard } from "@/shared/ui/molecules/state-card";
++import { Alert, AlertDescription, AlertTitle } from "@/shared/ui/shadcn/alert";
++import { Button } from "@/shared/ui/shadcn/button";
++import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui/shadcn/card";
++import { Label } from "@/shared/ui/shadcn/label";
++import { Switch } from "@/shared/ui/shadcn/switch";
++
++import { MilestoneChecklist, PaymentSummary } from "./closing-parts";
++import { SamplePicker } from "./sample-picker";
++
++type Props = {
++  projectId: number;
++  viewer: "client" | "lead" | "member";
++  /** Which sample to open on (tests). */
++  initial?: ClosingSampleSituation;
++};
++
++/**
++ * Final approval of a client project (NN-17, prototype). The client approves
++ * the finished project and pays the final payment (PLANNED); the project and
++ * team are archived. The Team Lead and members see where it stands. The
++ * sample moves on screen so the step can be tried; nothing is saved or paid.
++ */
++export function FinalApprovalPanel({ projectId, viewer, initial = "awaiting_final_approval" }: Props) {
++  const switchId = useId();
++  const [situation, setSituation] = useState<ClosingSampleSituation>(initial);
++  const [confidential, setConfidential] = useState(false);
++  const [previewed, setPreviewed] = useState(false);
++  const closing = sampleClosing(situation, projectId, confidential);
++  const stage = closingStage(closing);
++  const archivedHref = `/projects/${projectId}/archived${confidential ? "?confidential=1" : ""}`;
++
++  function choose(next: ClosingSampleSituation) {
++    setSituation(next);
++    setPreviewed(false);
++  }
++
++  return (
++    <div className="space-y-6">
++      <div className="flex flex-wrap items-end justify-between gap-4">
++        <SamplePicker options={CLOSING_SAMPLE_SITUATIONS} current={situation} onChange={choose} />
++        <div className="flex items-center gap-2">
++          <Switch id={switchId} checked={confidential} onCheckedChange={setConfidential} />
++          <Label htmlFor={switchId}>Sample: confidential project</Label>
++        </div>
++      </div>
++
++      {previewed ? (
++        <Alert role="note">
++          <AlertTitle>Preview only</AlertTitle>
++          <AlertDescription className="flex flex-wrap items-center gap-x-3 gap-y-2">
++            <span>Nothing was charged and the project was not archived. Leaving the page resets it.</span>
++            <Button type="button" variant="outline" size="sm" onClick={() => choose("awaiting_final_approval")}>
++              Reset the sample
++            </Button>
++          </AlertDescription>
++        </Alert>
++      ) : null}
++
++      {stage === "milestones_open" ? (
++        <StateCard
++          icon={<HourglassIcon aria-hidden />}
++          title="Final approval opens when every milestone is approved"
++          message={`${approvedMilestones(closing)} of ${closing.milestones.length} milestones are approved so far.`}
++        />
++      ) : null}
++
++      {stage === "archived" ? (
++        <Alert role="status">
++          <ArchiveIcon aria-hidden />
++          <AlertTitle>Approved on {formatMomentDate(closing.final_approved_at)}. The project is archived.</AlertTitle>
++          <AlertDescription className="flex flex-wrap items-center gap-x-3 gap-y-2">
++            <span>It&apos;s read-only now, for everyone.</span>
++            <Button asChild variant="outline" size="sm">
++              <Link href={archivedHref}>Open the archived project</Link>
++            </Button>
++          </AlertDescription>
++        </Alert>
++      ) : null}
++
++      <div className="grid gap-6 lg:grid-cols-[1fr_20rem]">
++        <div className="space-y-6">
++          <MilestoneChecklist closing={closing} />
++          {stage !== "milestones_open" ? (
++            <Card>
++              <CardHeader className="flex flex-wrap items-center justify-between gap-2">
++                <CardTitle className="text-base">
++                  <h2>{stage === "archived" ? "What happened" : "What happens when the client approves"}</h2>
++                </CardTitle>
++                <PrototypeBadge />
++              </CardHeader>
++              <CardContent>
++                <ol className="list-decimal space-y-1.5 pl-5 text-sm">
++                  {finalApprovalSteps(closing.confidential).map((step) => (
++                    <li key={step}>{step}</li>
++                  ))}
++                </ol>
++              </CardContent>
++            </Card>
++          ) : null}
++          {stage === "awaiting_final_approval" ? (
++            viewer === "client" ? (
++              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
++                <GiveFinalApprovalButton
++                  finalPaymentCents={closing.final_payment_cents}
++                  currency={closing.currency}
++                  onApproved={() => {
++                    setSituation("archived");
++                    setPreviewed(true);
++                  }}
++                />
++                <span className="text-sm text-muted-foreground">Something not right?</span>
++                <ContactSupportButton />
++              </div>
++            ) : (
++              <p className="flex items-center gap-2 text-sm text-muted-foreground">
++                <HourglassIcon aria-hidden className="size-4" />
++                Every milestone is approved. Waiting for the client&apos;s final approval.
++              </p>
++            )
++          ) : null}
++        </div>
++        <aside className="space-y-4">
++          <PaymentSummary closing={closing} paid={stage === "archived"} />
++          <Card>
++            <CardHeader className="flex flex-wrap items-center justify-between gap-2">
++              <CardTitle className="text-base">
++                <h2>Code ownership</h2>
++              </CardTitle>
++              <PrototypeBadge />
++            </CardHeader>
++            <CardContent>
++              <LegalTerms layout="stacked" confidential={closing.confidential} />
++            </CardContent>
++          </Card>
++        </aside>
++      </div>
++    </div>
++  );
++}
+diff --git a/frontend/src/widgets/project-closing/ui/sample-picker.tsx b/frontend/src/widgets/project-closing/ui/sample-picker.tsx
+new file mode 100644
+index 0000000..bd1d755
+--- /dev/null
++++ b/frontend/src/widgets/project-closing/ui/sample-picker.tsx
+@@ -0,0 +1,39 @@
++"use client";
++
++import { cn } from "@/shared/lib/utils";
++
++type Props<T extends string> = {
++  options: { value: T; label: string }[];
++  current: T;
++  onChange: (next: T) => void;
++};
++
++/** Prototype only: switches the sample between the points in finishing a project. */
++export function SamplePicker<T extends string>({ options, current, onChange }: Props<T>) {
++  return (
++    <div role="group" aria-labelledby="closing-sample-label" className="space-y-1.5">
++      <p id="closing-sample-label" className="text-xs font-medium text-muted-foreground">
++        Sample situation
++      </p>
++      <div className="grid gap-1 rounded-lg bg-muted p-1 sm:flex sm:flex-wrap">
++        {options.map((option) => {
++          const active = option.value === current;
++          return (
++            <button
++              key={option.value}
++              type="button"
++              aria-pressed={active}
++              onClick={() => onChange(option.value)}
++              className={cn(
++                "min-h-10 rounded-md px-3 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
++                active ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
++              )}
++            >
++              {option.label}
++            </button>
++          );
++        })}
++      </div>
++    </div>
++  );
++}
+diff --git a/frontend/src/widgets/shipped-projects/index.ts b/frontend/src/widgets/shipped-projects/index.ts
+new file mode 100644
+index 0000000..827a593
+--- /dev/null
++++ b/frontend/src/widgets/shipped-projects/index.ts
+@@ -0,0 +1 @@
++export { ShippedProjects } from "./ui/shipped-projects";
+diff --git a/frontend/src/widgets/shipped-projects/ui/shipped-projects.test.tsx b/frontend/src/widgets/shipped-projects/ui/shipped-projects.test.tsx
+new file mode 100644
+index 0000000..ea8113c
+--- /dev/null
++++ b/frontend/src/widgets/shipped-projects/ui/shipped-projects.test.tsx
+@@ -0,0 +1,27 @@
++import { render, screen } from "@testing-library/react";
++import { describe, expect, it } from "vitest";
++
++import { sampleShippedProjects } from "@/entities/developer";
++
++import { ShippedProjects } from "./shipped-projects";
++
++describe("ShippedProjects", () => {
++  it("lists shipped projects but never a confidential one", () => {
++    render(<ShippedProjects projects={sampleShippedProjects(1)} isOwner={false} />);
++    expect(screen.getByRole("heading", { name: "Clinic booking app" })).toBeInTheDocument();
++    expect(screen.getByRole("heading", { name: "Food bank tracker" })).toBeInTheDocument();
++    expect(screen.queryByText("Internal payroll dashboard")).not.toBeInTheDocument();
++    expect(screen.queryByText(/confidential project/)).not.toBeInTheDocument();
++    expect(screen.getByText("Prototype")).toBeInTheDocument();
++  });
++
++  it("tells only the owner how many confidential projects are kept off", () => {
++    render(<ShippedProjects projects={sampleShippedProjects(1)} isOwner />);
++    expect(screen.getByText(/1 confidential project is kept off your portfolio/)).toBeInTheDocument();
++  });
++
++  it("draws the empty state", () => {
++    render(<ShippedProjects projects={[]} isOwner />);
++    expect(screen.getByText(/No shipped projects yet. They appear here/)).toBeInTheDocument();
++  });
++});
+diff --git a/frontend/src/widgets/shipped-projects/ui/shipped-projects.tsx b/frontend/src/widgets/shipped-projects/ui/shipped-projects.tsx
+new file mode 100644
+index 0000000..1f46c23
+--- /dev/null
++++ b/frontend/src/widgets/shipped-projects/ui/shipped-projects.tsx
+@@ -0,0 +1,80 @@
++import { EyeOffIcon, RocketIcon } from "lucide-react";
++
++import {
++  hiddenConfidentialCount,
++  listedShippedProjects,
++  SHIPPED_ROLE_LABEL,
++  type ShippedProject,
++} from "@/entities/developer";
++import { formatMonthYear } from "@/shared/lib/format-date";
++import { PrototypeBadge } from "@/shared/ui/molecules/prototype-badge";
++import { Badge } from "@/shared/ui/shadcn/badge";
++import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/shadcn/card";
++
++type Props = {
++  /** Everything the developer shipped; confidential ones are never shown. */
++  projects: ShippedProject[];
++  /** The developer looking at their own portfolio is told how many are kept off it. */
++  isOwner: boolean;
++};
++
++/**
++ * "Shipped projects" on a portfolio (NN-17, prototype): client projects the
++ * developer finished, added when the client gives final approval. Confidential
++ * projects never appear. The entries are sample data, not this developer's.
++ */
++export function ShippedProjects({ projects, isOwner }: Props) {
++  const listed = listedShippedProjects(projects);
++  const hidden = hiddenConfidentialCount(projects);
++  return (
++    <Card aria-labelledby="shipped-projects-title" role="region">
++      <CardHeader>
++        <CardTitle className="flex flex-wrap items-center justify-between gap-2 text-base">
++          <h2 id="shipped-projects-title">Shipped projects</h2>
++          <PrototypeBadge />
++        </CardTitle>
++        <CardDescription>Sample entries. Client projects the developer finished on NextNode.</CardDescription>
++      </CardHeader>
++      <CardContent className="space-y-4">
++        {listed.length === 0 ? (
++          <p className="flex items-center gap-2 text-sm text-muted-foreground">
++            <RocketIcon aria-hidden className="size-4" />
++            {isOwner
++              ? "No shipped projects yet. They appear here when a client gives final approval."
++              : "No shipped projects yet."}
++          </p>
++        ) : (
++          <ul className="grid gap-3 sm:grid-cols-2">
++            {listed.map((p) => (
++              <li key={p.project_id} className="space-y-2 rounded-lg border p-3">
++                <div className="flex flex-wrap items-center gap-2">
++                  <h3 className="font-medium">{p.title}</h3>
++                  <Badge variant="secondary">{SHIPPED_ROLE_LABEL[p.role]}</Badge>
++                </div>
++                <p className="text-sm">{p.summary}</p>
++                <p className="text-xs text-muted-foreground">
++                  Shipped <time dateTime={p.shipped_at}>{formatMonthYear(p.shipped_at)}</time>
++                </p>
++                <ul aria-label="Tech stack" className="flex flex-wrap gap-1">
++                  {p.tech_stack.map((s) => (
++                    <li key={s.key}>
++                      <Badge variant="outline">{s.label}</Badge>
++                    </li>
++                  ))}
++                </ul>
++              </li>
++            ))}
++          </ul>
++        )}
++        {isOwner && hidden > 0 ? (
++          <p className="flex items-start gap-1.5 text-xs text-muted-foreground">
++            <EyeOffIcon aria-hidden className="mt-px size-3.5 shrink-0" />
++            {hidden === 1
++              ? "1 confidential project is kept off your portfolio. Only you see this note."
++              : `${hidden} confidential projects are kept off your portfolio. Only you see this note.`}
++          </p>
++        ) : null}
++      </CardContent>
++    </Card>
++  );
++}

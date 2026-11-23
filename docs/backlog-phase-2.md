@@ -198,13 +198,28 @@ the charge's balance transaction and refund the rest. A Team Lead decision;
 not built in Phase 2. The live deposit is unchanged.
 
 **NN-17 · Final approval, archive, portfolio update**. Kai.
+*Prototype complete 23 Nov 2026.*
 - final approval screen
 - archived project view, read-only, conversations greyed
 - "Shipped projects" on the portfolio, without confidential projects
 - code ownership "to be defined"
+- built: a "Finishing the project" card on client projects (client, Team Lead,
+  members) opens `/projects/[id]/final-approval` (the client approves and pays
+  the final payment, labelled "Planned"; the Lead and members see where it
+  stands) and `/projects/[id]/archived` (read-only; each viewer sees only the
+  conversations they were in, greyed with the composer closed). "Shipped
+  projects" is a prototype section on `/developers/[id]`; its owner is told
+  how many confidential projects are kept off. Confidential is a sample flag
+  until NN-41 adds it to Project
 
 Backend note: FinalPayment, project `Completed → Archived`, team `Archived`,
-portfolio entries.
+portfolio entries. The prototype assumes `InProgress → Completed` once every
+milestone is approved, and that final approval charges the final payment and
+archives the project and team in one step (`archived_at` = approval time).
+Portfolio entries are written for every team member then, never for a
+confidential project. Planned shapes: `ProjectClosing`
+(`entities/project/model/closing.ts`) and `ShippedProject`
+(`entities/developer/model/shipped-project.ts`).
 
 **NN-35 · Ratings and references**. Kai. Trace: Q4.
 - rating form after completion: the client rates the Lead and the team; the

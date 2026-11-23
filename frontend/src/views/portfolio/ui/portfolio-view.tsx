@@ -3,7 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
-import { getCertificates, getPortfolio, PortfolioProfile, portfolioHref } from "@/entities/developer";
+import { getCertificates, getPortfolio, PortfolioProfile, portfolioHref, sampleShippedProjects } from "@/entities/developer";
 import { getViewer, routeFor } from "@/entities/viewer";
 import { CertificateList } from "@/features/view-certificate";
 import { authedServerApi } from "@/shared/api/server-client";
@@ -12,6 +12,7 @@ import { StateCard } from "@/shared/ui/molecules/state-card";
 import { Alert, AlertDescription, AlertTitle } from "@/shared/ui/shadcn/alert";
 import { Button } from "@/shared/ui/shadcn/button";
 import { AppHeader } from "@/widgets/app-header";
+import { ShippedProjects } from "@/widgets/shipped-projects";
 
 import { PortfolioActions } from "./portfolio-actions";
 
@@ -146,6 +147,8 @@ async function PortfolioScreen({ developerId, saved }: Props) {
           )
         }
       />
+      {/* Phase 2 prototype section (NN-17 #97): sample entries, clearly badged. */}
+      <ShippedProjects projects={sampleShippedProjects(portfolio.account_id)} isOwner={portfolio.is_owner} />
     </>
   );
 }

@@ -45,7 +45,14 @@ export {
   type MatchScore,
 } from "./model/match";
 // Prototype sample data: import only from Phase 2 prototype screens.
-export { SAMPLE_HIRE_DEVS_POOL, sampleProfileGrowth } from "./model/sample";
+export { SAMPLE_HIRE_DEVS_POOL, sampleProfileGrowth, sampleShippedProjects } from "./model/sample";
+// Phase 2 prototype (NN-17 #97): "Shipped projects" on the portfolio.
+export {
+  hiddenConfidentialCount,
+  listedShippedProjects,
+  SHIPPED_ROLE_LABEL,
+  type ShippedProject,
+} from "./model/shipped-project";
 export { NewTalentBadge } from "./ui/new-talent-badge";
 export { DeveloperCard } from "./ui/developer-card";
 export { DeveloperMatchCard } from "./ui/developer-match-card";
