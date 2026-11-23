@@ -173,11 +173,25 @@ up to the total; a deposit % field; the deposit computed from it; the
 release milestone (1 or 2) stored on the acceptance.
 
 **NN-16b · Milestone delivery and review**. Kai (`KaiNabea`). Trace: Q1.
+*Prototype complete 23 Nov 2026.*
 - Lead submits milestone work
 - client approves or requests a revision (loop)
 - milestone states `Pending Deposit → In Progress → Under Review → Completed`
+- built: `/projects/[id]/milestones`, a "Milestones" tab on client projects
+  (client: approve or request changes; Team Lead: submit or resubmit with a
+  note and an optional https link; members: read only). Each milestone shows
+  its review history; approving the deposit milestone says, labelled
+  "Planned", that the deposit is released (NN-37). Actions move the sample on
+  screen and show the under-construction toast; nothing is saved
 
 Backend note: milestone transitions as domain methods, review history.
+`Milestone.submit(note, link)` (Lead, from In progress),
+`.approve()` and `.request_revision(note)` (client, from Under review); each
+writes one review event (`kind`, `note`, `link_url`, author, time), the
+history the screen lists. The prototype assumes approving a milestone starts
+the next one (`not_started → in_progress`); confirm with the Team Lead.
+Approving the deposit-release milestone triggers the planned release (NN-37).
+Types and the pure transition rules: `entities/milestone/model/review.ts`.
 
 **NN-37 · Payments: planned deposit holding, receipts, cancel and refund**.
 Tavoiri (Team Lead; all Stripe work). Trace: Q1, Q5.
