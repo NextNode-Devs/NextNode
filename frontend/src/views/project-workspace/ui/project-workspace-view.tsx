@@ -14,6 +14,7 @@ import { isInWorkspace, ProjectTabs, type WorkspaceTab } from "@/widgets/project
 import { WorkspaceHelpCard } from "@/widgets/workspace-help";
 
 import { ChatTab, DocumentsTab, MembersOnly, UpdatesTab, MeetingsTab } from "./tab-content";
+import { TeamTab } from "./team-tab";
 
 type Props = { projectId: Promise<string>; tab: WorkspaceTab };
 
@@ -22,9 +23,10 @@ const TITLE: Record<WorkspaceTab, string> = {
   documents: "Documents",
   meetings: "Meetings",
   updates: "Updates",
+  team: "Team",
 };
 
-/** `/projects/[id]/{chat,documents,meetings,updates}`: the project's workspace tabs (#92). */
+/** `/projects/[id]/{chat,documents,meetings,updates,team}`: the project's workspace tabs (#92, NN-38). */
 export function ProjectWorkspaceView(props: Props) {
   return (
     <>
@@ -112,6 +114,8 @@ async function WorkspaceScreen({ projectId, tab }: Props) {
         <DocumentsTab {...props} />
       ) : tab === "meetings" ? (
         <MeetingsTab {...props} now={now} />
+      ) : tab === "team" ? (
+        <TeamTab project={project} />
       ) : (
         <UpdatesTab {...props} now={now} />
       )}
