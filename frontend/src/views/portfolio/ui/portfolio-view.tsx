@@ -9,6 +9,7 @@ import { getViewer, routeFor } from "@/entities/viewer";
 import { CertificateList } from "@/features/view-certificate";
 import { authedServerApi } from "@/shared/api/server-client";
 import { LoadError, LoadingCards } from "@/shared/ui/load-states";
+import { PrototypeBadge } from "@/shared/ui/molecules/prototype-badge";
 import { StateCard } from "@/shared/ui/molecules/state-card";
 import { Alert, AlertDescription, AlertTitle } from "@/shared/ui/shadcn/alert";
 import { Button } from "@/shared/ui/shadcn/button";
@@ -129,7 +130,12 @@ async function PortfolioScreen({ developerId, saved }: Props) {
       <PortfolioProfile
         portfolio={portfolio}
         // Phase 2 prototype (NN-35 #98): a sample rating, not this developer's.
-        rating={<RatingCard summary={sampleRatingSummary(portfolio.account_id)} />}
+        rating={
+          <span className="inline-flex flex-wrap items-center gap-2">
+            <RatingCard summary={sampleRatingSummary(portfolio.account_id)} />
+            <PrototypeBadge />
+          </span>
+        }
         certificates={
           certificates?.ok ? (
             <CertificateList accountId={portfolio.account_id} certificates={certificates.data} />
