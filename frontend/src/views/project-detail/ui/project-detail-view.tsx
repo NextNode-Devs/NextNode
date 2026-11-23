@@ -23,6 +23,7 @@ import { HireDevsLink } from "./hire-devs-link";
 import { InviteLinkSection } from "./invite-link-section";
 import { JuniorSpots } from "./junior-spots";
 import { FinishLink } from "./finish-link";
+import { OfferMilestonesLink } from "./offer-milestones-link";
 import { PaymentsLink } from "./payments-link";
 import { PrimaryAction } from "./primary-action";
 import { ProjectChats } from "./project-chats";
@@ -168,6 +169,7 @@ async function ProjectScreen({ projectId, notice }: Props) {
         </div>
         <aside className="space-y-4">
           <PrimaryAction project={project} />
+          <OfferMilestonesLink project={project} />
           <PaymentsLink project={project} />
           <FinishLink project={project} />
           <Suspense fallback={<LoadingCards count={1} label="Loading the team" />}>

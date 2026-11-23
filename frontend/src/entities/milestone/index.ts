@@ -1,4 +1,6 @@
 export {
+  depositCentsFor,
+  isDepositPercentOption,
   isDepositReleaseChoice,
   MILESTONE_RULES,
   MILESTONE_STATUS_LABEL,
@@ -33,8 +35,11 @@ export {
   SAMPLE_MILESTONE_PLAN,
   SAMPLE_MILESTONE_REVIEWS,
   SAMPLE_MILESTONES,
+  sampleMilestoneDraft,
   sampleMilestoneSituation,
+  type MilestoneDraftRow,
   type MilestoneSample,
   type MilestoneSampleSituation,
 } from "./model/sample";
+export { MilestonePlanList } from "./ui/milestone-plan-list";
 export { MilestoneStatusBadge } from "./ui/milestone-status-badge";

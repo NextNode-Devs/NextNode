@@ -168,9 +168,17 @@ with sample values. Legal terms stay "To be defined".
   Do not mention "proof of work" in the UI.
 - the working Phase 1 offer form stays as is
 
+*Prototype (23 Nov 2026):* `/projects/[id]/offer-milestones`, opened from an
+"Offer milestones" card on client project pages. The Lead edits the schedule
+(3 to 10 milestones, the total must match) and picks the deposit % from 20,
+25, 30, 35 or 40; the client sees every milestone and the deposit, picks
+milestone 1 or 2 (with an info tip) and accepts all together; members read
+it. Sending and accepting show the under-construction toast.
+
 Backend note: Milestone rows on the offer version (at least 3); amounts add
-up to the total; a deposit % field; the deposit computed from it; the
-release milestone (1 or 2) stored on the acceptance.
+up to the total; a deposit % field (20 to 40 in steps of 5, as the
+prototype offers); the deposit computed from it; the release milestone
+(1 or 2) stored on the acceptance.
 
 **NN-16b · Milestone delivery and review**. Kai (`KaiNabea`). Trace: Q1.
 *Prototype complete 23 Nov 2026.*
