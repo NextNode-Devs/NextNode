@@ -1,0 +1,1688 @@
+diff --git a/docs/backlog-phase-2.md b/docs/backlog-phase-2.md
+index 0c5c0bc..ceecbfa 100644
+--- a/docs/backlog-phase-2.md
++++ b/docs/backlog-phase-2.md
+@@ -173,11 +173,25 @@ up to the total; a deposit % field; the deposit computed from it; the
+ release milestone (1 or 2) stored on the acceptance.
+ 
+ **NN-16b · Milestone delivery and review**. Kai (`KaiNabea`). Trace: Q1.
++*Prototype complete 23 Nov 2026.*
+ - Lead submits milestone work
+ - client approves or requests a revision (loop)
+ - milestone states `Pending Deposit → In Progress → Under Review → Completed`
++- built: `/projects/[id]/milestones`, a "Milestones" tab on client projects
++  (client: approve or request changes; Team Lead: submit or resubmit with a
++  note and an optional https link; members: read only). Each milestone shows
++  its review history; approving the deposit milestone says, labelled
++  "Planned", that the deposit is released (NN-37). Actions move the sample on
++  screen and show the under-construction toast; nothing is saved
+ 
+ Backend note: milestone transitions as domain methods, review history.
++`Milestone.submit(note, link)` (Lead, from In progress),
++`.approve()` and `.request_revision(note)` (client, from Under review); each
++writes one review event (`kind`, `note`, `link_url`, author, time), the
++history the screen lists. The prototype assumes approving a milestone starts
++the next one (`not_started → in_progress`); confirm with the Team Lead.
++Approving the deposit-release milestone triggers the planned release (NN-37).
++Types and the pure transition rules: `entities/milestone/model/review.ts`.
+ 
+ **NN-37 · Payments: planned deposit holding, receipts, cancel and refund**.
+ Tavoiri (Team Lead; all Stripe work). Trace: Q1, Q5.
+diff --git a/frontend/e2e/workspace.spec.ts b/frontend/e2e/workspace.spec.ts
+index 9b4f89d..491cc84 100644
+--- a/frontend/e2e/workspace.spec.ts
++++ b/frontend/e2e/workspace.spec.ts
+@@ -129,7 +129,7 @@ test.describe("Workspace tabs", () => {
+     await grace.page.goto(projectPath);
+     const tabs = grace.page.getByRole("navigation", { name: "Project sections" });
+     await expect(tabs.getByRole("link", { name: "Overview" })).toHaveAttribute("aria-current", "page");
+-    await expect(tabs.getByRole("link")).toHaveText(["Overview", "Documents", "Meetings", "Updates", "Team", "Payments"]);
++    await expect(tabs.getByRole("link")).toHaveText(["Overview", "Documents", "Meetings", "Updates", "Team", "Milestones", "Payments"]);
+ 
+     await tabs.getByRole("link", { name: "Meetings" }).click();
+     // A tab is a server-rendered page: under a full parallel run it can take more than the default 5 s.
+diff --git a/frontend/src/app/projects/[projectId]/milestones/page.tsx b/frontend/src/app/projects/[projectId]/milestones/page.tsx
+new file mode 100644
+index 0000000..6dc1a22
+--- /dev/null
++++ b/frontend/src/app/projects/[projectId]/milestones/page.tsx
+@@ -0,0 +1,8 @@
++import { ProjectWorkspaceView } from "@/views/project-workspace";
++
++export const metadata = { title: "Milestones" };
++
++export default function Page({ params }: PageProps<"/projects/[projectId]/milestones">) {
++  // Resolved inside the view's Suspense boundary, so the page shell renders at once.
++  return <ProjectWorkspaceView projectId={params.then((p) => p.projectId)} tab="milestones" />;
++}
+diff --git a/frontend/src/entities/milestone/index.ts b/frontend/src/entities/milestone/index.ts
+index dd8b696..d39206b 100644
+--- a/frontend/src/entities/milestone/index.ts
++++ b/frontend/src/entities/milestone/index.ts
+@@ -9,6 +9,32 @@ export {
+   type MilestonePlan,
+   type MilestoneStatus,
+ } from "./model/milestone";
++export {
++  applyMilestoneAction,
++  availableActions,
++  milestoneViewer,
++  reviewLinkProblem,
++  reviewNoteProblem,
++  reviewsFor,
++  revisionCount,
++  REVIEW_KIND_LABEL,
++  REVIEW_RULES,
++  startNextMilestone,
++  type MilestoneAction,
++  type MilestoneReview,
++  type MilestoneReviewKind,
++  type MilestoneViewer,
++  type TransitionInput,
++  type TransitionResult,
++} from "./model/review";
+ // Prototype sample data: import only from Phase 2 prototype screens.
+-export { SAMPLE_MILESTONE_PLAN, SAMPLE_MILESTONES } from "./model/sample";
++export {
++  MILESTONE_SAMPLE_SITUATIONS,
++  SAMPLE_MILESTONE_PLAN,
++  SAMPLE_MILESTONE_REVIEWS,
++  SAMPLE_MILESTONES,
++  sampleMilestoneSituation,
++  type MilestoneSample,
++  type MilestoneSampleSituation,
++} from "./model/sample";
+ export { MilestoneStatusBadge } from "./ui/milestone-status-badge";
+diff --git a/frontend/src/entities/milestone/model/review.test.ts b/frontend/src/entities/milestone/model/review.test.ts
+new file mode 100644
+index 0000000..3889d76
+--- /dev/null
++++ b/frontend/src/entities/milestone/model/review.test.ts
+@@ -0,0 +1,180 @@
++import { describe, expect, it } from "vitest";
++
++import type { Milestone } from "./milestone";
++import {
++  applyMilestoneAction,
++  availableActions,
++  milestoneViewer,
++  reviewLinkProblem,
++  revisionCount,
++  reviewsFor,
++  startNextMilestone,
++  type TransitionInput,
++} from "./review";
++import { SAMPLE_MILESTONE_REVIEWS, SAMPLE_MILESTONES, sampleMilestoneSituation } from "./sample";
++
++const milestone = (status: Milestone["status"], overrides: Partial<Milestone> = {}): Milestone => ({
++  ...SAMPLE_MILESTONES[1],
++  status,
++  submitted_at: null,
++  approved_at: null,
++  ...overrides,
++});
++
++const input = (overrides: Partial<TransitionInput>): TransitionInput => ({
++  action: "submit",
++  viewer: "lead",
++  note: "Ready on staging.",
++  author_name: "Ada",
++  at: "2026-12-20T10:00:00Z",
++  review_id: 900,
++  ...overrides,
++});
++
++describe("milestoneViewer", () => {
++  it("picks the client first, then the Lead, then a member; nobody else", () => {
++    expect(milestoneViewer({ is_owner: true, is_lead: false, is_member: false })).toBe("client");
++    expect(milestoneViewer({ is_owner: false, is_lead: true, is_member: true })).toBe("lead");
++    expect(milestoneViewer({ is_owner: false, is_lead: false, is_member: true })).toBe("member");
++    expect(milestoneViewer({ is_owner: false, is_lead: false, is_member: false })).toBeNull();
++  });
++});
++
++describe("availableActions", () => {
++  it("lets the Lead submit only work in progress", () => {
++    expect(availableActions("in_progress", "lead")).toEqual(["submit"]);
++    expect(availableActions("under_review", "lead")).toEqual([]);
++    expect(availableActions("pending_deposit", "lead")).toEqual([]);
++  });
++
++  it("lets the client approve or send back only work under review", () => {
++    expect(availableActions("under_review", "client")).toEqual(["approve", "request_revision"]);
++    expect(availableActions("in_progress", "client")).toEqual([]);
++    expect(availableActions("completed", "client")).toEqual([]);
++  });
++
++  it("gives members no actions", () => {
++    for (const status of ["pending_deposit", "not_started", "in_progress", "under_review", "completed"] as const) {
++      expect(availableActions(status, "member")).toEqual([]);
++    }
++  });
++});
++
++describe("applyMilestoneAction: the review loop", () => {
++  it("submit → under review, recording when and the Lead's note and link", () => {
++    const result = applyMilestoneAction(milestone("in_progress"), input({ link_url: " https://staging.example.com " }));
++    expect(result).toMatchObject({
++      ok: true,
++      milestone: { status: "under_review", submitted_at: "2026-12-20T10:00:00Z" },
++      review: { kind: "submitted", note: "Ready on staging.", link_url: "https://staging.example.com", author_role: "lead" },
++    });
++  });
++
++  it("request revision → back in progress, keeping the client's note", () => {
++    const result = applyMilestoneAction(
++      milestone("under_review"),
++      input({ action: "request_revision", viewer: "client", note: "  Fix the email. ", author_name: "Grace" }),
++    );
++    expect(result).toMatchObject({
++      ok: true,
++      milestone: { status: "in_progress", approved_at: null },
++      review: { kind: "revision_requested", note: "Fix the email.", link_url: null, author_role: "client" },
++    });
++  });
++
++  it("approve → completed, with no note needed", () => {
++    const result = applyMilestoneAction(milestone("under_review"), input({ action: "approve", viewer: "client", note: "" }));
++    expect(result).toMatchObject({ ok: true, milestone: { status: "completed", approved_at: "2026-12-20T10:00:00Z" } });
++  });
++
++  it("goes round the loop until approved", () => {
++    let current = milestone("in_progress");
++    const steps: TransitionInput[] = [
++      input({}),
++      input({ action: "request_revision", viewer: "client", note: "Change X." }),
++      input({}),
++      input({ action: "approve", viewer: "client", note: "" }),
++    ];
++    const statuses = steps.map((step) => {
++      const result = applyMilestoneAction(current, step);
++      if (!result.ok) throw new Error(result.reason);
++      current = result.milestone;
++      return current.status;
++    });
++    expect(statuses).toEqual(["under_review", "in_progress", "under_review", "completed"]);
++  });
++
++  it("refuses the wrong person, the wrong state, a missing note and a bad link", () => {
++    expect(applyMilestoneAction(milestone("in_progress"), input({ viewer: "client" }))).toEqual({
++      ok: false,
++      reason: "Only the Team Lead submits milestone work.",
++    });
++    expect(applyMilestoneAction(milestone("under_review"), input({ action: "approve", viewer: "member" }))).toEqual({
++      ok: false,
++      reason: "Only the client reviews milestone work.",
++    });
++    expect(applyMilestoneAction(milestone("pending_deposit"), input({}))).toMatchObject({ ok: false });
++    expect(applyMilestoneAction(milestone("completed"), input({ action: "approve", viewer: "client" }))).toMatchObject({
++      ok: false,
++    });
++    expect(applyMilestoneAction(milestone("in_progress"), input({ note: "   " }))).toEqual({
++      ok: false,
++      reason: "Say what is ready for the client to review.",
++    });
++    expect(
++      applyMilestoneAction(milestone("under_review"), input({ action: "request_revision", viewer: "client", note: "" })),
++    ).toEqual({ ok: false, reason: "Say what needs to change." });
++    expect(applyMilestoneAction(milestone("in_progress"), input({ link_url: "http://plain.example.com" }))).toMatchObject({
++      ok: false,
++    });
++  });
++});
++
++describe("reviewLinkProblem", () => {
++  it("accepts nothing or an https link", () => {
++    expect(reviewLinkProblem("")).toBeNull();
++    expect(reviewLinkProblem(null)).toBeNull();
++    expect(reviewLinkProblem("https://github.com/org/repo/pull/1")).toBeNull();
++    expect(reviewLinkProblem("staging.example.com")).toBe("Enter a full link, such as https://staging.example.com.");
++    expect(reviewLinkProblem("http://example.com")).toBe("Use a link that starts with https://.");
++  });
++});
++
++describe("startNextMilestone", () => {
++  it("starts the first milestone not started once nothing else is open", () => {
++    const after = startNextMilestone(sampleMilestoneSituation("under_review").milestones.map((m) =>
++      m.sequence === 2 ? { ...m, status: "completed" as const } : m,
++    ));
++    expect(after.map((m) => m.status)).toEqual(["completed", "completed", "in_progress", "not_started"]);
++  });
++
++  it("changes nothing while a milestone is still open", () => {
++    const before = sampleMilestoneSituation("under_review").milestones;
++    expect(startNextMilestone(before).map((m) => m.status)).toEqual(before.map((m) => m.status));
++  });
++});
++
++describe("history helpers and sample data", () => {
++  it("counts revisions and orders history oldest first", () => {
++    expect(revisionCount(SAMPLE_MILESTONE_REVIEWS, 1)).toBe(1);
++    expect(revisionCount(SAMPLE_MILESTONE_REVIEWS, 3)).toBe(0);
++    expect(reviewsFor(SAMPLE_MILESTONE_REVIEWS, 2).map((r) => r.kind)).toEqual([
++      "submitted",
++      "revision_requested",
++      "submitted",
++    ]);
++  });
++
++  it("keeps each sample situation consistent with its history", () => {
++    for (const situation of ["awaiting_deposit", "revision_requested", "under_review", "all_completed"] as const) {
++      const { milestones, reviews } = sampleMilestoneSituation(situation);
++      for (const m of milestones) {
++        const last = reviewsFor(reviews, m.id).at(-1);
++        const expected =
++          m.status === "completed" ? "approved" : m.status === "under_review" ? "submitted" : m.status === "in_progress" ? "revision_requested" : undefined;
++        expect(last?.kind, `${situation}, milestone ${m.sequence}`).toBe(expected);
++      }
++    }
++    expect(sampleMilestoneSituation("no_milestones").milestones).toEqual([]);
++  });
++});
+diff --git a/frontend/src/entities/milestone/model/review.ts b/frontend/src/entities/milestone/model/review.ts
+new file mode 100644
+index 0000000..a2db16d
+--- /dev/null
++++ b/frontend/src/entities/milestone/model/review.ts
+@@ -0,0 +1,181 @@
++/**
++ * Milestone delivery and review (Phase 2, NN-16b #95; stakeholder Q1).
++ *
++ * The Team Lead submits a milestone's work, the client approves it or asks
++ * for a revision, and the loop repeats until it is approved:
++ *
++ *   Pending deposit → In progress → Under review → Completed
++ *                          ↑              │
++ *                          └── revision ──┘
++ *
++ * PROTOTYPE: there is no milestone API yet. These are the planned API shapes
++ * and the transitions the backend will own as domain methods (backlog
++ * NN-16b, "Backend note"). Every transition also writes one review event, so
++ * the history is the audit trail of the loop.
++ */
++import type { Milestone, MilestoneStatus } from "./milestone";
++
++/** Who is looking at a milestone. People outside the project never see one. */
++export type MilestoneViewer = "client" | "lead" | "member";
++
++export type MilestoneReviewKind = "submitted" | "revision_requested" | "approved";
++
++/** One step of a milestone's review history (planned `GET /projects/:id/milestones/:id/reviews`). */
++export type MilestoneReview = {
++  id: number;
++  milestone_id: number;
++  kind: MilestoneReviewKind;
++  /** The Lead's summary of the work, or the client's requested changes; empty on a plain approval. */
++  note: string;
++  /** Where the client can see the work (staging site, pull request, demo video); optional. */
++  link_url: string | null;
++  author_name: string;
++  author_role: "client" | "lead";
++  /** ISO timestamp. */
++  created_at: string;
++};
++
++export type MilestoneAction = "submit" | "approve" | "request_revision";
++
++export const REVIEW_RULES = {
++  noteMax: 2000,
++  /** The Lead says what is ready; the client says what to change. An approval needs no words. */
++  noteRequired: { submit: true, request_revision: true, approve: false } satisfies Record<MilestoneAction, boolean>,
++} as const;
++
++export const REVIEW_KIND_LABEL: Record<MilestoneReviewKind, string> = {
++  submitted: "Submitted for review",
++  revision_requested: "Revision requested",
++  approved: "Approved",
++};
++
++export function milestoneViewer(viewer: { is_owner: boolean; is_lead: boolean; is_member: boolean }): MilestoneViewer | null {
++  if (viewer.is_owner) return "client";
++  if (viewer.is_lead) return "lead";
++  if (viewer.is_member) return "member";
++  return null;
++}
++
++const ACTOR: Record<MilestoneAction, MilestoneViewer> = {
++  submit: "lead",
++  approve: "client",
++  request_revision: "client",
++};
++
++const FROM: Record<MilestoneAction, MilestoneStatus> = {
++  submit: "in_progress",
++  approve: "under_review",
++  request_revision: "under_review",
++};
++
++/** The actions this viewer can take on this milestone right now (empty for members). */
++export function availableActions(status: MilestoneStatus, viewer: MilestoneViewer): MilestoneAction[] {
++  return (Object.keys(ACTOR) as MilestoneAction[]).filter((action) => ACTOR[action] === viewer && FROM[action] === status);
++}
++
++export type TransitionInput = {
++  action: MilestoneAction;
++  viewer: MilestoneViewer;
++  note: string;
++  link_url?: string | null;
++  author_name: string;
++  at: string;
++  /** Id for the new review event. */
++  review_id: number;
++};
++
++export type TransitionResult =
++  | { ok: true; milestone: Milestone; review: MilestoneReview }
++  | { ok: false; reason: string };
++
++/** Why a note cannot be sent, in plain words; `null` when it can. */
++export function reviewNoteProblem(action: MilestoneAction, note: string): string | null {
++  const text = note.trim();
++  if (REVIEW_RULES.noteRequired[action] && !text) {
++    return action === "submit" ? "Say what is ready for the client to review." : "Say what needs to change.";
++  }
++  if (text.length > REVIEW_RULES.noteMax) return `Keep it under ${REVIEW_RULES.noteMax} characters.`;
++  return null;
++}
++
++/** Why a link cannot be sent; `null` when it is empty or a valid https link. */
++export function reviewLinkProblem(link: string | null | undefined): string | null {
++  const value = link?.trim();
++  if (!value) return null;
++  try {
++    return new URL(value).protocol === "https:" ? null : "Use a link that starts with https://.";
++  } catch {
++    return "Enter a full link, such as https://staging.example.com.";
++  }
++}
++
++/**
++ * Applies one step of the review loop. Pure: returns the milestone's next
++ * state and the history event, or why the step is not allowed. The backend
++ * will enforce the same rules (`Milestone.submit()`, `.approve()`,
++ * `.request_revision()`).
++ */
++export function applyMilestoneAction(milestone: Milestone, input: TransitionInput): TransitionResult {
++  const { action, viewer } = input;
++  if (ACTOR[action] !== viewer) {
++    return {
++      ok: false,
++      reason: action === "submit" ? "Only the Team Lead submits milestone work." : "Only the client reviews milestone work.",
++    };
++  }
++  if (milestone.status !== FROM[action]) {
++    return {
++      ok: false,
++      reason:
++        action === "submit"
++          ? "Only a milestone in progress can be submitted."
++          : "Only a milestone under review can be approved or sent back.",
++    };
++  }
++  const noteProblem = reviewNoteProblem(action, input.note);
++  if (noteProblem) return { ok: false, reason: noteProblem };
++  const link = action === "submit" ? input.link_url?.trim() || null : null;
++  const linkProblem = reviewLinkProblem(link);
++  if (linkProblem) return { ok: false, reason: linkProblem };
++
++  const next: Milestone =
++    action === "submit"
++      ? { ...milestone, status: "under_review", submitted_at: input.at }
++      : action === "approve"
++        ? { ...milestone, status: "completed", approved_at: input.at }
++        : { ...milestone, status: "in_progress" };
++
++  const review: MilestoneReview = {
++    id: input.review_id,
++    milestone_id: milestone.id,
++    kind: action === "submit" ? "submitted" : action === "approve" ? "approved" : "revision_requested",
++    note: input.note.trim(),
++    link_url: link,
++    author_name: input.author_name,
++    author_role: viewer === "client" ? "client" : "lead",
++    created_at: input.at,
++  };
++  return { ok: true, milestone: next, review };
++}
++
++/**
++ * After an approval, work moves on to the next milestone in order: the first
++ * one not started yet becomes in progress. (Prototype assumption; see the
++ * NN-16b backend note.)
++ */
++export function startNextMilestone(milestones: readonly Milestone[]): Milestone[] {
++  const ordered = [...milestones].sort((a, b) => a.sequence - b.sequence);
++  if (ordered.some((m) => m.status === "in_progress" || m.status === "under_review")) return ordered;
++  const next = ordered.find((m) => m.status === "not_started");
++  return ordered.map((m) => (m === next ? { ...m, status: "in_progress" } : m));
++}
++
++/** How many times the client has sent this milestone back. */
++export function revisionCount(reviews: readonly MilestoneReview[], milestoneId: number): number {
++  return reviews.filter((r) => r.milestone_id === milestoneId && r.kind === "revision_requested").length;
++}
++
++/** A milestone's history, oldest first. */
++export function reviewsFor(reviews: readonly MilestoneReview[], milestoneId: number): MilestoneReview[] {
++  return reviews.filter((r) => r.milestone_id === milestoneId).sort((a, b) => a.created_at.localeCompare(b.created_at));
++}
+diff --git a/frontend/src/entities/milestone/model/sample.ts b/frontend/src/entities/milestone/model/sample.ts
+index a390a2c..9bab624 100644
+--- a/frontend/src/entities/milestone/model/sample.ts
++++ b/frontend/src/entities/milestone/model/sample.ts
+@@ -4,6 +4,7 @@
+  * Fixed dates and ids keep server and browser renders identical.
+  */
+ import type { Milestone, MilestonePlan } from "./milestone";
++import type { MilestoneReview } from "./review";
+ 
+ const PROJECT_ID = 9001;
+ 
+@@ -66,3 +67,137 @@ export const SAMPLE_MILESTONE_PLAN: MilestonePlan = {
+   deposit_release_milestone: 2,
+   milestones: SAMPLE_MILESTONES,
+ };
++
++/* ---------- Review history (NN-16b #95) ---------- */
++
++const LEAD = { author_name: "Ada", author_role: "lead" as const };
++const CLIENT = { author_name: "Grace", author_role: "client" as const };
++const STAGING = "https://staging.example.com";
++
++const M1_REVIEWS: MilestoneReview[] = [
++  {
++    id: 101,
++    milestone_id: 1,
++    kind: "submitted",
++    note: "Screen designs for every page, the repository with CI, and the staging site are ready.",
++    link_url: STAGING,
++    ...LEAD,
++    created_at: "2026-12-01T18:10:00Z",
++  },
++  {
++    id: 102,
++    milestone_id: 1,
++    kind: "revision_requested",
++    note: "The booking screen needs a phone layout, and please use our brand colours on the buttons.",
++    link_url: null,
++    ...CLIENT,
++    created_at: "2026-12-02T15:30:00Z",
++  },
++  {
++    id: 103,
++    milestone_id: 1,
++    kind: "submitted",
++    note: "Added the phone layout for booking and switched the buttons to your brand colours.",
++    link_url: STAGING,
++    ...LEAD,
++    created_at: "2026-12-03T16:20:00Z",
++  },
++  { id: 104, milestone_id: 1, kind: "approved", note: "", link_url: null, ...CLIENT, created_at: "2026-12-04T14:05:00Z" },
++];
++
++const M2_FIRST_TRY: MilestoneReview[] = [
++  {
++    id: 201,
++    milestone_id: 2,
++    kind: "submitted",
++    note: "Sign-up, sign-in and booking work end to end on staging. Test account details are in the chat.",
++    link_url: `${STAGING}/book`,
++    ...LEAD,
++    created_at: "2026-12-14T20:00:00Z",
++  },
++  {
++    id: 202,
++    milestone_id: 2,
++    kind: "revision_requested",
++    note: "Booking a slot twice in a row shows an error. Customers also need a confirmation email.",
++    link_url: null,
++    ...CLIENT,
++    created_at: "2026-12-15T17:45:00Z",
++  },
++];
++
++const M2_RESUBMITTED: MilestoneReview = {
++  id: 203,
++  milestone_id: 2,
++  kind: "submitted",
++  note: "Fixed the double booking and added the confirmation email.",
++  link_url: `${STAGING}/book`,
++  ...LEAD,
++  created_at: "2026-12-17T21:40:00Z",
++};
++
++/** Matches `SAMPLE_MILESTONES`: milestone 1 went round once, milestone 2 is waiting for the client again. */
++export const SAMPLE_MILESTONE_REVIEWS: MilestoneReview[] = [...M1_REVIEWS, ...M2_FIRST_TRY, M2_RESUBMITTED];
++
++/** Prototype only: the points in the loop a tester can switch between. */
++export type MilestoneSampleSituation = "awaiting_deposit" | "revision_requested" | "under_review" | "all_completed" | "no_milestones";
++
++export const MILESTONE_SAMPLE_SITUATIONS: { value: MilestoneSampleSituation; label: string }[] = [
++  { value: "awaiting_deposit", label: "Waiting for the deposit" },
++  { value: "revision_requested", label: "Revision requested" },
++  { value: "under_review", label: "Waiting for review" },
++  { value: "all_completed", label: "All completed" },
++  { value: "no_milestones", label: "No milestones yet" },
++];
++
++export type MilestoneSample = { milestones: Milestone[]; reviews: MilestoneReview[] };
++
++const LAST_APPROVALS: MilestoneReview[] = [2, 3, 4].flatMap((n, index) => {
++  const day = ["2026-12-18", "2027-01-07", "2027-01-21"][index];
++  return [
++    {
++      id: 300 + n * 2,
++      milestone_id: n,
++      kind: "submitted" as const,
++      note: `Milestone ${n} is ready on staging.`,
++      link_url: STAGING,
++      ...LEAD,
++      created_at: `${day}T15:00:00Z`,
++    },
++    { id: 301 + n * 2, milestone_id: n, kind: "approved" as const, note: "", link_url: null, ...CLIENT, created_at: `${day}T21:00:00Z` },
++  ];
++});
++
++/** The sample milestones and their history at one point in the loop. */
++export function sampleMilestoneSituation(situation: MilestoneSampleSituation): MilestoneSample {
++  switch (situation) {
++    case "no_milestones":
++      return { milestones: [], reviews: [] };
++    case "awaiting_deposit":
++      return {
++        milestones: SAMPLE_MILESTONES.map((m) => ({ ...m, status: "pending_deposit", submitted_at: null, approved_at: null })),
++        reviews: [],
++      };
++    case "revision_requested":
++      return {
++        milestones: SAMPLE_MILESTONES.map((m) =>
++          m.sequence === 2 ? { ...m, status: "in_progress", submitted_at: M2_FIRST_TRY[0].created_at } : m,
++        ),
++        reviews: [...M1_REVIEWS, ...M2_FIRST_TRY],
++      };
++    case "all_completed":
++      return {
++        milestones: SAMPLE_MILESTONES.map((m) => {
++          const approval = LAST_APPROVALS.find((r) => r.milestone_id === m.id && r.kind === "approved");
++          const submission = LAST_APPROVALS.find((r) => r.milestone_id === m.id && r.kind === "submitted");
++          return approval && submission
++            ? { ...m, status: "completed", submitted_at: submission.created_at, approved_at: approval.created_at }
++            : m;
++        }),
++        reviews: [...M1_REVIEWS, ...LAST_APPROVALS],
++      };
++    case "under_review":
++    default:
++      return { milestones: SAMPLE_MILESTONES, reviews: SAMPLE_MILESTONE_REVIEWS };
++  }
++}
+diff --git a/frontend/src/features/review-milestone/index.ts b/frontend/src/features/review-milestone/index.ts
+new file mode 100644
+index 0000000..6257e85
+--- /dev/null
++++ b/frontend/src/features/review-milestone/index.ts
+@@ -0,0 +1,2 @@
++export { ApproveMilestoneButton } from "./ui/approve-milestone-button";
++export { RequestRevisionButton } from "./ui/request-revision-button";
+diff --git a/frontend/src/features/review-milestone/ui/approve-milestone-button.tsx b/frontend/src/features/review-milestone/ui/approve-milestone-button.tsx
+new file mode 100644
+index 0000000..635e911
+--- /dev/null
++++ b/frontend/src/features/review-milestone/ui/approve-milestone-button.tsx
+@@ -0,0 +1,68 @@
++"use client";
++
++import { CheckIcon } from "lucide-react";
++import { useState } from "react";
++
++import type { Milestone } from "@/entities/milestone";
++import { underConstruction } from "@/shared/lib/toast";
++import { PrototypeBadge } from "@/shared/ui/molecules/prototype-badge";
++import { MotionDialog } from "@/shared/ui/organisms/motion-dialog";
++import { Button } from "@/shared/ui/shadcn/button";
++
++type Props = {
++  milestone: Pick<Milestone, "sequence" | "title">;
++  /** The client chose this milestone to release the held deposit (NN-16a, NN-37). */
++  releasesDeposit: boolean;
++  /** Moves the sample milestone on screen (prototype preview; nothing is saved). */
++  onApprove: () => void;
++};
++
++/**
++ * The client approves a milestone's work (NN-16b, prototype). If it is the
++ * milestone they chose to release the deposit, the dialog says so first
++ * (planned payment flow, NN-37). Confirming says it is under construction.
++ */
++export function ApproveMilestoneButton({ milestone, releasesDeposit, onApprove }: Props) {
++  const [open, setOpen] = useState(false);
++
++  function confirm() {
++    onApprove();
++    setOpen(false);
++    underConstruction("Approve milestone");
++  }
++
++  return (
++    <MotionDialog
++      open={open}
++      onOpenChange={setOpen}
++      title={`Approve milestone ${milestone.sequence}?`}
++      description={`You confirm that "${milestone.title}" is done. The team moves on to the next milestone.`}
++      trigger={
++        <Button type="button">
++          <CheckIcon aria-hidden data-icon="inline-start" />
++          Approve
++        </Button>
++      }
++      footer={
++        <>
++          <Button type="button" variant="outline" onClick={() => setOpen(false)}>
++            Not yet
++          </Button>
++          <Button type="button" onClick={confirm}>
++            Approve milestone
++          </Button>
++        </>
++      }
++    >
++      {releasesDeposit ? (
++        <div className="space-y-2 rounded-lg border p-3 text-sm">
++          <PrototypeBadge label="Planned" />
++          <p>
++            This is the milestone you chose to release your deposit. Once you approve it, the deposit goes to the team
++            and is no longer refundable.
++          </p>
++        </div>
++      ) : null}
++    </MotionDialog>
++  );
++}
+diff --git a/frontend/src/features/review-milestone/ui/request-revision-button.tsx b/frontend/src/features/review-milestone/ui/request-revision-button.tsx
+new file mode 100644
+index 0000000..b4fe246
+--- /dev/null
++++ b/frontend/src/features/review-milestone/ui/request-revision-button.tsx
+@@ -0,0 +1,93 @@
++"use client";
++
++import { RotateCcwIcon } from "lucide-react";
++import { useId, useState, type FormEvent } from "react";
++
++import { REVIEW_RULES, reviewNoteProblem, type Milestone } from "@/entities/milestone";
++import { underConstruction } from "@/shared/lib/toast";
++import { FormField } from "@/shared/ui/molecules/form-field";
++import { MotionDialog } from "@/shared/ui/organisms/motion-dialog";
++import { Button } from "@/shared/ui/shadcn/button";
++import { Textarea } from "@/shared/ui/shadcn/textarea";
++
++type Props = {
++  milestone: Pick<Milestone, "sequence" | "title">;
++  /** Moves the sample milestone on screen (prototype preview; nothing is saved). */
++  onRequest: (note: string) => void;
++};
++
++/**
++ * The client sends a milestone back with the changes they need (NN-16b,
++ * prototype). It returns to "In progress" and the Team Lead resubmits.
++ */
++export function RequestRevisionButton({ milestone, onRequest }: Props) {
++  const id = useId();
++  const [open, setOpen] = useState(false);
++  const [note, setNote] = useState("");
++  const [error, setError] = useState<string>();
++
++  function changeOpen(next: boolean) {
++    setOpen(next);
++    if (!next) setError(undefined);
++  }
++
++  function submit(event: FormEvent) {
++    event.preventDefault();
++    const problem = reviewNoteProblem("request_revision", note);
++    setError(problem ?? undefined);
++    if (problem) return;
++    onRequest(note.trim());
++    setOpen(false);
++    setNote("");
++    underConstruction("Request a revision");
++  }
++
++  return (
++    <MotionDialog
++      open={open}
++      onOpenChange={changeOpen}
++      title={`Request changes to milestone ${milestone.sequence}`}
++      description={`"${milestone.title}" goes back to the team. The Team Lead resubmits it when the changes are made.`}
++      trigger={
++        <Button type="button" variant="outline">
++          <RotateCcwIcon aria-hidden data-icon="inline-start" />
++          Request changes
++        </Button>
++      }
++      footer={
++        <>
++          <Button type="button" variant="outline" onClick={() => changeOpen(false)}>
++            Cancel
++          </Button>
++          <Button type="submit" form={`${id}-form`}>
++            Send back to the team
++          </Button>
++        </>
++      }
++    >
++      <form id={`${id}-form`} noValidate onSubmit={submit}>
++        <FormField
++          id={`${id}-note`}
++          label="What needs to change"
++          required
++          error={error}
++          hint="Be specific: what you tried, what happened, what you expected."
++        >
++          {(aria) => (
++            <Textarea
++              {...aria}
++              required
++              rows={4}
++              maxLength={REVIEW_RULES.noteMax}
++              value={note}
++              onChange={(e) => {
++                setNote(e.target.value);
++                if (error) setError(undefined);
++              }}
++            />
++          )}
++        </FormField>
++      </form>
++    </MotionDialog>
++  );
++}
+diff --git a/frontend/src/features/submit-milestone/index.ts b/frontend/src/features/submit-milestone/index.ts
+new file mode 100644
+index 0000000..f46e317
+--- /dev/null
++++ b/frontend/src/features/submit-milestone/index.ts
+@@ -0,0 +1 @@
++export { SubmitMilestoneButton } from "./ui/submit-milestone-button";
+diff --git a/frontend/src/features/submit-milestone/ui/submit-milestone-button.tsx b/frontend/src/features/submit-milestone/ui/submit-milestone-button.tsx
+new file mode 100644
+index 0000000..165a082
+--- /dev/null
++++ b/frontend/src/features/submit-milestone/ui/submit-milestone-button.tsx
+@@ -0,0 +1,120 @@
++"use client";
++
++import { SendIcon } from "lucide-react";
++import { useId, useState, type FormEvent } from "react";
++
++import { REVIEW_RULES, reviewLinkProblem, reviewNoteProblem, type Milestone } from "@/entities/milestone";
++import { underConstruction } from "@/shared/lib/toast";
++import { FormField } from "@/shared/ui/molecules/form-field";
++import { MotionDialog } from "@/shared/ui/organisms/motion-dialog";
++import { Button } from "@/shared/ui/shadcn/button";
++import { Input } from "@/shared/ui/shadcn/input";
++import { Textarea } from "@/shared/ui/shadcn/textarea";
++
++type Props = {
++  milestone: Pick<Milestone, "sequence" | "title">;
++  /** Moves the sample milestone on screen (prototype preview; nothing is saved). */
++  onSubmit: (note: string, link: string | null) => void;
++  /** This milestone has been sent back before: the Lead is resubmitting. */
++  resubmission?: boolean;
++};
++
++type Errors = { note?: string; link?: string };
++
++/**
++ * The Team Lead sends a milestone's work to the client for review (NN-16b,
++ * prototype). Checks the note and link like the planned API would, then
++ * says the action is under construction.
++ */
++export function SubmitMilestoneButton({ milestone, onSubmit, resubmission = false }: Props) {
++  const id = useId();
++  const [open, setOpen] = useState(false);
++  const [note, setNote] = useState("");
++  const [link, setLink] = useState("");
++  const [errors, setErrors] = useState<Errors>({});
++  const label = resubmission ? "Resubmit for review" : "Submit for review";
++
++  function changeOpen(next: boolean) {
++    setOpen(next);
++    if (!next) setErrors({});
++  }
++
++  function submit(event: FormEvent) {
++    event.preventDefault();
++    const found: Errors = {
++      note: reviewNoteProblem("submit", note) ?? undefined,
++      link: reviewLinkProblem(link) ?? undefined,
++    };
++    setErrors(found);
++    if (found.note || found.link) return;
++    onSubmit(note.trim(), link.trim() || null);
++    setOpen(false);
++    setNote("");
++    setLink("");
++    underConstruction("Submit milestone for review");
++  }
++
++  return (
++    <MotionDialog
++      open={open}
++      onOpenChange={changeOpen}
++      title={`${label}: milestone ${milestone.sequence}`}
++      description={`"${milestone.title}" goes to the client, who approves it or asks for changes.`}
++      trigger={
++        <Button type="button">
++          <SendIcon aria-hidden data-icon="inline-start" />
++          {label}
++        </Button>
++      }
++      footer={
++        <>
++          <Button type="button" variant="outline" onClick={() => changeOpen(false)}>
++            Cancel
++          </Button>
++          <Button type="submit" form={`${id}-form`}>
++            Send to the client
++          </Button>
++        </>
++      }
++    >
++      <form id={`${id}-form`} noValidate onSubmit={submit} className="space-y-4">
++        <FormField
++          id={`${id}-note`}
++          label={resubmission ? "What changed" : "What's ready"}
++          required
++          error={errors.note}
++          hint="The client reads this first. Say what to look at and how to try it."
++        >
++          {(aria) => (
++            <Textarea
++              {...aria}
++              required
++              rows={4}
++              maxLength={REVIEW_RULES.noteMax}
++              value={note}
++              onChange={(e) => {
++                setNote(e.target.value);
++                if (errors.note) setErrors((c) => ({ ...c, note: undefined }));
++              }}
++            />
++          )}
++        </FormField>
++        <FormField id={`${id}-link`} label="Link to the work" error={errors.link} hint="A staging site, pull request or demo video.">
++          {(aria) => (
++            <Input
++              {...aria}
++              type="url"
++              inputMode="url"
++              placeholder="https://"
++              value={link}
++              onChange={(e) => {
++                setLink(e.target.value);
++                if (errors.link) setErrors((c) => ({ ...c, link: undefined }));
++              }}
++            />
++          )}
++        </FormField>
++      </form>
++    </MotionDialog>
++  );
++}
+diff --git a/frontend/src/views/project-workspace/ui/milestones-tab.tsx b/frontend/src/views/project-workspace/ui/milestones-tab.tsx
+new file mode 100644
+index 0000000..ebaaa4b
+--- /dev/null
++++ b/frontend/src/views/project-workspace/ui/milestones-tab.tsx
+@@ -0,0 +1,45 @@
++import { FlagIcon } from "lucide-react";
++import Link from "next/link";
++
++import { milestoneViewer, SAMPLE_MILESTONE_PLAN } from "@/entities/milestone";
++import type { Project } from "@/entities/project";
++import { PrototypeNotice } from "@/shared/ui/molecules/prototype-notice";
++import { StateCard } from "@/shared/ui/molecules/state-card";
++import { Button } from "@/shared/ui/shadcn/button";
++import { MilestoneReviewPanel } from "@/widgets/milestone-review";
++
++/**
++ * Prototype (NN-16b, #95): milestone delivery and review on a client project.
++ * The Team Lead submits work, the client approves it or asks for changes,
++ * members follow along. The sample milestones are not this project's.
++ */
++export function MilestonesTab({ project, viewerName }: { project: Project; viewerName: string }) {
++  const viewer = milestoneViewer(project.viewer);
++  if (project.kind !== "client" || !viewer) {
++    return (
++      <StateCard
++        icon={<FlagIcon aria-hidden />}
++        title="Milestones are for client projects"
++        message="A client's offer splits the work into milestones. A developer's own project has none; track progress in Updates."
++        action={
++          <Button asChild variant="outline">
++            <Link href={`/projects/${project.id}`}>Back to the overview</Link>
++          </Button>
++        }
++      />
++    );
++  }
++  return (
++    <div className="space-y-6">
++      <PrototypeNotice>
++        This tab shows sample milestones, not this project&apos;s. Submitting, approving and requesting changes show
++        on screen so you can try the review loop, but they are under construction and save nothing.
++      </PrototypeNotice>
++      <MilestoneReviewPanel
++        viewer={viewer}
++        viewerName={viewerName}
++        depositReleaseMilestone={SAMPLE_MILESTONE_PLAN.deposit_release_milestone}
++      />
++    </div>
++  );
++}
+diff --git a/frontend/src/views/project-workspace/ui/project-workspace-view.tsx b/frontend/src/views/project-workspace/ui/project-workspace-view.tsx
+index fc48ca5..1d5607a 100644
+--- a/frontend/src/views/project-workspace/ui/project-workspace-view.tsx
++++ b/frontend/src/views/project-workspace/ui/project-workspace-view.tsx
+@@ -13,6 +13,7 @@ import { AppHeader } from "@/widgets/app-header";
+ import { isInWorkspace, ProjectTabs, type WorkspaceTab } from "@/widgets/project-tabs";
+ import { WorkspaceHelpCard } from "@/widgets/workspace-help";
+ 
++import { MilestonesTab } from "./milestones-tab";
+ import { ChatTab, DocumentsTab, MembersOnly, UpdatesTab, MeetingsTab } from "./tab-content";
+ import { TeamTab } from "./team-tab";
+ 
+@@ -24,9 +25,10 @@ const TITLE: Record<WorkspaceTab, string> = {
+   meetings: "Meetings",
+   updates: "Updates",
+   team: "Team",
++  milestones: "Milestones",
+ };
+ 
+-/** `/projects/[id]/{chat,documents,meetings,updates,team}`: the project's workspace tabs (#92, NN-38). */
++/** `/projects/[id]/{chat,documents,meetings,updates,team,milestones}`: the project's workspace tabs (#92, NN-38, NN-16b). */
+ export function ProjectWorkspaceView(props: Props) {
+   return (
+     <>
+@@ -116,6 +118,8 @@ async function WorkspaceScreen({ projectId, tab }: Props) {
+         <MeetingsTab {...props} now={now} />
+       ) : tab === "team" ? (
+         <TeamTab project={project} />
++      ) : tab === "milestones" ? (
++        <MilestonesTab project={project} viewerName={route.viewer.account.display_name} />
+       ) : (
+         <UpdatesTab {...props} now={now} />
+       )}
+diff --git a/frontend/src/widgets/milestone-review/index.ts b/frontend/src/widgets/milestone-review/index.ts
+new file mode 100644
+index 0000000..bb0cddc
+--- /dev/null
++++ b/frontend/src/widgets/milestone-review/index.ts
+@@ -0,0 +1 @@
++export { MilestoneReviewPanel } from "./ui/milestone-review-panel";
+diff --git a/frontend/src/widgets/milestone-review/model/next-step.test.ts b/frontend/src/widgets/milestone-review/model/next-step.test.ts
+new file mode 100644
+index 0000000..8f80489
+--- /dev/null
++++ b/frontend/src/widgets/milestone-review/model/next-step.test.ts
+@@ -0,0 +1,13 @@
++import { describe, expect, it } from "vitest";
++
++import { nextStepText } from "./next-step";
++
++describe("nextStepText", () => {
++  it("tells each person what they do next", () => {
++    expect(nextStepText("under_review", "client")).toBe("Check the work, then approve it or ask for changes.");
++    expect(nextStepText("under_review", "lead")).toBe("Waiting for the client to approve it or ask for changes.");
++    expect(nextStepText("in_progress", "lead")).toBe("Submit the work when it's ready for the client to review.");
++    expect(nextStepText("pending_deposit", "client")).toMatch(/pay the deposit/);
++    expect(nextStepText("pending_deposit", "member")).toBe("Work starts once the client pays the deposit.");
++  });
++});
+diff --git a/frontend/src/widgets/milestone-review/model/next-step.ts b/frontend/src/widgets/milestone-review/model/next-step.ts
+new file mode 100644
+index 0000000..87b9930
+--- /dev/null
++++ b/frontend/src/widgets/milestone-review/model/next-step.ts
+@@ -0,0 +1,25 @@
++import type { MilestoneStatus, MilestoneViewer } from "@/entities/milestone";
++
++/** What happens next on a milestone, in words for the person looking at it. */
++export function nextStepText(status: MilestoneStatus, viewer: MilestoneViewer): string {
++  switch (status) {
++    case "pending_deposit":
++      return viewer === "client"
++        ? "Work starts once you pay the deposit from the project's overview."
++        : "Work starts once the client pays the deposit.";
++    case "not_started":
++      return "Starts when the milestone before it is approved.";
++    case "in_progress":
++      return viewer === "lead"
++        ? "Submit the work when it's ready for the client to review."
++        : viewer === "client"
++          ? "The team is working on it. You'll be asked to review it when the Team Lead submits it."
++          : "The team is working on it. The Team Lead submits it for review.";
++    case "under_review":
++      return viewer === "client"
++        ? "Check the work, then approve it or ask for changes."
++        : "Waiting for the client to approve it or ask for changes.";
++    case "completed":
++      return "Approved by the client.";
++  }
++}
+diff --git a/frontend/src/widgets/milestone-review/ui/milestone-card.tsx b/frontend/src/widgets/milestone-review/ui/milestone-card.tsx
+new file mode 100644
+index 0000000..e39ec05
+--- /dev/null
++++ b/frontend/src/widgets/milestone-review/ui/milestone-card.tsx
+@@ -0,0 +1,132 @@
++"use client";
++
++import { CalendarIcon, LockKeyholeIcon } from "lucide-react";
++import { useEffect, useRef } from "react";
++
++import {
++  availableActions,
++  MilestoneStatusBadge,
++  revisionCount,
++  type Milestone,
++  type MilestoneAction,
++  type MilestoneReview,
++  type MilestoneViewer,
++} from "@/entities/milestone";
++import { ApproveMilestoneButton, RequestRevisionButton } from "@/features/review-milestone";
++import { SubmitMilestoneButton } from "@/features/submit-milestone";
++import { formatCalendarDate } from "@/shared/lib/format-date";
++import { PrototypeBadge } from "@/shared/ui/molecules/prototype-badge";
++import { Badge } from "@/shared/ui/shadcn/badge";
++import { Card, CardContent, CardHeader } from "@/shared/ui/shadcn/card";
++
++import { nextStepText } from "../model/next-step";
++import { ReviewHistory } from "./review-history";
++
++type Props = {
++  milestone: Milestone;
++  /** This milestone's history, oldest first. */
++  reviews: MilestoneReview[];
++  viewer: MilestoneViewer;
++  releasesDeposit: boolean;
++  onAction: (milestone: Milestone, action: MilestoneAction, note: string, link: string | null) => void;
++  /** Move focus to this card's heading (after an action removed the button that had it). */
++  focusRequest: number;
++};
++
++/** One milestone: its state, what happens next, the viewer's actions and its review history. */
++export function MilestoneCard({ milestone, reviews, viewer, releasesDeposit, onAction, focusRequest }: Props) {
++  const headingRef = useRef<HTMLHeadingElement>(null);
++  const actions = availableActions(milestone.status, viewer);
++  const revisions = revisionCount(reviews, milestone.id);
++  const headingId = `milestone-${milestone.id}-title`;
++  const openHistory = milestone.status === "under_review" || (milestone.status === "in_progress" && reviews.length > 0);
++
++  useEffect(() => {
++    if (!focusRequest) return;
++    // Wait until the dialog has closed and given focus back, then take it.
++    let tries = 0;
++    const timer = window.setInterval(() => {
++      tries += 1;
++      if (!document.querySelector('[role="dialog"]') || tries > 40) {
++        window.clearInterval(timer);
++        headingRef.current?.focus();
++      }
++    }, 50);
++    return () => window.clearInterval(timer);
++  }, [focusRequest]);
++
++  return (
++    <Card aria-labelledby={headingId} role="article">
++      <CardHeader className="gap-2">
++        <p className="text-xs font-medium text-muted-foreground">Milestone {milestone.sequence}</p>
++        <div className="flex flex-wrap items-center gap-2">
++          <h3
++            id={headingId}
++            ref={headingRef}
++            tabIndex={-1}
++            className="mr-1 rounded-sm text-base font-semibold focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
++          >
++            {milestone.title}
++          </h3>
++          <MilestoneStatusBadge status={milestone.status} />
++          {revisions > 0 ? (
++            <Badge variant="outline">{revisions === 1 ? "Revised once" : `Revised ${revisions} times`}</Badge>
++          ) : null}
++        </div>
++        <p className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
++          <span className="inline-flex items-center gap-1">
++            <CalendarIcon aria-hidden className="size-4" />
++            Due {formatCalendarDate(milestone.due_date)}
++          </span>
++          {releasesDeposit ? (
++            <span className="inline-flex items-center gap-1.5">
++              <LockKeyholeIcon aria-hidden className="size-4" />
++              Releases the deposit
++              <PrototypeBadge label="Planned" />
++            </span>
++          ) : null}
++        </p>
++      </CardHeader>
++      <CardContent className="space-y-4">
++        {milestone.description ? <p className="text-sm">{milestone.description}</p> : null}
++        <p className="text-sm text-muted-foreground" data-testid="next-step">
++          {nextStepText(milestone.status, viewer)}
++        </p>
++        {actions.length > 0 ? (
++          <div className="flex flex-col gap-2 sm:flex-row">
++            {actions.includes("submit") ? (
++              <SubmitMilestoneButton
++                milestone={milestone}
++                resubmission={revisions > 0}
++                onSubmit={(note, link) => onAction(milestone, "submit", note, link)}
++              />
++            ) : null}
++            {actions.includes("approve") ? (
++              <ApproveMilestoneButton
++                milestone={milestone}
++                releasesDeposit={releasesDeposit}
++                onApprove={() => onAction(milestone, "approve", "", null)}
++              />
++            ) : null}
++            {actions.includes("request_revision") ? (
++              <RequestRevisionButton
++                milestone={milestone}
++                onRequest={(note) => onAction(milestone, "request_revision", note, null)}
++              />
++            ) : null}
++          </div>
++        ) : null}
++        {reviews.length > 0 ? (
++          <details open={openHistory} className="group">
++            <summary className="w-fit cursor-pointer rounded-sm text-sm font-medium focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none">
++              Review history ({reviews.length})
++            </summary>
++            <div className="mt-3">
++              <ReviewHistory reviews={reviews} />
++            </div>
++          </details>
++        ) : null}
++      </CardContent>
++    </Card>
++  );
++}
+diff --git a/frontend/src/widgets/milestone-review/ui/milestone-review-panel.test.tsx b/frontend/src/widgets/milestone-review/ui/milestone-review-panel.test.tsx
+new file mode 100644
+index 0000000..f466259
+--- /dev/null
++++ b/frontend/src/widgets/milestone-review/ui/milestone-review-panel.test.tsx
+@@ -0,0 +1,128 @@
++import { act, render, screen, waitFor, within } from "@testing-library/react";
++import userEvent from "@testing-library/user-event";
++import { afterEach, describe, expect, it, vi } from "vitest";
++
++import { getToasts, resetToasts } from "@/shared/lib/toast";
++
++import { MilestoneReviewPanel } from "./milestone-review-panel";
++
++// The error state's "Check again" button refreshes through the app router.
++vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
++
++afterEach(() => act(() => resetToasts()));
++
++type Viewer = "client" | "lead" | "member";
++type Initial = Parameters<typeof MilestoneReviewPanel>[0]["initial"];
++
++function renderAs(viewer: Viewer, initial?: Initial) {
++  return render(
++    <MilestoneReviewPanel viewer={viewer} viewerName={viewer === "client" ? "Grace" : "Ada"} depositReleaseMilestone={2} initial={initial} />,
++  );
++}
++
++const card = (title: string) => screen.getByRole("article", { name: title });
++
++describe("MilestoneReviewPanel", () => {
++  it("shows every milestone with its state, the deposit milestone and progress", () => {
++    renderAs("client");
++    expect(screen.getByText("1 of 4 approved")).toBeInTheDocument();
++    expect(within(card("Designs and project setup")).getByText("Completed")).toBeInTheDocument();
++    expect(within(card("Designs and project setup")).getByText("Revised once")).toBeInTheDocument();
++    const second = card("Accounts and booking flow");
++    expect(within(second).getByText("Under review")).toBeInTheDocument();
++    expect(within(second).getByText("Releases the deposit")).toBeInTheDocument();
++    expect(within(second).getByText("Planned")).toBeInTheDocument();
++  });
++
++  it("lets the client approve: completed, the next milestone starts, under construction toast", async () => {
++    const user = userEvent.setup();
++    renderAs("client");
++    const second = card("Accounts and booking flow");
++    await user.click(within(second).getByRole("button", { name: "Approve" }));
++    const dialog = await screen.findByRole("dialog", { name: "Approve milestone 2?" });
++    expect(within(dialog).getByText(/no longer refundable/)).toBeInTheDocument();
++    await user.click(within(dialog).getByRole("button", { name: "Approve milestone" }));
++
++    expect(within(card("Accounts and booking flow")).getByText("Completed")).toBeInTheDocument();
++    expect(within(card("Payments and notifications")).getByText("In progress")).toBeInTheDocument();
++    expect(screen.getByText("2 of 4 approved")).toBeInTheDocument();
++    expect(screen.getByText("Preview only")).toBeInTheDocument();
++    expect(getToasts().at(-1)?.description).toBe("Approve milestone: this function is under construction.");
++    await waitFor(() => expect(screen.getByRole("heading", { name: "Accounts and booking flow" })).toHaveFocus());
++  });
++
++  it("lets the client ask for changes, which needs a note and sends the milestone back", async () => {
++    const user = userEvent.setup();
++    renderAs("client");
++    await user.click(within(card("Accounts and booking flow")).getByRole("button", { name: "Request changes" }));
++    const dialog = await screen.findByRole("dialog");
++    await user.click(within(dialog).getByRole("button", { name: "Send back to the team" }));
++    expect(within(dialog).getByText("Say what needs to change.")).toBeInTheDocument();
++
++    await user.type(within(dialog).getByLabelText(/What needs to change/), "The email is missing the time.");
++    await user.click(within(dialog).getByRole("button", { name: "Send back to the team" }));
++
++    const second = card("Accounts and booking flow");
++    expect(within(second).getByText("In progress")).toBeInTheDocument();
++    expect(within(second).getByText("Revised 2 times")).toBeInTheDocument();
++    expect(within(second).getByText("The email is missing the time.")).toBeInTheDocument();
++    expect(within(second).queryByRole("button", { name: "Approve" })).not.toBeInTheDocument();
++  });
++
++  it("lets the Lead resubmit after a revision, with an optional https link", async () => {
++    const user = userEvent.setup();
++    renderAs("lead", "revision_requested");
++    const second = card("Accounts and booking flow");
++    expect(within(second).getByText("Submit the work when it's ready for the client to review.")).toBeInTheDocument();
++    await user.click(within(second).getByRole("button", { name: "Resubmit for review" }));
++    const dialog = await screen.findByRole("dialog");
++    await user.type(within(dialog).getByLabelText(/What changed/), "Fixed both.");
++    await user.type(within(dialog).getByLabelText(/Link to the work/), "staging.example.com");
++    await user.click(within(dialog).getByRole("button", { name: "Send to the client" }));
++    expect(within(dialog).getByText(/Enter a full link/)).toBeInTheDocument();
++
++    await user.clear(within(dialog).getByLabelText(/Link to the work/));
++    await user.type(within(dialog).getByLabelText(/Link to the work/), "https://staging.example.com/v2");
++    await user.click(within(dialog).getByRole("button", { name: "Send to the client" }));
++
++    expect(within(card("Accounts and booking flow")).getByText("Under review")).toBeInTheDocument();
++    expect(screen.getByRole("link", { name: /staging.example.com\/v2/ })).toHaveAttribute("target", "_blank");
++    expect(getToasts().at(-1)?.description).toBe("Submit milestone for review: this function is under construction.");
++  });
++
++  it("gives the Lead no review buttons and members no buttons at all", () => {
++    renderAs("lead");
++    expect(screen.queryByRole("button", { name: "Approve" })).not.toBeInTheDocument();
++    expect(screen.getAllByText("Waiting for the client to approve it or ask for changes.")).toHaveLength(1);
++
++    renderAs("member", "revision_requested");
++    expect(screen.queryByRole("button", { name: /Submit|Resubmit/ })).not.toBeInTheDocument();
++  });
++
++  it("draws waiting for the deposit, all approved, empty and error states", async () => {
++    const user = userEvent.setup();
++    renderAs("client", "awaiting_deposit");
++    expect(screen.getAllByText("Pending deposit")).toHaveLength(4);
++    expect(screen.queryByRole("button", { name: /Approve|Request changes/ })).not.toBeInTheDocument();
++
++    await user.click(screen.getByRole("button", { name: "All completed" }));
++    await user.click(screen.getByRole("button", { name: "Give final approval" }));
++    expect(getToasts().at(-1)?.description).toBe("Final approval: this function is under construction.");
++
++    await user.click(screen.getByRole("button", { name: "No milestones yet" }));
++    expect(screen.getByRole("heading", { name: "No milestones yet" })).toBeInTheDocument();
++
++    await user.click(screen.getByRole("button", { name: "Couldn't load" }));
++    expect(screen.getByText("We couldn't load the milestones")).toBeInTheDocument();
++  });
++
++  it("resets the preview back to the sample", async () => {
++    const user = userEvent.setup();
++    renderAs("client");
++    await user.click(within(card("Accounts and booking flow")).getByRole("button", { name: "Approve" }));
++    await user.click(await screen.findByRole("button", { name: "Approve milestone" }));
++    await user.click(screen.getByRole("button", { name: "Reset the sample" }));
++    expect(within(card("Accounts and booking flow")).getByText("Under review")).toBeInTheDocument();
++    expect(screen.queryByText("Preview only")).not.toBeInTheDocument();
++  });
++});
+diff --git a/frontend/src/widgets/milestone-review/ui/milestone-review-panel.tsx b/frontend/src/widgets/milestone-review/ui/milestone-review-panel.tsx
+new file mode 100644
+index 0000000..ec857b8
+--- /dev/null
++++ b/frontend/src/widgets/milestone-review/ui/milestone-review-panel.tsx
+@@ -0,0 +1,171 @@
++"use client";
++
++import { FlagIcon, PartyPopperIcon } from "lucide-react";
++import { useState } from "react";
++
++import {
++  applyMilestoneAction,
++  MILESTONE_SAMPLE_SITUATIONS,
++  reviewsFor,
++  sampleMilestoneSituation,
++  startNextMilestone,
++  type DepositReleaseChoice,
++  type Milestone,
++  type MilestoneAction,
++  type MilestoneSample,
++  type MilestoneSampleSituation,
++  type MilestoneViewer,
++} from "@/entities/milestone";
++import { toast, underConstruction } from "@/shared/lib/toast";
++import { LoadError } from "@/shared/ui/load-states";
++import { PrototypeBadge } from "@/shared/ui/molecules/prototype-badge";
++import { StateCard } from "@/shared/ui/molecules/state-card";
++import { Alert, AlertDescription, AlertTitle } from "@/shared/ui/shadcn/alert";
++import { Button } from "@/shared/ui/shadcn/button";
++
++import { MilestoneCard } from "./milestone-card";
++import { SamplePicker } from "./sample-picker";
++
++type Situation = MilestoneSampleSituation | "load_error";
++
++const SITUATIONS: { value: Situation; label: string }[] = [
++  ...MILESTONE_SAMPLE_SITUATIONS,
++  { value: "load_error", label: "Couldn't load" },
++];
++
++type Props = {
++  viewer: MilestoneViewer;
++  /** Who acts in the sample history when this viewer does something. */
++  viewerName: string;
++  depositReleaseMilestone: DepositReleaseChoice | null;
++  /** Which sample to open on (tests). */
++  initial?: Situation;
++};
++
++/**
++ * Milestone delivery and review (NN-16b, prototype): the Team Lead submits
++ * work, the client approves it or asks for changes, and the loop repeats.
++ * Actions move the sample on screen so the loop can be tried, and say that
++ * they are under construction: nothing is saved.
++ */
++export function MilestoneReviewPanel({ viewer, viewerName, depositReleaseMilestone, initial = "under_review" }: Props) {
++  const [situation, setSituation] = useState<Situation>(initial);
++  const [sample, setSample] = useState<MilestoneSample>(() => sampleOf(initial));
++  const [changed, setChanged] = useState(false);
++  const [focus, setFocus] = useState<{ id: number; n: number }>({ id: 0, n: 0 });
++
++  function choose(next: Situation) {
++    setSituation(next);
++    setSample(sampleOf(next));
++    setChanged(false);
++  }
++
++  function act(milestone: Milestone, action: MilestoneAction, note: string, link: string | null) {
++    const result = applyMilestoneAction(milestone, {
++      action,
++      viewer,
++      note,
++      link_url: link,
++      author_name: viewerName,
++      at: new Date().toISOString(),
++      review_id: Date.now(),
++    });
++    if (!result.ok) {
++      toast({ title: "That can't be done", description: result.reason, tone: "error" });
++      return;
++    }
++    const replaced = sample.milestones.map((m) => (m.id === milestone.id ? result.milestone : m));
++    setSample({
++      milestones: action === "approve" ? startNextMilestone(replaced) : replaced,
++      reviews: [...sample.reviews, result.review],
++    });
++    setChanged(true);
++    setFocus((f) => ({ id: milestone.id, n: f.n + 1 }));
++  }
++
++  const { milestones } = sample;
++  const done = milestones.filter((m) => m.status === "completed").length;
++  const allDone = milestones.length > 0 && done === milestones.length;
++
++  return (
++    <div className="space-y-6">
++      <div className="flex flex-wrap items-end justify-between gap-3">
++        <SamplePicker options={SITUATIONS} current={situation} onChange={choose} />
++        <PrototypeBadge />
++      </div>
++
++      {changed ? (
++        <Alert role="note">
++          <AlertTitle>Preview only</AlertTitle>
++          <AlertDescription className="flex flex-wrap items-center gap-x-3 gap-y-2">
++            <span>This change is shown here but not saved. Leaving the page resets it.</span>
++            <Button type="button" variant="outline" size="sm" onClick={() => choose(situation)}>
++              Reset the sample
++            </Button>
++          </AlertDescription>
++        </Alert>
++      ) : null}
++
++      {situation === "load_error" ? (
++        <LoadError title="We couldn't load the milestones" message="Check your connection and refresh the page." />
++      ) : milestones.length === 0 ? (
++        <StateCard
++          icon={<FlagIcon aria-hidden />}
++          title="No milestones yet"
++          message={
++            viewer === "client"
++              ? "Milestones come with the Team Lead's offer. You'll see them here once you accept it."
++              : "Milestones are set in the offer to the client. They appear here once the client accepts it."
++          }
++        />
++      ) : (
++        <section aria-labelledby="milestones-heading" className="space-y-4">
++          <div className="flex flex-wrap items-baseline justify-between gap-2">
++            <h2 id="milestones-heading" className="text-lg font-semibold">
++              Milestones
++            </h2>
++            <p className="text-sm text-muted-foreground">
++              {done} of {milestones.length} approved
++            </p>
++          </div>
++          {allDone ? (
++            <StateCard
++              icon={<PartyPopperIcon aria-hidden />}
++              title="Every milestone is approved"
++              message={
++                viewer === "client"
++                  ? "Give final approval to finish the project and make the final payment."
++                  : "The client gives final approval to finish the project."
++              }
++              action={
++                viewer === "client" ? (
++                  <Button type="button" onClick={() => underConstruction("Final approval")}>
++                    Give final approval
++                  </Button>
++                ) : undefined
++              }
++            />
++          ) : null}
++          <ol className="space-y-4">
++            {milestones.map((milestone) => (
++              <li key={milestone.id}>
++                <MilestoneCard
++                  milestone={milestone}
++                  reviews={reviewsFor(sample.reviews, milestone.id)}
++                  viewer={viewer}
++                  releasesDeposit={milestone.sequence === depositReleaseMilestone}
++                  onAction={act}
++                  focusRequest={focus.id === milestone.id ? focus.n : 0}
++                />
++              </li>
++            ))}
++          </ol>
++        </section>
++      )}
++    </div>
++  );
++}
++
++function sampleOf(situation: Situation): MilestoneSample {
++  return situation === "load_error" ? { milestones: [], reviews: [] } : sampleMilestoneSituation(situation);
++}
+diff --git a/frontend/src/widgets/milestone-review/ui/review-history.tsx b/frontend/src/widgets/milestone-review/ui/review-history.tsx
+new file mode 100644
+index 0000000..12ea9a7
+--- /dev/null
++++ b/frontend/src/widgets/milestone-review/ui/review-history.tsx
+@@ -0,0 +1,43 @@
++import { ExternalLinkIcon } from "lucide-react";
++
++import { REVIEW_KIND_LABEL, type MilestoneReview } from "@/entities/milestone";
++import { formatMessageTime } from "@/shared/lib/format-date";
++
++/** One milestone's submissions, requested changes and approval, oldest first. */
++export function ReviewHistory({ reviews }: { reviews: MilestoneReview[] }) {
++  if (reviews.length === 0) return <p className="text-sm text-muted-foreground">Nothing submitted yet.</p>;
++  return (
++    <ol className="space-y-3 border-l pl-4">
++      {reviews.map((review) => (
++        <li key={review.id} className="relative text-sm">
++          <span
++            aria-hidden
++            className={
++              review.kind === "revision_requested"
++                ? "absolute top-1.5 -left-[1.3rem] size-2 rounded-full border-2 border-muted-foreground bg-background"
++                : "absolute top-1.5 -left-[1.3rem] size-2 rounded-full bg-muted-foreground"
++            }
++          />
++          <p className="text-xs text-muted-foreground">
++            <span className="font-medium text-foreground">{REVIEW_KIND_LABEL[review.kind]}</span> by {review.author_name}
++            {review.author_role === "lead" ? " (Team Lead)" : " (client)"} ·{" "}
++            <time dateTime={review.created_at}>{formatMessageTime(review.created_at)}</time>
++          </p>
++          {review.note ? <p className="mt-0.5 break-words whitespace-pre-line">{review.note}</p> : null}
++          {review.link_url ? (
++            <a
++              href={review.link_url}
++              target="_blank"
++              rel="noreferrer"
++              className="mt-0.5 inline-flex items-center gap-1 rounded-sm break-all underline underline-offset-4 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
++            >
++              {review.link_url}
++              <ExternalLinkIcon aria-hidden className="size-3.5 shrink-0" />
++              <span className="sr-only">(opens in a new tab)</span>
++            </a>
++          ) : null}
++        </li>
++      ))}
++    </ol>
++  );
++}
+diff --git a/frontend/src/widgets/milestone-review/ui/sample-picker.tsx b/frontend/src/widgets/milestone-review/ui/sample-picker.tsx
+new file mode 100644
+index 0000000..950e4dc
+--- /dev/null
++++ b/frontend/src/widgets/milestone-review/ui/sample-picker.tsx
+@@ -0,0 +1,41 @@
++"use client";
++
++import { cn } from "@/shared/lib/utils";
++
++type Option<T extends string> = { value: T; label: string };
++
++type Props<T extends string> = {
++  options: Option<T>[];
++  current: T;
++  onChange: (next: T) => void;
++};
++
++/** Prototype only: switches the sample between the points in the review loop. */
++export function SamplePicker<T extends string>({ options, current, onChange }: Props<T>) {
++  return (
++    <div role="group" aria-labelledby="milestone-sample-label" className="space-y-1.5">
++      <p id="milestone-sample-label" className="text-xs font-medium text-muted-foreground">
++        Sample situation
++      </p>
++      <div className="grid grid-cols-2 gap-1 rounded-lg bg-muted p-1 sm:flex sm:flex-wrap">
++        {options.map((option) => {
++          const active = option.value === current;
++          return (
++            <button
++              key={option.value}
++              type="button"
++              aria-pressed={active}
++              onClick={() => onChange(option.value)}
++              className={cn(
++                "min-h-10 rounded-md px-3 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
++                active ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
++              )}
++            >
++              {option.label}
++            </button>
++          );
++        })}
++      </div>
++    </div>
++  );
++}
+diff --git a/frontend/src/widgets/project-tabs/model/tabs.test.ts b/frontend/src/widgets/project-tabs/model/tabs.test.ts
+index 379c9ba..7fab450 100644
+--- a/frontend/src/widgets/project-tabs/model/tabs.test.ts
++++ b/frontend/src/widgets/project-tabs/model/tabs.test.ts
+@@ -24,12 +24,12 @@ describe("projectTabs", () => {
+ 
+   it("gives the client everything except the team's chat", () => {
+     const client = project({ viewer: viewer({ is_owner: true, can_read_documents: true }) });
+-    expect(labels(client)).toEqual(["Overview", "Documents", "Meetings", "Updates", "Team", "Payments"]);
++    expect(labels(client)).toEqual(["Overview", "Documents", "Meetings", "Updates", "Team", "Milestones", "Payments"]);
+   });
+ 
+   it("gives the Team Lead and members every tab, linked under the project", () => {
+     const member = project({ viewer: viewer({ is_member: true, can_read_documents: true }) });
+-    expect(labels(member)).toEqual(["Overview", "Chat", "Documents", "Meetings", "Updates", "Team", "Payments"]);
++    expect(labels(member)).toEqual(["Overview", "Chat", "Documents", "Meetings", "Updates", "Team", "Milestones", "Payments"]);
+     expect(projectTabs(member).map((t) => t.href)).toEqual([
+       "/projects/4",
+       "/projects/4/chat",
+@@ -37,11 +37,12 @@ describe("projectTabs", () => {
+       "/projects/4/meetings",
+       "/projects/4/updates",
+       "/projects/4/team",
++      "/projects/4/milestones",
+       "/projects/4/payments",
+     ]);
+   });
+ 
+-  it("leaves out documents, team changes and payments on a developer idea", () => {
++  it("leaves out documents, team changes, milestones and payments on a developer idea", () => {
+     const lead = project({ kind: "developer", viewer: viewer({ is_owner: true, is_lead: true }) });
+     expect(labels(lead)).toEqual(["Overview", "Chat", "Meetings", "Updates"]);
+   });
+diff --git a/frontend/src/widgets/project-tabs/model/tabs.ts b/frontend/src/widgets/project-tabs/model/tabs.ts
+index 27d8a61..2b0c5f2 100644
+--- a/frontend/src/widgets/project-tabs/model/tabs.ts
++++ b/frontend/src/widgets/project-tabs/model/tabs.ts
+@@ -1,11 +1,11 @@
+ import type { Project } from "@/entities/project";
+ 
+-export type ProjectTab = "overview" | "chat" | "documents" | "meetings" | "updates" | "team" | "payments";
++export type ProjectTab = "overview" | "chat" | "documents" | "meetings" | "updates" | "team" | "milestones" | "payments";
+ 
+ export type TabLink = { tab: ProjectTab; label: string; href: string };
+ 
+ /** A workspace tab's route under `/projects/[id]`. */
+-export const WORKSPACE_TABS = ["chat", "documents", "meetings", "updates", "team"] as const;
++export const WORKSPACE_TABS = ["chat", "documents", "meetings", "updates", "team", "milestones"] as const;
+ export type WorkspaceTab = (typeof WORKSPACE_TABS)[number];
+ 
+ /** The client, the Team Lead and members: the people the workspace is for. */
+@@ -29,8 +29,8 @@ export function workspacePrivacyNote(project: Project, viewerRole: "developer" |
+ /**
+  * The tabs this viewer gets, in order. Anyone outside the project gets none
+  * (the Overview alone, no tab bar). Chat is the team's own conversation, which
+- * the client is not part of (#6); requirement documents, team changes (NN-38)
+- * and payments exist on client projects only.
++ * the client is not part of (#6); requirement documents, team changes (NN-38),
++ * milestones (NN-16b) and payments exist on client projects only.
+  */
+ export function projectTabs(project: Project): TabLink[] {
+   if (!isInWorkspace(project)) return [];
+@@ -44,6 +44,7 @@ export function projectTabs(project: Project): TabLink[] {
+     { tab: "meetings", label: "Meetings", href: `${base}/meetings` },
+     { tab: "updates", label: "Updates", href: `${base}/updates` },
+     client && { tab: "team", label: "Team", href: `${base}/team` },
++    client && { tab: "milestones", label: "Milestones", href: `${base}/milestones` },
+     client && { tab: "payments", label: "Payments", href: `${base}/payments` },
+   ];
+   return tabs.filter((tab): tab is TabLink => Boolean(tab));
