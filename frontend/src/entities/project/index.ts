@@ -40,6 +40,18 @@ export {
   type RequirementDocument,
   type ViewerAction,
 } from "./model/project";
+// Phase 2 prototype (NN-32 #88): dashboard v2 roles and needs attention.
+export {
+  PROJECT_ROLE_LABEL,
+  PROJECT_ROLES,
+  type AttentionItem,
+  type AttentionKind,
+  type DashboardProject,
+  type ProjectRole,
+} from "./model/dashboard";
+// Prototype sample data: import only from Phase 2 prototype screens.
+export { sampleDashboard, type SampleDashboard } from "./model/sample";
+export { ProjectRoleBadge } from "./ui/project-role-badge";
 // Phase 2 prototype (#93): the "To be defined" legal terms.
 export { LegalTerms, LegalTermsCard } from "./ui/legal-terms";
 export { KindBadge, ProposedBudget, StatusBadge, TechStack } from "./ui/project-bits";
