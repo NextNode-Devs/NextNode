@@ -245,8 +245,18 @@ edited once sent. Planned shapes: `entities/rating/model/rating.ts`.
 **NN-36 · Junior and new-developer spots**. Kai. Trace: Q4.
 - the Lead marks some open spots as junior
 - the new-talent badge and filter link to NN-33 and NN-34
+- built: a "Junior spots" prototype card on the project page beside the team
+  roster. The Team Lead of a recruiting team switches each open spot to
+  junior (saving shows the under-construction toast) and opens Hire Devs or
+  the directory filtered to new talent (`?new_talent=true`); everyone else
+  sees how many open spots are junior, with the "New talent" badge. The open
+  spots are the team's real ones; which are junior is sample data
 
 Backend note: spot type on the team. Team size is still 5–7 including the Lead.
+A junior spot is one of the open spots, never an extra one, so the Lead can
+mark at most `open_spots`. The prototype does not stop a developer who is not
+new talent from taking a junior spot; whether the API should is open (Team
+Lead to decide). Planned shape: `entities/team/model/spots.ts`.
 
 **NN-38 · Lead and member replacement (client projects)**. Hardik (flow),
 Aliya (re-sign screen and the access-lost state). Trace: Q2.

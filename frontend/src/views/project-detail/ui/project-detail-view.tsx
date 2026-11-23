@@ -21,6 +21,7 @@ import { TeamRoster } from "@/widgets/team-roster";
 
 import { HireDevsLink } from "./hire-devs-link";
 import { InviteLinkSection } from "./invite-link-section";
+import { JuniorSpots } from "./junior-spots";
 import { FinishLink } from "./finish-link";
 import { PaymentsLink } from "./payments-link";
 import { PrimaryAction } from "./primary-action";
@@ -173,6 +174,7 @@ async function ProjectScreen({ projectId, notice }: Props) {
             <TeamRoster project={project} />
           </Suspense>
           <HireDevsLink project={project} />
+          <JuniorSpots project={project} />
           <InviteLinkSection project={project} now={now} />
           {project.kind === "client" ? <LegalTermsCard /> : null}
         </aside>
