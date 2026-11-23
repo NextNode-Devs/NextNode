@@ -25,7 +25,7 @@ export type MatchScore = {
 /** One result in the planned matches response. */
 export type DeveloperMatch = {
   developer: DeveloperCard;
-  /** Planned profile fields (#102): time zone and new talent. */
+  /** Planned profile fields (#102): the time zone. New talent is `developer.is_new_talent`. */
   growth: ProfileGrowth;
   match: MatchScore;
 };

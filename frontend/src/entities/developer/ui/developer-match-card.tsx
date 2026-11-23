@@ -50,7 +50,7 @@ export function DeveloperMatchCard({ developer, growth, match, actions }: Props)
         ) : null}
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
           <AvailabilityBadge available={developer.is_available} />
-          {growth.is_new_talent ? <NewTalentBadge /> : null}
+          {developer.is_new_talent ? <NewTalentBadge /> : null}
           <span className="inline-flex items-center gap-1">
             <Clock3Icon className="size-3" aria-hidden />
             {growth.time_zone ? timeZoneWithCode(growth.time_zone) : "Time zone not set"}

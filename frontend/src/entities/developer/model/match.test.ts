@@ -42,7 +42,7 @@ describe("matchReason", () => {
 
 describe("compareMatches", () => {
   const entry = (name: string, skills: string[], available: boolean): DeveloperMatch => {
-    const developer = { account_id: 1, display_name: name, headline: "", skills: skills.map(skill), is_available: available, project_count: 0 };
+    const developer = { account_id: 1, display_name: name, headline: "", skills: skills.map(skill), is_available: available, project_count: 0, joined_at: "2026-05-01T12:00:00Z", is_new_talent: false };
     return { developer, growth: sampleProfileGrowth(1), match: scoreMatch(stack, developer) };
   };
 

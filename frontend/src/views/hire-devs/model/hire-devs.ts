@@ -48,7 +48,8 @@ export function rankDevelopers(
   return pool
     .map((developer) => ({
       developer,
-      growth: sampleProfileGrowth(developer.account_id),
+      // Time zone is still a sample value (#102); new talent is the card's own, from the API.
+      growth: { ...sampleProfileGrowth(developer.account_id), is_new_talent: developer.is_new_talent },
       match: scoreMatch(project.tech_stack, developer),
     }))
     .filter(({ developer, growth }) => matchesApiFilters(developer, filters) && matchesPlannedFilters(growth, filters))

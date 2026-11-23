@@ -38,6 +38,8 @@ const dev = (id: number, name: string, skills: string[], available = true): Deve
   skills: skills.map(skill),
   is_available: available,
   project_count: 1,
+  joined_at: "2026-05-01T12:00:00Z",
+  is_new_talent: false,
 });
 
 describe("rankDevelopers", () => {
@@ -58,9 +60,26 @@ describe("rankDevelopers", () => {
     expect(names({ available: true })).toEqual(["Grace", "Ada"]);
   });
 
-  it("applies time zone and new talent from the sample profile values", () => {
-    const ranked = rankDevelopers(SAMPLE_HIRE_DEVS_POOL, stack, { ...NO_FILTERS, new_talent: true });
+  it("filters new talent on the card's own value, not the sample profile value", () => {
+    const newcomer = { ...dev(7, "Zed", ["React"]), is_new_talent: true };
+    // The sample profile values disagree with the card both ways: 7 is not new there, 6 is.
+    expect(sampleProfileGrowth(7).is_new_talent).toBe(false);
+    expect(sampleProfileGrowth(6).is_new_talent).toBe(true);
+    const ranked = rankDevelopers([newcomer, dev(6, "Old", ["React"])], stack, { ...NO_FILTERS, new_talent: true });
+    expect(ranked.map((m) => m.developer.display_name)).toEqual(["Zed"]);
+    expect(ranked[0].growth.is_new_talent).toBe(true);
+  });
+
+  it("keeps the sample pool's new talent consistent with when each developer joined", () => {
+    const newcomers = SAMPLE_HIRE_DEVS_POOL.filter((d) => d.is_new_talent);
+    expect(newcomers.length).toBeGreaterThan(0);
+    for (const d of SAMPLE_HIRE_DEVS_POOL) expect(d.is_new_talent).toBe((d.joined_at ?? "") >= "2026-11-07");
+  });
+
+  it("applies the time zone from the sample profile values", () => {
+    const zone = sampleProfileGrowth(9001).time_zone ?? "";
+    const ranked = rankDevelopers(SAMPLE_HIRE_DEVS_POOL, stack, { ...NO_FILTERS, time_zone: zone });
     expect(ranked.length).toBeGreaterThan(0);
-    expect(ranked.every((m) => sampleProfileGrowth(m.developer.account_id).is_new_talent)).toBe(true);
+    expect(ranked.every((m) => sampleProfileGrowth(m.developer.account_id).time_zone === zone)).toBe(true);
   });
 });

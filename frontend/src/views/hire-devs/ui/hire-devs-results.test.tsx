@@ -27,6 +27,16 @@ describe("HireDevsResults", () => {
     expect(cards[0]).toHaveTextContent("Doesn't list: Docker");
   });
 
+  it("shows New talent from the developer's card, as the API marks it", () => {
+    const matches = rankDevelopers(SAMPLE_HIRE_DEVS_POOL, stack, NO_FILTERS);
+    render(<HireDevsResults matches={matches} filters={NO_FILTERS} basePath={base} requiredCount={5} />);
+    const cardOf = (name: string) => screen.getByRole("heading", { name }).closest("li");
+    const newcomers = SAMPLE_HIRE_DEVS_POOL.filter((d) => d.is_new_talent);
+    expect(screen.getAllByText("New talent")).toHaveLength(newcomers.length);
+    expect(cardOf("Zainab Yusuf")).toHaveTextContent("New talent");
+    expect(cardOf("Noah Fischer")).not.toHaveTextContent("New talent");
+  });
+
   it("uses the under-construction toast for actions that aren't built", async () => {
     const user = userEvent.setup();
     const matches = rankDevelopers(SAMPLE_HIRE_DEVS_POOL.slice(0, 1), stack, NO_FILTERS);
