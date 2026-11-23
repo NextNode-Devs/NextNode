@@ -129,7 +129,7 @@ test.describe("Workspace tabs", () => {
     await grace.page.goto(projectPath);
     const tabs = grace.page.getByRole("navigation", { name: "Project sections" });
     await expect(tabs.getByRole("link", { name: "Overview" })).toHaveAttribute("aria-current", "page");
-    await expect(tabs.getByRole("link")).toHaveText(["Overview", "Documents", "Meetings", "Updates", "Payments"]);
+    await expect(tabs.getByRole("link")).toHaveText(["Overview", "Documents", "Meetings", "Updates", "Team", "Payments"]);
 
     await tabs.getByRole("link", { name: "Meetings" }).click();
     // A tab is a server-rendered page: under a full parallel run it can take more than the default 5 s.
@@ -153,6 +153,18 @@ test.describe("Workspace tabs", () => {
     await tabs.getByRole("link", { name: "Documents" }).click();
     await expect(grace.page.getByRole("heading", { name: "Requirement documents" })).toBeVisible({ timeout: 20_000 });
 
+    // NN-38 (prototype): the client approves the team's proposed Lead; no remove or leave buttons for them.
+    await tabs.getByRole("link", { name: "Team" }).click();
+    await expect(grace.page.getByRole("heading", { name: "No changes needed" })).toBeVisible({ timeout: 20_000 });
+    await hydrated(grace.page);
+    await expect(grace.page.getByRole("button", { name: /^Remove / })).toHaveCount(0);
+    await grace.page.getByRole("button", { name: "New Lead proposed" }).click();
+    await grace.page.getByRole("button", { name: "Approve", exact: true }).click();
+    await grace.page.getByRole("dialog").getByRole("button", { name: /^Approve Marco/ }).click();
+    // The Updates toast may still be showing: match this action's own toast.
+    await expect(grace.page.getByRole("status").filter({ hasText: "Approving Marco" })).toBeVisible();
+    await noSidewaysScroll(grace.page);
+
     // --- The Team Lead: the chat waits for work to start; they add meetings too ---
     await ada.page.goto(`${projectPath}/chat`);
     await expect(ada.page.getByRole("heading", { name: "The team chat opens when work starts" })).toBeVisible();
@@ -167,6 +179,16 @@ test.describe("Workspace tabs", () => {
     await ada.page.getByLabel(/^Time/).fill("10:00");
     await ada.page.getByRole("button", { name: "Add link" }).click();
     await expect(ada.page.getByRole("status").filter({ hasText: "This is a prototype" })).toBeVisible();
+    await noSidewaysScroll(ada.page);
+
+    // NN-38 (prototype): a member left, and the Lead picks a replacement.
+    await ada.page.getByRole("navigation", { name: "Project sections" }).getByRole("link", { name: "Team" }).click();
+    await expect(ada.page.getByRole("heading", { name: "No changes needed" })).toBeVisible({ timeout: 20_000 });
+    await ada.page.getByRole("button", { name: "A member left" }).click();
+    await expect(ada.page.getByRole("heading", { name: "1 open spot" })).toBeVisible();
+    await ada.page.getByRole("radio", { name: /Noah Patel/ }).click();
+    await ada.page.getByRole("button", { name: "Add to the team" }).click();
+    await expect(ada.page.getByRole("status").filter({ hasText: "Adding Noah Patel" })).toBeVisible();
     await noSidewaysScroll(ada.page);
 
     // --- A developer outside the project: Overview only, and a typed link is refused ---
