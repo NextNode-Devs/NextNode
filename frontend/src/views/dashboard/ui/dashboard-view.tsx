@@ -12,6 +12,7 @@ import { Button } from "@/shared/ui/shadcn/button";
 import { AppHeader } from "@/widgets/app-header";
 import { ConnectionStatus } from "@/widgets/connection-status";
 import { ConversationList } from "@/widgets/conversation-list";
+import { DashboardOverview, loadSampleOverview } from "@/widgets/dashboard-overview";
 import { DashboardShell } from "@/widgets/dashboard-shell";
 import { MyLeadCandidacies } from "@/widgets/my-lead-candidacies";
 import { MyProjects } from "@/widgets/my-projects";
@@ -56,7 +57,7 @@ async function Dashboard() {
       <TeamCandidacies show={show} />
     </Suspense>
   );
-  return (
+  const shell = (
     <DashboardShell
       account={account}
       sections={{
@@ -100,6 +101,13 @@ async function Dashboard() {
         portfolio: account.role === "developer" ? <PortfolioSection /> : <FindDevelopersSection />,
       }}
     />
+  );
+  return (
+    <>
+      {shell}
+      {/* Phase 2 prototype (NN-32 #88), below the Phase 1 sections and changing none of them. */}
+      <DashboardOverview accountRole={account.role} result={loadSampleOverview(account.role)} />
+    </>
   );
 }
 

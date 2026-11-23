@@ -27,3 +27,14 @@ export {
   type MessageNew,
   type SendError,
 } from "./model/frames";
+// Phase 2 prototype (NN-32 #88): the dashboard v2 inbox tabs.
+export {
+  INBOX_TAB_LABEL,
+  INBOX_TABS,
+  unreadByTab,
+  unreadText,
+  type InboxItem,
+  type InboxTab,
+} from "./model/inbox";
+// Prototype sample data: import only from Phase 2 prototype screens.
+export { sampleInbox } from "./model/sample";
