@@ -246,12 +246,17 @@ suggestion pool yet, so only the feed is filtered.
   portfolio, and the completeness bar on the edit page (see the Phase 2
   decisions of 21 Nov).
 - certificate upload (shown "as provided", never "verified")
-- "Import from GitHub" entry point
-- onboarding and upload screens work well on a phone
+- "Import from GitHub" entry point. *Prototype (22 Nov 2026):* a marked
+  entry in the Projects section of the portfolio form that shows the
+  under-construction toast; projects are still added by hand.
+- onboarding and upload screens work well on a phone (checked in e2e at
+  375 / 768 / 1280: onboarding in `auth.spec.ts`, the edit page and a
+  certificate upload in `portfolio.spec.ts`)
 
 Backend note: profile fields and a migration (a good first real backend
-slice); certificates through `FileStorage` (PDF, PNG, JPG); GitHub sign-in
-through Clerk.
+slice); certificates through `FileStorage` (PDF only, as built); GitHub
+import through a GitHub sign-in via Clerk, reading the developer's public
+repositories.
 
 **NN-40 · Disputes and support**. Aliya. Trace: Q5.
 - "Raise an issue with your Team Lead" entry in the workspace

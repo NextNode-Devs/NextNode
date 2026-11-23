@@ -11,6 +11,7 @@ import { StateCard } from "@/shared/ui/molecules/state-card";
 import { Button } from "@/shared/ui/shadcn/button";
 import { AppHeader } from "@/widgets/app-header";
 import { isInWorkspace, ProjectTabs, type WorkspaceTab } from "@/widgets/project-tabs";
+import { WorkspaceHelpCard } from "@/widgets/workspace-help";
 
 import { ChatTab, DocumentsTab, MembersOnly, UpdatesTab, MeetingsTab } from "./tab-content";
 import { TeamTab } from "./team-tab";
@@ -118,6 +119,7 @@ async function WorkspaceScreen({ projectId, tab }: Props) {
       ) : (
         <UpdatesTab {...props} now={now} />
       )}
+      <WorkspaceHelpCard project={project} />
     </div>
   );
 }
