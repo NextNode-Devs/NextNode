@@ -75,7 +75,16 @@ Acceptance: used by one screen; unit tests for the toast and modal
 - latest update per project (from NN-15b)
 
 Backend note: the dashboard lists and per-project role exist. "Needs
-attention" and the latest update need new read models.
+attention" and the latest update need new read models. The prototype
+(`widgets/dashboard-overview`, shapes in `entities/project/model/dashboard.ts`
+and `entities/conversation/model/inbox.ts`) expects one `GET /api/dashboard/`
+returning: each project with the viewer's role (`lead`, `assistant_lead`,
+`member`, `client`; `my_role` has no Assistant Lead yet) and `has_access`
+(false once they've left: send the title, status and role only, never its
+updates or chat); attention
+items (`kind`, project, role, text, action); and every conversation with its
+`unread_count` and a `tab` (`team`, `messages`, `applications`). Clients get
+no team chats. Direct messages are a new conversation kind.
 
 **NN-19 · Notification bell**. Kaushalya. Trace: Q2, Q3.
 - bell with a count and a dropdown list
