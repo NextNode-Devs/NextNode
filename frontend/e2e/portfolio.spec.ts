@@ -115,6 +115,23 @@ test.describe("portfolios and the developer directory", () => {
     await openReady(ada.page, "/dashboard");
     await ada.page.getByRole("region", { name: "Your portfolio" }).getByRole("link", { name: "Edit portfolio" }).click();
     await expect(ada.page.getByRole("heading", { level: 1, name: "Edit your portfolio" })).toBeVisible();
+    await fitsWidth(ada.page);
+
+    // NN-34 (#102): "Import from GitHub" is a prototype entry point; it says so and imports nothing.
+    await ada.page.getByRole("button", { name: "Import from GitHub" }).click();
+    await expect(
+      ada.page.getByRole("status").filter({ hasText: "Import from GitHub: this function is under construction." }),
+    ).toBeVisible();
+
+    // Certificate upload works at every width; the file saves straight away and is listed.
+    await ada.page.getByLabel("Choose a PDF certificate").setInputFiles({
+      name: "e2e-certificate.pdf",
+      mimeType: "application/pdf",
+      buffer: Buffer.from("%PDF-1.4\n%e2e\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF\n"),
+    });
+    await expect(ada.page.getByRole("status").filter({ hasText: "e2e-certificate.pdf uploaded." })).toBeVisible();
+    await expect(ada.page.getByRole("list", { name: "Your certificates" })).toContainText("e2e-certificate.pdf");
+    await fitsWidth(ada.page);
 
     const headline = ada.page.getByLabel("Headline");
     await headline.fill("Full-stack developer");
