@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 
 import { ContactSupportButton } from "@/features/contact-support";
+import { NotificationBell } from "@/features/notification-bell";
 import { isAuthConfigured } from "@/shared/config/env.public";
 
 import { AccountMenu } from "./account-menu";
@@ -49,6 +50,8 @@ export function AppHeader({ current, status }: Props) {
         </nav>
         <div className="ml-auto flex items-center gap-3 sm:ml-0">
           {status}
+          {/* Phase 2 prototype (NN-19 #89): sample notifications, marked inside the dropdown. */}
+          <NotificationBell />
           <ContactSupportButton variant="compact" />
           {isAuthConfigured() ? <AccountMenu /> : null}
         </div>
