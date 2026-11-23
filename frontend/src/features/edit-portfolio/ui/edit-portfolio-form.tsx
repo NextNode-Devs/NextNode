@@ -2,9 +2,9 @@
 
 import { Loader2Icon } from "lucide-react";
 import Link from "next/link";
-import { useRef, useState, useTransition, type FormEvent, type ReactNode } from "react";
+import { useMemo, useRef, useState, useTransition, type FormEvent, type ReactNode } from "react";
 
-import { PORTFOLIO_LIMITS, portfolioHref, type Portfolio } from "@/entities/developer";
+import { PORTFOLIO_LIMITS, portfolioHref, type Portfolio, type PortfolioCertificate } from "@/entities/developer";
 import { SkillsInput } from "@/entities/skill";
 import { FormField } from "@/shared/ui/molecules/form-field";
 import { Alert, AlertDescription, AlertTitle } from "@/shared/ui/shadcn/alert";
@@ -13,12 +13,20 @@ import { Input } from "@/shared/ui/shadcn/input";
 import { Textarea } from "@/shared/ui/shadcn/textarea";
 
 import { savePortfolio, type SaveFailure } from "../api/save-portfolio";
+import { completenessOf } from "../model/completeness";
 import { draftFrom, type FieldErrors, type PortfolioDraft, type ProjectDraft } from "../model/draft";
 import { validateDraft } from "../model/validate";
+import { CertificateUploads } from "./certificate-uploads";
+import { CompletenessBar } from "./completeness-bar";
+import { GithubImport } from "./github-import";
 import { ProjectFields } from "./project-fields";
 
 type Props = {
   portfolio: Portfolio;
+  /** The developer's uploaded certificates (NN-34). */
+  certificates?: PortfolioCertificate[];
+  /** The page's heading, shown just below the completeness bar. */
+  heading?: ReactNode;
   /** Injected in tests; the real action saves through the API and opens the portfolio. */
   save?: (draft: PortfolioDraft) => Promise<SaveFailure>;
 };
@@ -26,8 +34,10 @@ type Props = {
 const CHECK_FIELDS = "Some details need attention. Check the highlighted fields.";
 
 /** The owner's portfolio form. Errors show on each field, with a summary at the top. */
-export function EditPortfolioForm({ portfolio, save = savePortfolio }: Props) {
+export function EditPortfolioForm({ portfolio, certificates: saved = [], heading, save = savePortfolio }: Props) {
   const [draft, setDraft] = useState(() => draftFrom(portfolio));
+  const [certificates, setCertificates] = useState(saved);
+  const completeness = useMemo(() => completenessOf(draft, certificates.length), [draft, certificates.length]);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [failure, setFailure] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -74,7 +84,10 @@ export function EditPortfolioForm({ portfolio, save = savePortfolio }: Props) {
   };
 
   return (
-    <form onSubmit={onSubmit} noValidate aria-busy={pending} className="space-y-8">
+    <>
+      <CompletenessBar completeness={completeness} />
+      {heading}
+      <form onSubmit={onSubmit} noValidate aria-busy={pending} className="space-y-8">
       {failure ? (
         <Alert ref={summary} tabIndex={-1} variant="destructive" role="alert" className="outline-none">
           <AlertTitle>Your portfolio wasn&apos;t saved</AlertTitle>
@@ -117,6 +130,7 @@ export function EditPortfolioForm({ portfolio, save = savePortfolio }: Props) {
       </Section>
 
       <Section title="Projects" description="Link the work you're proud of. Clients see these first.">
+        <GithubImport />
         <ProjectFields
           projects={draft.projects}
           errors={errors}
@@ -151,19 +165,13 @@ export function EditPortfolioForm({ portfolio, save = savePortfolio }: Props) {
             />
           )}
         </FormField>
-        <FormField id="resume_url" label="Resume link" hint="A link to your CV, e.g. a PDF you host." error={errors.resume_url}>
-          {(aria) => (
-            <Input
-              {...aria}
-              type="url"
-              inputMode="url"
-              placeholder="https://example.com/your-cv.pdf"
-              maxLength={PORTFOLIO_LIMITS.url}
-              value={draft.resume_url}
-              onChange={(e) => update("resume_url", e.target.value)}
-            />
-          )}
-        </FormField>
+      </Section>
+
+      <Section
+        title="Certificates"
+        description="Upload certificates from your computer. They're shown on your portfolio as provided; NextNode doesn't verify them."
+      >
+        <CertificateUploads certificates={certificates} onChange={setCertificates} />
       </Section>
 
       <Section title="Availability">
@@ -196,7 +204,8 @@ export function EditPortfolioForm({ portfolio, save = savePortfolio }: Props) {
           {pending ? "Saving…" : "Save portfolio"}
         </Button>
       </div>
-    </form>
+      </form>
+    </>
   );
 }
 

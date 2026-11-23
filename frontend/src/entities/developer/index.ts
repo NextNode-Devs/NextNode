@@ -5,6 +5,8 @@ export {
   searchDevelopers,
   type ApiGetter,
 } from "./api/developer-api";
+export { deleteCertificate, getCertificateFile, getCertificates, uploadCertificate } from "./api/certificate-api";
+export { CERTIFICATE_LIMITS, type PortfolioCertificate } from "./model/certificate";
 export {
   apiDirectoryQuery,
   directoryQuery,

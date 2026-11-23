@@ -22,6 +22,7 @@ from nextnode.domain.projects import (
     TeamStatus,
 )
 from nextnode.infrastructure.persistence.models import (
+    ActivityCheckModel,
     ProjectModel,
     RequirementDocumentModel,
     SkillModel,
@@ -32,6 +33,7 @@ from nextnode.infrastructure.persistence.models import (
 APPROVED = TeamMembershipModel.Status.APPROVED
 LEAD = TeamMembershipModel.Role.LEAD
 MEMBER = TeamMembershipModel.Role.MEMBER
+ASSISTANT_LEAD = TeamMembershipModel.Role.ASSISTANT_LEAD
 
 
 def _approved_memberships() -> Prefetch:
@@ -62,6 +64,7 @@ def _to_record(row: ProjectModel) -> ProjectRecord:
             .order_by("created_at", "id")
         )
     lead = next((m for m in approved if m.role == LEAD), None)
+    assistant = next((m for m in approved if m.role == ASSISTANT_LEAD), None)
     project = Project(
         id=row.id,
         kind=ProjectKind(row.kind),
@@ -85,6 +88,7 @@ def _to_record(row: ProjectModel) -> ProjectRecord:
         lead_account_id=lead.account_id if lead else None,
         team_size=team_row.team_size,
         member_account_ids=tuple(m.account_id for m in approved if m.role != LEAD),
+        assistant_lead_account_id=assistant.account_id if assistant else None,
     )
     return ProjectRecord(project, team, row.owner.display_name, lead.account.display_name if lead else None)
 
@@ -163,9 +167,20 @@ class DjangoProjectRepository:
             for account_id in team.member_account_ids:
                 if account_id not in stored:
                     TeamMembershipModel.objects.create(team_id=team.id, account_id=account_id, role=MEMBER)
+            # At most one Assistant Lead (NN-39): step the old one down before naming the new one.
+            members = TeamMembershipModel.objects.filter(team_id=team.id).exclude(role=LEAD)
+            members.filter(role=ASSISTANT_LEAD).exclude(account_id=team.assistant_lead_account_id).update(
+                role=MEMBER
+            )
+            if team.assistant_lead_account_id is not None:
+                members.filter(account_id=team.assistant_lead_account_id).update(role=ASSISTANT_LEAD)
 
     def search(self, query: ProjectQuery, offset: int, limit: int) -> ProjectPage:
         rows = ProjectModel.objects.filter(deleted_at__isnull=True, status=ProjectModel.Status.POSTED)
+        # Hidden while its members are asked whether it is still active (NN-39).
+        rows = rows.exclude(
+            Exists(ActivityCheckModel.objects.filter(project=OuterRef("pk"), status="pending"))
+        )
         if query.kind is not None:
             rows = rows.filter(kind=query.kind.value)
         for key in query.tech_keys:

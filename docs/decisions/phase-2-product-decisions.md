@@ -189,6 +189,57 @@ student prototype, not a legal contract.
   developer filter component (NN-33 filters). Kaushalya reuses it in Hire
   Devs. The only thing she builds on is NN-31, which is done.
 
+## Decisions of 21 Nov 2026 (NN-39, Jayraj)
+
+- **New talent = account created in the past 15 days.** The "New talent" tag
+  on developer cards, and the "New talent only" filter, show a developer only
+  while their account is at most 15 days old. The API works it out from the
+  account's creation time on every request (`is_new_talent`, `joined_at` on
+  each directory card), so it expires by itself and nobody can set it. This
+  replaces the sample value the prototype used (#102 left the rule open).
+- **Assistant Lead and inactivity are built for real** (NN-39, #101), with
+  these choices:
+  - **Activity** is the Team Lead's messages in the project's workspace chat.
+    Milestones will count too once they exist. A developer project gets its
+    workspace chat when it starts, so only started projects are checked.
+  - **Election:** the first member to answer "Yes, still active" becomes
+    Assistant Lead if the team has none. If the Lead writes in the chat or
+    answers themselves, the check ends. After any answer the 30 days restart.
+  - **Closing** sets a new `Closed` status, allowed only on developer
+    projects that are `Posted` or `InProgress`. The Lead or the Assistant Lead
+    can also close the project themselves. The chat and history stay.
+  - **Assistant Lead permissions:** closing works today. Adding and removing
+    members, editing details and marking the project complete are shown as
+    "Planned" until those flows accept the Assistant Lead.
+  - **Scheduling:** `manage.py check_project_activity` runs the daily check
+    (`--every` keeps it running; `--as-of` simulates a date for demos).
+  - There is no project suggestion pool yet, so only the open-projects feed
+    hides projects waiting for an answer.
+
+## Decisions of 21 Nov 2026 (NN-34 follow-up, Jayraj)
+
+Built for real, not as a prototype:
+
+- **Certificates replace the resume link on portfolios.** On the edit page a
+  developer uploads certificates from their computer; on the portfolio
+  (`/developers/{id}`) everyone signed in sees the list, and clicking one
+  opens a preview in a pop-up with a close button at the top right.
+  - **PDF only** (checked by the extension and by the file's bytes); no DOCX,
+    so no document-conversion package is added. Up to 10 MB each and **10
+    per developer**. Shown "as provided"; NextNode never says a certificate is
+    verified.
+  - Files are private: served only through the API to a signed-in user, never
+    by a public link.
+- **The resume link is hidden, not deleted.** It no longer appears on the edit
+  or view page. The API still accepts it, and saving the form sends a stored
+  value back unchanged, so nothing is lost.
+- **Profile completeness bar** at the top of the edit page: the share of six
+  fields that are filled in, rounded **down** to a multiple of 10 % (4 of 6 is
+  66 %, shown as 60 %). The six: headline, bio, skills, at least one project
+  (title and repository link), GitHub username, at least one certificate.
+  "Available for work" is a yes/no switch and isn't counted. It updates as the
+  form changes.
+
 ## Still open
 
 1. ~~How the deposit and milestone payments add up~~: resolved 17 Nov.

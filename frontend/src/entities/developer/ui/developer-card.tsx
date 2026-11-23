@@ -13,7 +13,7 @@ const MAX_SKILLS_SHOWN = 6;
 
 type Props = {
   developer: Developer;
-  /** Planned profile fields (#102), shown when given: the New talent badge and the time zone. */
+  /** Planned profile fields (#102), shown when given: the time zone. */
   growth?: ProfileGrowth;
 };
 
@@ -41,7 +41,8 @@ export function DeveloperCard({ developer, growth }: Props) {
         <SkillList skills={shown} label={`${developer.display_name}'s skills`} />
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
           <AvailabilityBadge available={developer.is_available} />
-          {growth?.is_new_talent ? <NewTalentBadge /> : null}
+          {/* Real: the account was created in the past 15 days (rule of 21 Nov 2026). */}
+          {developer.is_new_talent ? <NewTalentBadge /> : null}
           {growth ? (
             <span className="inline-flex items-center gap-1">
               <Clock3Icon className="size-3" aria-hidden />

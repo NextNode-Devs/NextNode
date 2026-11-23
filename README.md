@@ -167,6 +167,13 @@ or sign-in loops, run `Get-NetTCPConnection -LocalPort 8000 -State Listen` in
 PowerShell, stop any leftover `python.exe` processes, and start the backend
 again. Stopping it with Ctrl+C in its own terminal avoids this.
 
+**Inactivity check (NN-39):** run `uv run python manage.py check_project_activity`
+once a day (cron or Windows Task Scheduler), or keep it running with
+`--every 3600`. `--as-of 2026-12-25T09:00:00+00:00` shows what a later date
+would do. It asks the members of developer projects whose Team Lead has not
+written in the project chat for 30 days, and closes those nobody answers for
+within 7 days.
+
 To see a socket event cross backend processes through Redis, run a second
 backend with `--port 8001`, point a browser at it (`NEXT_PUBLIC_WS_URL`), and from the
 first process run `uv run python manage.py send_realtime_test_event <account_id>`.
@@ -279,6 +286,24 @@ payment…" until Stripe's signed webhook (`POST /api/payments/stripe/webhook/`)
 confirms it, then the team is `Active` and the project `In progress`. A
 cancelled or failed payment charges nothing and can be retried. The payment
 pages are the client's alone. No real money moves.
+
+Built by NN-39 (#101): the Assistant Lead and inactivity on developer projects,
+with a real backend. The Team Lead chooses one member as Assistant Lead (shown
+on the roster with what they can and can't do). After 30 days without a message
+from the Lead in the project chat, members are asked "Is this project still
+active?" and the project leaves the open-projects feed; the first member to
+confirm becomes Assistant Lead; no answer in 7 days closes the project
+(`Closed`). The Lead or Assistant Lead can also close it. Also from NN-39: the
+"New talent" tag on developer cards now means the account was created in the
+past 15 days, worked out by the API. Details: `README-NN-39.md`.
+
+Built by the NN-34 follow-up (#102): developers upload PDF certificates on
+`/developers/me/edit` (10 MB each, 10 at most), which replace the resume link;
+`/developers/[id]` lists them and opens each in a preview pop-up. The edit page
+shows a profile completeness bar (six fields, in steps of 10 %). The resume
+link is hidden but kept. API: `GET /api/developers/{id}/certificates/`,
+`POST` and `DELETE /api/developers/me/certificates/`, and
+`GET /api/developers/{id}/certificates/{cid}/file/`.
 
 Not built yet:
 workspace extras, milestones and the final payment (see `docs/backlog.md`). CI is active; there is no deployment target yet

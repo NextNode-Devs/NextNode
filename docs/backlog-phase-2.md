@@ -223,15 +223,37 @@ Backend note: an `AssistantLead` role on membership; permission checks in the
 shared policy; a daily scheduled inactivity check; the feed and suggestion
 queries exclude flagged projects.
 
+*Built with a real backend (21 Nov 2026):* the `assistant_lead` membership
+role; `project_team` read/steward rules in the shared policy; activity is the
+Team Lead's messages in the project's workspace chat (milestones will count
+once built), so only started projects are checked; `manage.py
+check_project_activity` is the daily job (`--every` keeps it running,
+`--as-of` simulates a date); the feed excludes projects waiting for an answer;
+the first member to confirm becomes Assistant Lead; no answer in 7 days sets
+the new `Closed` status. The Lead or Assistant Lead may also close the project.
+Planned, shown as such on the screen: the Assistant Lead adding or removing
+members, editing details and marking the project complete. There is no project
+suggestion pool yet, so only the feed is filtered.
+
 **NN-34 · Developer profile growth**. Jay. Trace: Q4.
-- time-zone field, new-talent flag, profile completeness bar
+- time-zone field, new-talent flag, profile completeness bar (new talent
+  decided 21 Nov 2026: automatic for 15 days after the account is created,
+  served by the directory API; see NN-39). *Built for real (21 Nov 2026):*
+  PDF certificate upload replacing the resume link, with a preview on the
+  portfolio, and the completeness bar on the edit page (see the Phase 2
+  decisions of 21 Nov).
 - certificate upload (shown "as provided", never "verified")
-- "Import from GitHub" entry point
-- onboarding and upload screens work well on a phone
+- "Import from GitHub" entry point. *Prototype (22 Nov 2026):* a marked
+  entry in the Projects section of the portfolio form that shows the
+  under-construction toast; projects are still added by hand.
+- onboarding and upload screens work well on a phone (checked in e2e at
+  375 / 768 / 1280: onboarding in `auth.spec.ts`, the edit page and a
+  certificate upload in `portfolio.spec.ts`)
 
 Backend note: profile fields and a migration (a good first real backend
-slice); certificates through `FileStorage` (PDF, PNG, JPG); GitHub sign-in
-through Clerk.
+slice); certificates through `FileStorage` (PDF only, as built); GitHub
+import through a GitHub sign-in via Clerk, reading the developer's public
+repositories.
 
 **NN-40 · Disputes and support**. Aliya. Trace: Q5.
 - "Raise an issue with your Team Lead" entry in the workspace

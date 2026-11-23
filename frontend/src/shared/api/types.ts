@@ -2,7 +2,7 @@
 export type ApiError = { code: string; message: string; fields?: Record<string, string[]> };
 export type ApiResult<T> = { ok: true; data: T } | { ok: false; error: ApiError };
 
-export type HttpMethod = "GET" | "POST" | "PUT" | "PATCH";
+export type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
 /** Turns a fetch outcome into an `ApiResult`. Shared by the server and browser clients. */
 export async function readEnvelope<T>(response: Response): Promise<ApiResult<T>> {

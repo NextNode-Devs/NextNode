@@ -30,7 +30,21 @@ In short:
   complete/close; cannot remove the Lead or override them). After 30 days of
   Lead inactivity members are asked to confirm the project is active (hidden
   from the open-projects feed and suggestions meanwhile); no answer in 7 days
-  closes it. Prototype screens; backend later.
+  closes it. **Built for real in NN-39 (#101, 21 Nov 2026):** activity = the
+  Lead's messages in the project's workspace chat (milestones later); the
+  first member to confirm becomes Assistant Lead if there is none; the project
+  gets the `Closed` status (developer projects only); the daily job is
+  `manage.py check_project_activity`. Only closing works for the Assistant
+  Lead today; their other permissions are shown as "Planned".
+- **Certificates and completeness (NN-34, 21 Nov 2026, real):** certificates
+  (PDF only, 10 MB, 10 per developer, never "verified") replace the resume
+  link on portfolios, with an in-page preview; the resume link is hidden but
+  kept. The edit page shows a completeness bar over six fields (headline,
+  bio, skills, a project, GitHub username, a certificate), rounded down to a
+  multiple of 10 %.
+- **New talent tag (21 Nov 2026):** shown on a developer only while their
+  account is **at most 15 days old** (`NEW_TALENT_DAYS`), worked out by the
+  API from the account's creation time; never self-declared or stored.
 - **Deposit:** the client picks milestone 1 or 2 (offers have at least 3
   milestones) as the one whose approval releases it to the team; held and
   refundable minus Stripe's processing fee until then. Amounts unchanged:

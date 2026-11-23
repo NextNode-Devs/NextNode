@@ -91,6 +91,7 @@ from nextnode.application.teams.use_cases import TeamUseCases
 from nextnode.domain.projects import UploadLimits
 from nextnode.infrastructure.access_rules import build_access_policy
 from nextnode.infrastructure.auth.clerk import ClerkTokenVerifier, UnconfiguredTokenVerifier
+from nextnode.infrastructure.certificate_wiring import CertificateWiring
 from nextnode.infrastructure.payments.fake_checkout import FakeCheckoutGateway
 from nextnode.infrastructure.payments.stripe_gateway import StripeGateway, UnconfiguredPaymentGateway
 from nextnode.infrastructure.persistence.accounts import (
@@ -126,12 +127,13 @@ from nextnode.infrastructure.persistence.start_gate import (
 from nextnode.infrastructure.persistence.teams import DjangoTeamCandidacies, DjangoTeamMembers
 from nextnode.infrastructure.realtime.conversation_events import OnCommitConversationEvents
 from nextnode.infrastructure.realtime.publisher import ChannelsEventPublisher
+from nextnode.infrastructure.stewardship_wiring import StewardshipWiring
 from nextnode.infrastructure.storage.links import DjangoLinkSigner
 from nextnode.infrastructure.storage.local import LocalPrivateStorage
 
 
 @dataclass(frozen=True)
-class Container:
+class Container(StewardshipWiring, CertificateWiring):  # NN-39, NN-34: wiring kept in their own modules
     token_verifier: TokenVerifier
     database: DatabaseProbe
     payment_gateway: PaymentGateway
@@ -202,7 +204,7 @@ class Container:
 
     @property
     def search_developers(self) -> SearchDevelopers:
-        return SearchDevelopers(self.developer_search, self.access_policy)
+        return SearchDevelopers(self.developer_search, self.access_policy, self.clock)
 
     # --- hiring conversations (#4) ---------------------------------------------
 
