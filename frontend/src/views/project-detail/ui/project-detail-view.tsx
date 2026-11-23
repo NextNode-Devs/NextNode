@@ -18,6 +18,7 @@ import { isInWorkspace, ProjectTabs, workspacePrivacyNote } from "@/widgets/proj
 import { RequirementDocuments } from "@/widgets/requirement-documents";
 import { TeamRoster } from "@/widgets/team-roster";
 
+import { HireDevsLink } from "./hire-devs-link";
 import { PaymentsLink } from "./payments-link";
 import { PrimaryAction } from "./primary-action";
 import { ProjectChats } from "./project-chats";
@@ -161,6 +162,7 @@ async function ProjectScreen({ projectId, notice }: Props) {
           <Suspense fallback={<LoadingCards count={1} label="Loading the team" />}>
             <TeamRoster project={project} />
           </Suspense>
+          <HireDevsLink project={project} />
           {project.kind === "client" ? <LegalTermsCard /> : null}
         </aside>
       </div>
