@@ -99,9 +99,15 @@ function Roster({ project, team }: { project: Project; team: TeamProfile }) {
         <>
           <SetTeamSize projectId={project.id} size={team.size} headcount={team.members.length} />
           {team.open_spots > 0 ? (
-            <Button asChild variant="outline" size="sm">
-              <Link href="/developers">Find developers to invite</Link>
-            </Button>
+            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+              <Button asChild variant="outline" size="sm">
+                <Link href="/developers">Find developers to invite</Link>
+              </Button>
+              {/* NN-33 prototype: suggested developers, scored by the matching rule. */}
+              <Button asChild variant="outline" size="sm">
+                <Link href={`/projects/${project.id}/hire`}>Suggested developers</Link>
+              </Button>
+            </div>
           ) : null}
         </>
       ) : null}
