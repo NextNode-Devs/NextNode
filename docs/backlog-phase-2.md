@@ -202,6 +202,9 @@ Backend note: spot type on the team. Team size is still 5–7 including the Lead
 
 **NN-38 · Lead and member replacement (client projects)**. Hardik (flow),
 Aliya (re-sign screen and the access-lost state). Trace: Q2.
+*Flow prototype 21 Nov 2026 (Hardik): the Team tab on client projects,
+`/projects/[id]/team` (`widgets/team-changes`, sample data in
+`entities/team/model/replacement-sample.ts`).*
 - leave or remove a member; the Lead picks a replacement
 - "Lead unresponsive" banner after 3 days
 - the team proposes a new Lead → client approves → the new Lead signs the
