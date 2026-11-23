@@ -92,7 +92,14 @@ no team chats. Direct messages are a new conversation kind.
 - notification settings page (with Jay)
 
 Backend note: a Notification model, pushed over the existing WebSocket, plus
-email through the provider.
+email through the provider. The prototype (`entities/notification`, the bell
+in `features/notification-bell`, `/settings/notifications`) expects:
+`GET /api/notifications/` (newest first, each with `category`, `title`,
+`body`, `created_at`, `read`) and a way to mark them read; settings per
+category (`hiring`, `team`, `projects`, `payments`, `messages`), each with
+`in_app` and `email` on or off, through `GET/PUT /api/notifications/settings/`,
+applied on the server before a push or an email is sent. Alerts outside the
+tab (browser notifications) are planned only.
 
 **NN-26 · Time-limited invitation links**. Kaushalya.
 - "Copy invite link" with an expiry shown
