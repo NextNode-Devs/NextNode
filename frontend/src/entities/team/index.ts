@@ -35,4 +35,26 @@ export {
   type AssistantLeadPermission,
   type Stewardship,
 } from "./model/stewardship";
+// Phase 2 prototype (NN-38): Lead and member replacement on client projects, not in the API yet.
+export {
+  activeSeats,
+  daysBetween,
+  isLeadUnresponsive,
+  LEAD_UNRESPONSIVE_DAYS,
+  openSpots,
+  SEAT_STATE_LABEL,
+  SITUATION_LABEL,
+  teamViewer,
+  type LeadProposal,
+  type ReplacementCandidate,
+  type SeatState,
+  type TeamChange,
+  type TeamChangeKind,
+  type TeamChangesSnapshot,
+  type TeamSeat,
+  type TeamSituation,
+  type TeamViewer,
+} from "./model/replacement";
+// Prototype sample data: import only from Phase 2 prototype screens.
+export { SAMPLE_TEAM_SITUATIONS, sampleTeamChanges } from "./model/replacement-sample";
 export { TeamLiveRefresh } from "./ui/team-live-refresh";
