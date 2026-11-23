@@ -3,7 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Suspense, type ReactNode } from "react";
 
-import { parseDirectoryParams, SAMPLE_HIRE_DEVS_POOL } from "@/entities/developer";
+import { NO_FILTERS, parseDirectoryParams, SAMPLE_HIRE_DEVS_POOL } from "@/entities/developer";
 import { getProject, projectHref, TechStack, type Project } from "@/entities/project";
 import { getViewer, routeFor } from "@/entities/viewer";
 import { DeveloperFilters } from "@/features/filter-developers";
@@ -15,9 +15,11 @@ import { StateCard } from "@/shared/ui/molecules/state-card";
 import { Button } from "@/shared/ui/shadcn/button";
 import { Skeleton } from "@/shared/ui/shadcn/skeleton";
 import { AppHeader } from "@/widgets/app-header";
+import { SuggestedDevelopers } from "@/widgets/suggested-developers";
 
 import { hireDevsAccess, hireDevsPath, rankDevelopers } from "../model/hire-devs";
 import { HireDevsResults } from "./hire-devs-results";
+import { MatchActions } from "./match-actions";
 
 type SearchParams = Record<string, string | string[] | undefined>;
 type Props = { projectId: Promise<string>; searchParams: Promise<SearchParams> };
@@ -132,6 +134,12 @@ async function HireDevsScreen({ projectId, searchParams }: Props) {
         </Link>
         .
       </PrototypeNotice>
+      {/* NN-33 (Hardik): the best few, before any filter. */}
+      <SuggestedDevelopers
+        ranked={rankDevelopers(SAMPLE_HIRE_DEVS_POOL, project, NO_FILTERS)}
+        requiredCount={project.tech_stack.length}
+        actions={(entry) => <MatchActions name={entry.developer.display_name} />}
+      />
       <DeveloperFilters initial={filters} basePath={basePath} />
       <HireDevsResults matches={matches} filters={filters} basePath={basePath} requiredCount={project.tech_stack.length} />
     </>
