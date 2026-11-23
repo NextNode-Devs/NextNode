@@ -18,6 +18,7 @@ import { draftFrom, type FieldErrors, type PortfolioDraft, type ProjectDraft } f
 import { validateDraft } from "../model/validate";
 import { CertificateUploads } from "./certificate-uploads";
 import { CompletenessBar } from "./completeness-bar";
+import { GithubImport } from "./github-import";
 import { ProjectFields } from "./project-fields";
 
 type Props = {
@@ -129,6 +130,7 @@ export function EditPortfolioForm({ portfolio, certificates: saved = [], heading
       </Section>
 
       <Section title="Projects" description="Link the work you're proud of. Clients see these first.">
+        <GithubImport />
         <ProjectFields
           projects={draft.projects}
           errors={errors}
