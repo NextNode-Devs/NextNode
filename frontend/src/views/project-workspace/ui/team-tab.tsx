@@ -38,6 +38,27 @@ export function TeamTab({ project }: { project: Project }) {
         are under construction and save nothing.
       </PrototypeNotice>
       <TeamChangesPanel projectId={project.id} viewer={viewer} />
+      <NextInFlow project={project} />
     </div>
+  );
+}
+
+/** NN-38 (Aliya): the screens after the Team tab: the new Lead signs, and access-lost. */
+function NextInFlow({ project }: { project: Project }) {
+  const base = `/projects/${project.id}`;
+  return (
+    <section aria-labelledby="next-in-flow" className="space-y-2 rounded-xl border p-4">
+      <h2 id="next-in-flow" className="text-sm font-medium">
+        Next in this flow
+      </h2>
+      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+        <Button asChild size="sm" variant="outline">
+          <Link href={`${base}/team/sign-offer`}>The new Lead signs the offer</Link>
+        </Button>
+        <Button asChild size="sm" variant="outline">
+          <Link href={`${base}/no-access`}>What someone who left sees</Link>
+        </Button>
+      </div>
+    </section>
   );
 }
