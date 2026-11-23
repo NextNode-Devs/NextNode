@@ -83,3 +83,16 @@ export {
   sampleLeadResign,
 } from "./model/lead-resign-sample";
 export { TeamLiveRefresh } from "./ui/team-live-refresh";
+// Phase 2 prototype (NN-36 #99): junior spots.
+export {
+  clampJunior,
+  juniorCount,
+  juniorSpotsLine,
+  NEW_TALENT_DIRECTORY_HREF,
+  newTalentHireDevsHref,
+  spotsWithJunior,
+  type OpenSpot,
+  type SpotType,
+} from "./model/spots";
+// Prototype sample data: import only from Phase 2 prototype screens.
+export { sampleJuniorCount } from "./model/sample";

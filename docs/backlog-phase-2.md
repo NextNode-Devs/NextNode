@@ -173,11 +173,25 @@ up to the total; a deposit % field; the deposit computed from it; the
 release milestone (1 or 2) stored on the acceptance.
 
 **NN-16b · Milestone delivery and review**. Kai (`KaiNabea`). Trace: Q1.
+*Prototype complete 23 Nov 2026.*
 - Lead submits milestone work
 - client approves or requests a revision (loop)
 - milestone states `Pending Deposit → In Progress → Under Review → Completed`
+- built: `/projects/[id]/milestones`, a "Milestones" tab on client projects
+  (client: approve or request changes; Team Lead: submit or resubmit with a
+  note and an optional https link; members: read only). Each milestone shows
+  its review history; approving the deposit milestone says, labelled
+  "Planned", that the deposit is released (NN-37). Actions move the sample on
+  screen and show the under-construction toast; nothing is saved
 
 Backend note: milestone transitions as domain methods, review history.
+`Milestone.submit(note, link)` (Lead, from In progress),
+`.approve()` and `.request_revision(note)` (client, from Under review); each
+writes one review event (`kind`, `note`, `link_url`, author, time), the
+history the screen lists. The prototype assumes approving a milestone starts
+the next one (`not_started → in_progress`); confirm with the Team Lead.
+Approving the deposit-release milestone triggers the planned release (NN-37).
+Types and the pure transition rules: `entities/milestone/model/review.ts`.
 
 **NN-37 · Payments: planned deposit holding, receipts, cancel and refund**.
 Tavoiri (Team Lead; all Stripe work). Trace: Q1, Q5.
@@ -198,13 +212,28 @@ the charge's balance transaction and refund the rest. A Team Lead decision;
 not built in Phase 2. The live deposit is unchanged.
 
 **NN-17 · Final approval, archive, portfolio update**. Kai.
+*Prototype complete 23 Nov 2026.*
 - final approval screen
 - archived project view, read-only, conversations greyed
 - "Shipped projects" on the portfolio, without confidential projects
 - code ownership "to be defined"
+- built: a "Finishing the project" card on client projects (client, Team Lead,
+  members) opens `/projects/[id]/final-approval` (the client approves and pays
+  the final payment, labelled "Planned"; the Lead and members see where it
+  stands) and `/projects/[id]/archived` (read-only; each viewer sees only the
+  conversations they were in, greyed with the composer closed). "Shipped
+  projects" is a prototype section on `/developers/[id]`; its owner is told
+  how many confidential projects are kept off. Confidential is a sample flag
+  until NN-41 adds it to Project
 
 Backend note: FinalPayment, project `Completed → Archived`, team `Archived`,
-portfolio entries.
+portfolio entries. The prototype assumes `InProgress → Completed` once every
+milestone is approved, and that final approval charges the final payment and
+archives the project and team in one step (`archived_at` = approval time).
+Portfolio entries are written for every team member then, never for a
+confidential project. Planned shapes: `ProjectClosing`
+(`entities/project/model/closing.ts`) and `ShippedProject`
+(`entities/developer/model/shipped-project.ts`).
 
 **NN-35 · Ratings and references**. Kai. Trace: Q4.
 - rating form after completion: the client rates the Lead and the team; the
@@ -213,15 +242,35 @@ portfolio entries.
   the client rating and the Team Lead rating, each with its count; "New, no
   ratings yet" when empty
 - "Team Lead reference" on a member's profile
+- built: `/projects/[id]/ratings`, from the "Finishing the project" card
+  (client: rates the Lead and the team as a whole; Team Lead: rates each
+  member, with an optional Team Lead reference; members: told who rates
+  them). On `/developers/[id]` a rating chip under the headline opens the
+  breakdown card, and a "Team Lead references" prototype section lists what
+  Leads wrote. Sending ratings shows the under-construction toast
 
 Backend note: a Rating model, one per rater per ratee per project, only after
-`Completed`; averages and counts per rater type.
+`Completed`; averages and counts per rater type. The client's "team" rating
+counts toward each member's client average. A rating's optional comment from
+a Team Lead to a member is that member's Team Lead reference (public on the
+portfolio); other comments are private to the person rated. Ratings can't be
+edited once sent. Planned shapes: `entities/rating/model/rating.ts`.
 
 **NN-36 · Junior and new-developer spots**. Kai. Trace: Q4.
 - the Lead marks some open spots as junior
 - the new-talent badge and filter link to NN-33 and NN-34
+- built: a "Junior spots" prototype card on the project page beside the team
+  roster. The Team Lead of a recruiting team switches each open spot to
+  junior (saving shows the under-construction toast) and opens Hire Devs or
+  the directory filtered to new talent (`?new_talent=true`); everyone else
+  sees how many open spots are junior, with the "New talent" badge. The open
+  spots are the team's real ones; which are junior is sample data
 
 Backend note: spot type on the team. Team size is still 5–7 including the Lead.
+A junior spot is one of the open spots, never an extra one, so the Lead can
+mark at most `open_spots`. The prototype does not stop a developer who is not
+new talent from taking a junior spot; whether the API should is open (Team
+Lead to decide). Planned shape: `entities/team/model/spots.ts`.
 
 **NN-38 · Lead and member replacement (client projects)**. Hardik (flow),
 Aliya (re-sign screen and the access-lost state). Trace: Q2.

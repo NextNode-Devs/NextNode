@@ -13,6 +13,7 @@ import { AppHeader } from "@/widgets/app-header";
 import { isInWorkspace, ProjectTabs, type WorkspaceTab } from "@/widgets/project-tabs";
 import { WorkspaceHelpCard } from "@/widgets/workspace-help";
 
+import { MilestonesTab } from "./milestones-tab";
 import { ChatTab, DocumentsTab, MembersOnly, UpdatesTab, MeetingsTab } from "./tab-content";
 import { TeamTab } from "./team-tab";
 
@@ -24,9 +25,10 @@ const TITLE: Record<WorkspaceTab, string> = {
   meetings: "Meetings",
   updates: "Updates",
   team: "Team",
+  milestones: "Milestones",
 };
 
-/** `/projects/[id]/{chat,documents,meetings,updates,team}`: the project's workspace tabs (#92, NN-38). */
+/** `/projects/[id]/{chat,documents,meetings,updates,team,milestones}`: the project's workspace tabs (#92, NN-38, NN-16b). */
 export function ProjectWorkspaceView(props: Props) {
   return (
     <>
@@ -116,6 +118,8 @@ async function WorkspaceScreen({ projectId, tab }: Props) {
         <MeetingsTab {...props} now={now} />
       ) : tab === "team" ? (
         <TeamTab project={project} />
+      ) : tab === "milestones" ? (
+        <MilestonesTab project={project} viewerName={route.viewer.account.display_name} />
       ) : (
         <UpdatesTab {...props} now={now} />
       )}
