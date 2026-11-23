@@ -1,53 +1,58 @@
 import { describe, expect, it } from "vitest";
 
-import { matchDeveloper, suggestDevelopers } from "./match";
+import { sampleProfileGrowth } from "./sample";
+import { compareMatches, matchReason, scoreMatch, type DeveloperMatch } from "./match";
 
-const s = (label: string) => ({ key: label.toLowerCase(), label });
-const STACK = ["React", "Django", "PostgreSQL", "TypeScript", "Docker"].map(s);
+const skill = (label: string) => ({ key: label.toLowerCase(), label });
+const stack = ["React", "TypeScript", "Django", "PostgreSQL", "Docker"].map(skill);
 
-const dev = (account_id: number, display_name: string, skills: string[], is_available = true) => ({
-  account_id,
-  display_name,
-  skills: skills.map(s),
-  is_available,
-});
-
-describe("matchDeveloper", () => {
-  it("counts required skills plus availability, and says why", () => {
-    const match = matchDeveloper(STACK, dev(1, "Ada", ["React", "Django", "PostgreSQL", "TypeScript", "Figma"]));
-    expect(match.score).toBe(83); // (4 + 1) / (5 + 1)
+describe("scoreMatch", () => {
+  it("counts the required skills the developer has, plus availability, and says why", () => {
+    const match = scoreMatch(stack, { skills: ["React", "TypeScript", "Django", "PostgreSQL"].map(skill), is_available: true });
     expect(match.reason).toBe("4 of 5 required skills, available now");
-    expect(match.missing.map((m) => m.label)).toEqual(["Docker"]);
+    expect(match.score).toBe(83); // 5 of 6 points
+    expect(match.missing_skills.map((s) => s.label)).toEqual(["Docker"]);
   });
 
-  it("scores lower when not available and says so", () => {
-    const match = matchDeveloper(STACK, dev(1, "Ada", ["React"], false));
-    expect(match.score).toBe(17);
-    expect(match.reason).toBe("1 of 5 required skills, not available right now");
+  it("compares skills case-insensitively and ignores skills the project doesn't need", () => {
+    const match = scoreMatch([skill("React")], { skills: [{ key: "REACT", label: "React" }, skill("Go")], is_available: false });
+    expect(match.matched_skills).toHaveLength(1);
+    expect(match.reason).toBe("1 of 1 required skill, not available right now");
+    expect(match.score).toBe(50);
   });
 
-  it("compares skills without caring about case or duplicates", () => {
-    const match = matchDeveloper([s("React"), { key: "REACT ", label: "React" }], dev(1, "Ada", ["react"]));
-    expect(match.required).toBe(1);
-    expect(match.reason).toBe("1 of 1 required skill, available now");
+  it("counts a skill listed twice on the project once", () => {
+    expect(scoreMatch([skill("React"), skill("react")], { skills: [], is_available: false }).required_count).toBe(1);
+  });
+
+  it("scores on availability alone when the project lists no skills", () => {
+    expect(scoreMatch([], { skills: [skill("React")], is_available: true })).toMatchObject({
+      score: 100,
+      reason: "No required skills listed, available now",
+    });
   });
 });
 
-describe("suggestDevelopers", () => {
-  const people = [
-    dev(1, "Ada", ["React", "Django"]),
-    dev(2, "Bea", ["React", "Django", "Docker"]),
-    dev(3, "Cy", ["Rust"]),
-    dev(4, "Dee", ["React", "Django", "Docker"], false),
-    dev(5, "Eve", ["React", "Django", "Docker"]),
-  ];
-
-  it("ranks by score (ties: more skills first), leaves out anyone with no required skill or on the team", () => {
-    const result = suggestDevelopers(STACK, people, [5]);
-    expect(result.map((r) => r.developer.display_name)).toEqual(["Bea", "Dee", "Ada"]);
+describe("matchReason", () => {
+  it("reads naturally for none and all", () => {
+    expect(matchReason(0, 3, false)).toBe("0 of 3 required skills, not available right now");
+    expect(matchReason(3, 3, true)).toBe("3 of 3 required skills, available now");
   });
+});
 
-  it("keeps to the limit", () => {
-    expect(suggestDevelopers(STACK, people, [], 2)).toHaveLength(2);
+describe("compareMatches", () => {
+  const entry = (name: string, skills: string[], available: boolean): DeveloperMatch => {
+    const developer = { account_id: 1, display_name: name, headline: "", skills: skills.map(skill), is_available: available, project_count: 0, joined_at: "2026-05-01T12:00:00Z", is_new_talent: false };
+    return { developer, growth: sampleProfileGrowth(1), match: scoreMatch(stack, developer) };
+  };
+
+  it("puts the best match first, then more skills, then by name", () => {
+    const sorted = [
+      entry("Cy", ["React"], true), // 2 points
+      entry("Bo", ["React", "Docker"], false), // 2 points, more skills
+      entry("Al", ["React"], true), // 2 points
+      entry("Di", ["React", "Docker", "Django"], true), // 4 points
+    ].sort(compareMatches);
+    expect(sorted.map((m) => m.developer.display_name)).toEqual(["Di", "Bo", "Al", "Cy"]);
   });
 });

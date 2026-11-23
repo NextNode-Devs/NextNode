@@ -1,68 +1,69 @@
 /**
- * Rule-based developer matching (NN-33, Phase 2 prototype). Rules:
- * `docs/decisions/phase-2-product-decisions.md`, "Matching": the score is the
- * project's required skills the developer has, plus availability, and it
- * always shows its reason. Suggestions only; the Lead chooses. The planned
- * backend computes the same score on the server; AI matching is future work.
+ * Rule-based developer matching for Hire Devs (Phase 2, NN-33 #91; stakeholder Q4).
+ *
+ * PROTOTYPE: the planned `GET /api/projects/{id}/developer-matches/` computes
+ * this on the server from the project's tech stack and each developer's skills
+ * and availability. Until then the prototype screen runs the same rule in the
+ * browser over sample developers. No AI: the score is only the required skills
+ * the developer has, plus availability, and it always shows its reason.
  */
-import type { Skill } from "./developer";
+import type { DeveloperCard, Skill } from "./developer";
+import type { ProfileGrowth } from "./profile-growth";
 
-/** How many suggestions the panel shows. */
-export const SUGGESTION_LIMIT = 5;
-
-export type DeveloperMatch = {
-  /** 0–100: (required skills they have + 1 if available) / (required skills + 1). */
+export type MatchScore = {
+  /** 0–100: one point per required skill the developer has, one for being available. */
   score: number;
-  matched: Skill[];
-  missing: Skill[];
-  required: number;
-  available: boolean;
-  /** Always shown with the score, e.g. "4 of 5 required skills, available now". */
+  required_count: number;
+  matched_skills: Skill[];
+  /** Required skills the developer doesn't list: what they could learn. */
+  missing_skills: Skill[];
+  is_available: boolean;
+  /** One plain sentence, e.g. "4 of 5 required skills, available now". */
   reason: string;
 };
 
-type Matchable = { skills: Skill[]; is_available: boolean };
+/** One result in the planned matches response. */
+export type DeveloperMatch = {
+  developer: DeveloperCard;
+  /** Planned profile fields (#102): the time zone. New talent is `developer.is_new_talent`. */
+  growth: ProfileGrowth;
+  match: MatchScore;
+};
 
 const keyOf = (skill: Skill) => skill.key.trim().toLocaleLowerCase("en");
 
-export function matchDeveloper(required: Skill[], developer: Matchable): DeveloperMatch {
-  const has = new Set(developer.skills.map(keyOf));
+/** "4 of 5 required skills, available now". */
+export function matchReason(matched: number, required: number, available: boolean): string {
+  const skills =
+    required === 0
+      ? "No required skills listed"
+      : `${matched} of ${required} required ${required === 1 ? "skill" : "skills"}`;
+  return `${skills}, ${available ? "available now" : "not available right now"}`;
+}
+
+/** Scores one developer against a project's required skills (its tech stack). */
+export function scoreMatch(required: Skill[], developer: Pick<DeveloperCard, "skills" | "is_available">): MatchScore {
+  const theirs = new Set(developer.skills.map(keyOf));
+  // The same skill listed twice on the project counts once.
   const unique = [...new Map(required.map((skill) => [keyOf(skill), skill])).values()];
-  const matched = unique.filter((skill) => has.has(keyOf(skill)));
-  const missing = unique.filter((skill) => !has.has(keyOf(skill)));
-  const available = developer.is_available;
-  const score = Math.round((100 * (matched.length + (available ? 1 : 0))) / (unique.length + 1));
-  const skills = `${matched.length} of ${unique.length} required ${unique.length === 1 ? "skill" : "skills"}`;
+  const matched = unique.filter((skill) => theirs.has(keyOf(skill)));
+  const missing = unique.filter((skill) => !theirs.has(keyOf(skill)));
+  const points = matched.length + (developer.is_available ? 1 : 0);
   return {
-    score,
-    matched,
-    missing,
-    required: unique.length,
-    available,
-    reason: `${skills}, ${available ? "available now" : "not available right now"}`,
+    score: Math.round((100 * points) / (unique.length + 1)),
+    required_count: unique.length,
+    matched_skills: matched,
+    missing_skills: missing,
+    is_available: developer.is_available,
+    reason: matchReason(matched.length, unique.length, developer.is_available),
   };
 }
 
-/**
- * The best matches, highest score first: only developers with at least one
- * required skill, never anyone in `exclude` (the team, the viewer).
- */
-export function suggestDevelopers<T extends Matchable & { account_id: number; display_name: string }>(
-  required: Skill[],
-  developers: T[],
-  exclude: Iterable<number> = [],
-  limit = SUGGESTION_LIMIT,
-): { developer: T; match: DeveloperMatch }[] {
-  const skip = new Set(exclude);
-  return developers
-    .filter((developer) => !skip.has(developer.account_id))
-    .map((developer) => ({ developer, match: matchDeveloper(required, developer) }))
-    .filter(({ match }) => match.matched.length > 0)
-    .sort(
-      (a, b) =>
-        b.match.score - a.match.score ||
-        b.match.matched.length - a.match.matched.length ||
-        a.developer.display_name.localeCompare(b.developer.display_name, "en"),
-    )
-    .slice(0, limit);
+/** Best match first: score, then more required skills, then name, so the order is stable. */
+export function compareMatches(a: DeveloperMatch, b: DeveloperMatch): number {
+  return (
+    b.match.score - a.match.score ||
+    b.match.matched_skills.length - a.match.matched_skills.length ||
+    (a.developer.display_name < b.developer.display_name ? -1 : a.developer.display_name > b.developer.display_name ? 1 : 0)
+  );
 }

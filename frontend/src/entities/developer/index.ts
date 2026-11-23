@@ -36,11 +36,18 @@ export {
   type ProfileGrowth,
   type TimeZoneValue,
 } from "./model/profile-growth";
-// Phase 2 prototype (NN-33): rule-based matching, computed in the browser until the API scores it.
-export { matchDeveloper, suggestDevelopers, SUGGESTION_LIMIT, type DeveloperMatch } from "./model/match";
+// Phase 2 prototype (#91): rule-based Hire Devs matching.
+export {
+  compareMatches,
+  matchReason,
+  scoreMatch,
+  type DeveloperMatch,
+  type MatchScore,
+} from "./model/match";
 // Prototype sample data: import only from Phase 2 prototype screens.
-export { sampleProfileGrowth } from "./model/sample";
+export { SAMPLE_HIRE_DEVS_POOL, sampleProfileGrowth } from "./model/sample";
 export { NewTalentBadge } from "./ui/new-talent-badge";
 export { DeveloperCard } from "./ui/developer-card";
+export { DeveloperMatchCard } from "./ui/developer-match-card";
 export { AvailabilityBadge, SkillList } from "./ui/developer-bits";
 export { PortfolioProfile } from "./ui/portfolio-profile";

@@ -101,10 +101,10 @@ Hardik (`Hardik33`) (suggested developers panel). Trace: Q4.
 
 Backend note: score computed on the server from the project's tech stack and
 the developer's skills and availability. AI matching is a future iteration.
-*Suggested panel prototype 22 Nov 2026 (Hardik): `/projects/[id]/hire` for the
-Team Lead, from "Suggested developers" in the Team card. The rule lives in
-`entities/developer/model/match.ts` and runs in the browser on the first
-directory page until the API scores it; Kaushalya's cards reuse it.*
+*Prototype 22–23 Nov 2026: Hire Devs at `/projects/[id]/hire-devs` (Kaushalya:
+cards, match reason, filters) with "Suggested for your team" on top (Hardik:
+`widgets/suggested-developers`). One rule for both: `scoreMatch` in
+`entities/developer/model/match.ts`, run in the browser over sample developers.*
 
 **NN-15b · Workspace extras**. Isabella (`Isabella-Enriquez`). Trace: Q3, Q5.
 - project workspace tabs: chat, documents, video links (third-party meeting

@@ -1,79 +1,112 @@
-import { SearchXIcon } from "lucide-react";
-import Link from "next/link";
+import { SparklesIcon } from "lucide-react";
+import type { ReactNode } from "react";
 
-import { NO_FILTERS, searchDevelopers, suggestDevelopers } from "@/entities/developer";
-import type { Project } from "@/entities/project";
-import type { TeamProfile } from "@/entities/team";
-import { authedServerApi } from "@/shared/api/server-client";
+import type { DeveloperMatch } from "@/entities/developer";
+import { cn } from "@/shared/lib/utils";
 import { InfoTip } from "@/shared/ui/molecules/info-tip";
 import { PrototypeBadge } from "@/shared/ui/molecules/prototype-badge";
-import { Button } from "@/shared/ui/shadcn/button";
+import { Badge } from "@/shared/ui/shadcn/badge";
 
-import { SuggestionList } from "./suggestion-list";
+/** How many suggestions the panel shows. */
+export const SUGGESTION_LIMIT = 3;
 
-type Props = { project: Project; team: TeamProfile; myAccountId: number };
+type Props = {
+  /** Every developer, already scored and ranked best first, before any filter. */
+  ranked: DeveloperMatch[];
+  /** How many skills the project lists. */
+  requiredCount: number;
+  /** The buttons for one suggestion (invite, view): the screen brings its own. */
+  actions: (entry: DeveloperMatch) => ReactNode;
+};
 
 /**
- * Suggested developers for a team with open spots (NN-33, prototype). Scored
- * by the rule in `entities/developer/model/match.ts` against the first page of
- * the live directory; the planned API scores every developer on the server.
- * Suggestions only: the Lead opens a portfolio and invites from there (#5).
+ * "Suggested for your team" (NN-33, prototype): the few best matches, shown
+ * above the full list and unaffected by its filters. Each one says why it was
+ * suggested; the Lead still chooses who to invite.
  */
-export async function SuggestedDevelopers({ project, team, myAccountId }: Props) {
+export function SuggestedDevelopers({ ranked, requiredCount, actions }: Props) {
+  const suggestions = ranked.filter((entry) => entry.match.matched_skills.length > 0).slice(0, SUGGESTION_LIMIT);
   return (
     <section aria-labelledby="suggested-heading" className="space-y-4 rounded-xl border bg-card p-4 sm:p-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 id="suggested-heading" className="flex items-center gap-1.5 text-base font-semibold">
-          Suggested developers
+        <h2 id="suggested-heading" className="flex items-center gap-1.5 text-lg font-semibold">
+          <SparklesIcon className="size-5 text-primary" aria-hidden />
+          Suggested for your team
           <InfoTip label="How suggestions work">
-            The score counts the project&apos;s required skills a developer has, plus one point if they&apos;re
-            available, out of the required skills plus one. You always choose who to invite.
+            The best matches by one rule: the project&apos;s required skills a developer has, plus one point if
+            they&apos;re available now. Suggestions only; you choose who to invite. The filters below don&apos;t change
+            them.
           </InfoTip>
         </h2>
         <PrototypeBadge />
       </div>
-      <Body project={project} team={team} myAccountId={myAccountId} />
+      {requiredCount === 0 ? (
+        <p className="text-sm text-muted-foreground">
+          Your project lists no tech stack yet, so there is nothing to match on. Browse all developers below.
+        </p>
+      ) : suggestions.length === 0 ? (
+        <p className="text-sm text-muted-foreground">
+          Nobody has any of your required skills yet. Browse all developers below, or invite new talent who can learn
+          them.
+        </p>
+      ) : (
+        <ol aria-label="Suggested developers" className="divide-y rounded-lg border">
+          {suggestions.map((entry, index) => (
+            <Suggestion key={entry.developer.account_id} entry={entry} rank={index + 1} actions={actions(entry)} />
+          ))}
+        </ol>
+      )}
     </section>
   );
 }
 
-async function Body({ project, team, myAccountId }: Props) {
-  if (project.tech_stack.length === 0) {
-    return (
-      <p className="text-sm text-muted-foreground">
-        This project lists no required skills yet, so there is nothing to match on. The project&apos;s owner can add them by editing it.
-      </p>
-    );
-  }
-  const result = await searchDevelopers(authedServerApi, NO_FILTERS);
-  if (!result.ok) {
-    return (
-      <p role="alert" className="text-sm text-destructive">
-        We couldn&apos;t load developers to suggest. {result.error.message} Try again in a moment.
-      </p>
-    );
-  }
-  const onTeam = [myAccountId, ...team.members.map((member) => member.account_id)];
-  const suggestions = suggestDevelopers(project.tech_stack, result.data.results, onTeam);
-  if (suggestions.length === 0) {
-    return (
-      <div className="flex flex-col items-start gap-3 text-sm">
-        <p className="flex items-start gap-2 text-muted-foreground">
-          <SearchXIcon className="mt-0.5 size-4 shrink-0" aria-hidden />
-          No developer has any of this project&apos;s required skills yet. Try the full directory.
-        </p>
-        <Button asChild variant="outline" size="sm">
-          <Link href="/developers">Browse all developers</Link>
-        </Button>
-      </div>
-    );
-  }
+function Suggestion({ entry, rank, actions }: { entry: DeveloperMatch; rank: number; actions: ReactNode }) {
+  const { developer, match } = entry;
   return (
-    <>
-      <p className="text-sm text-muted-foreground">
-        Required skills: {project.tech_stack.map((skill) => skill.label).join(", ")}. Best match first.
+    <li className="flex flex-col gap-3 p-4 md:flex-row md:items-start md:justify-between">
+      <div className="min-w-0 space-y-1.5">
+        <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          <span className="text-xs text-muted-foreground tabular-nums">#{rank}</span>
+          <span className="font-medium break-words">{developer.display_name}</span>
+          {entry.growth.is_new_talent ? <Badge variant="outline">New talent</Badge> : null}
+        </p>
+        <p className="text-sm font-medium">
+          <span className="sr-only">Why: </span>
+          {match.reason}
+        </p>
+        <p className="text-xs text-muted-foreground">
+          Has {match.matched_skills.map((skill) => skill.label).join(", ")}
+          {match.missing_skills.length
+            ? ` · could learn ${match.missing_skills.map((skill) => skill.label).join(", ")}`
+            : " · every required skill"}
+        </p>
+      </div>
+      <div className="flex shrink-0 flex-col gap-2 md:w-48 md:items-end">
+        <ScoreMeter score={match.score} name={developer.display_name} />
+        <div className="flex flex-wrap gap-2 md:justify-end">{actions}</div>
+      </div>
+    </li>
+  );
+}
+
+function ScoreMeter({ score, name }: { score: number; name: string }) {
+  const tone = score >= 75 ? "bg-success" : score >= 50 ? "bg-primary" : "bg-muted-foreground";
+  return (
+    <div className="w-full space-y-1">
+      <p className="flex justify-between text-xs">
+        <span className="text-muted-foreground">Match</span>
+        <span className="font-semibold tabular-nums">{score}%</span>
       </p>
-      <SuggestionList suggestions={suggestions} />
-    </>
+      <div
+        role="meter"
+        aria-label={`${name}'s match score`}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={score}
+        className="h-1.5 overflow-hidden rounded-full bg-muted"
+      >
+        <div className={cn("h-full rounded-full", tone)} style={{ width: `${score}%` }} />
+      </div>
+    </div>
   );
 }

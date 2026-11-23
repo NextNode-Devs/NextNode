@@ -168,14 +168,6 @@ test.describe("Hire Devs", () => {
     expect(refused.body.error.message).toContain("5 to 7 people including the Team Lead");
     allowRefusals(ada, before);
 
-    // --- NN-33 (prototype): the Lead opens Suggested developers; anyone else is turned away ---
-    await ada.page.getByRole("link", { name: "Suggested developers" }).click();
-    await expect(ada.page.getByRole("heading", { level: 1, name: "Hire developers" })).toBeVisible({ timeout: 20_000 });
-    await expect(ada.page.getByRole("heading", { name: /Suggested developers/ })).toBeVisible();
-    await expect(ada.page.getByText("Required skills: React. Best match first.").or(ada.page.getByText(/No developer has any/))).toBeVisible();
-    await mary.page.goto(`${projectPath}/hire`);
-    await expect(mary.page.getByRole("heading", { name: "Only the Team Lead hires developers" })).toBeVisible();
-
     // --- The Lead invites Mary from her portfolio and lands in the new conversation ---
     await ada.page.goto(`/developers/${mary.accountId}`);
     await ada.page.getByRole("button", { name: /Invite to my team/ }).click();

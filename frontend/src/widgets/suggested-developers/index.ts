@@ -1,1 +1,1 @@
-export { SuggestedDevelopers } from "./ui/suggested-developers";
+export { SUGGESTION_LIMIT, SuggestedDevelopers } from "./ui/suggested-developers";
