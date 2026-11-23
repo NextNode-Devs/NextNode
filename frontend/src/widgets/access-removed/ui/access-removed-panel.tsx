@@ -29,11 +29,11 @@ function reasonText(removal: AccessRemoval): string {
   const when = formatMessageTime(removal.ended_at);
   switch (removal.reason) {
     case "left":
-      return `You left the team ${when}. Everyone on the team and the client was told.`;
+      return `On ${when}, you left the team. Everyone on the team and the client were told.`;
     case "removed":
-      return `${removal.by ?? "The Team Lead"} (Team Lead) removed you from the team ${when}. Everyone on the team and the client was told.`;
+      return `On ${when}, ${removal.by ? `${removal.by}, the Team Lead,` : "the Team Lead"} removed you from the team. Everyone on the team and the client were told.`;
     case "lead_replaced":
-      return `You didn't respond in the project for 3 days, so the team proposed ${removal.by ?? "a new Lead"} and the client approved them ${when}. They lead the project now.`;
+      return `You didn't respond in the project for 3 days, so the team proposed ${removal.by ?? "a new Lead"} as Lead. On ${when}, the client approved them, and they lead the project now.`;
   }
 }
 

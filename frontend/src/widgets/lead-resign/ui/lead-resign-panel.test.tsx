@@ -60,6 +60,16 @@ describe("LeadResignPanel", () => {
     expect(screen.getByRole("heading", { name: "Marco Ruiz (sample) is the Team Lead" })).toBeInTheDocument();
   });
 
+  it("never prints a double full stop after a time ('a.m..')", () => {
+    for (const viewer of ["new_lead", "client"] as const) {
+      for (const initial of ["awaiting_approval", "ready_to_sign", "signed"] as const) {
+        const { container, unmount } = render(<LeadResignPanel projectId={4} viewer={viewer} initial={initial} />);
+        expect(container.textContent).not.toMatch(/\.\./);
+        unmount();
+      }
+    }
+  });
+
   it("links to what the former Lead sees", () => {
     render(<LeadResignPanel projectId={4} viewer="client" />);
     expect(screen.getByRole("link", { name: "See what the former Lead sees" })).toHaveAttribute(

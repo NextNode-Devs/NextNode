@@ -14,7 +14,7 @@ export function LeadChangeSteps({ snapshot }: { snapshot: LeadResignSnapshot }) 
   const signed = snapshot.situation === "signed";
   const steps: { label: string; state: StepState }[] = [
     { label: `${snapshot.proposed_by} proposed ${name}`, state: "done" },
-    { label: `${snapshot.client.display_name} (client) approves`, state: approved ? "done" : "current" },
+    { label: `The client, ${snapshot.client.display_name}, approves`, state: approved ? "done" : "current" },
     {
       label: `${name} signs offer version ${snapshot.offer.version}`,
       state: signed ? "done" : approved ? "current" : "todo",

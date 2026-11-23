@@ -8,7 +8,8 @@ describe("AccessRemovedPanel", () => {
   it("says who removed you, what closed and what stays", () => {
     render(<AccessRemovedPanel />);
     expect(screen.getByRole("heading", { name: "Event ticketing (sample)" })).toBeInTheDocument();
-    expect(screen.getByText(/Ada Okafor \(sample\) \(Team Lead\) removed you from the team/)).toBeInTheDocument();
+    expect(screen.getByText(/Ada Okafor \(sample\), the Team Lead, removed you from the team/)).toBeInTheDocument();
+    expect(screen.queryByText(/\.\./)).toBeNull();
     expect(screen.getByRole("heading", { name: "Closed to you now" })).toBeInTheDocument();
     expect(screen.getByText("Team chat")).toBeInTheDocument();
     expect(screen.getByText(/Your messages, files and updates stay with the project/)).toBeInTheDocument();
@@ -16,7 +17,7 @@ describe("AccessRemovedPanel", () => {
 
   it("explains each way access ends", async () => {
     render(<AccessRemovedPanel initial="left" />);
-    expect(screen.getByText(/^You left the team/)).toBeInTheDocument();
+    expect(screen.getByText(/you left the team\./)).toBeInTheDocument();
     const user = userEvent.setup();
     await user.click(screen.getByRole("button", { name: "You were replaced as Lead" }));
     expect(screen.getByRole("button", { name: "You were replaced as Lead" })).toHaveAttribute("aria-pressed", "true");

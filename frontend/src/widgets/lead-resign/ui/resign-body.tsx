@@ -48,7 +48,7 @@ function forNewLead(snapshot: LeadResignSnapshot, links: Props["links"]): Conten
       body: (
         <>
           <p>
-            {snapshot.proposed_by} proposed you as the new Team Lead {formatMessageTime(snapshot.proposed_at)}. Once{" "}
+            On {formatMessageTime(snapshot.proposed_at)}, {snapshot.proposed_by} proposed you as the new Team Lead. Once{" "}
             {client.display_name} approves, offer version {v} shows here for you to sign.
           </p>
           <p className="text-muted-foreground">Keep working as usual meanwhile. You&apos;ll get a notification.</p>
@@ -65,7 +65,7 @@ function forNewLead(snapshot: LeadResignSnapshot, links: Props["links"]): Conten
       body: (
         <>
           <p role="status">
-            You signed offer version {v} {formatMessageTime(signedAt)}. The team and {client.display_name} were told.
+            On {formatMessageTime(signedAt)}, you signed offer version {v}. The team and {client.display_name} were told.
           </p>
           <ul className="list-disc space-y-1 pl-5 text-muted-foreground">
             <li>The terms carry on unchanged: same total, deposit, dates and milestones.</li>
@@ -85,15 +85,15 @@ function forNewLead(snapshot: LeadResignSnapshot, links: Props["links"]): Conten
     body: (
       <>
         <p>
-          {client.display_name} approved you as Team Lead {formatMessageTime(snapshot.approved_at)}. To take over from{" "}
-          {outgoing.display_name}, sign the offer the client already accepted.
+          On {formatMessageTime(snapshot.approved_at)}, {client.display_name} approved you as Team Lead. To take over
+          from {outgoing.display_name}, sign the offer the client already accepted.
         </p>
         <ul className="list-disc space-y-1 pl-5 text-muted-foreground">
           <li>
             The terms don&apos;t change. {snapshot.milestones.approved} of {snapshot.milestones.total} milestones are
             already approved, and the rest stay as planned.
           </li>
-          <li>Your signature is added next to {outgoing.display_name}&apos;s. The client doesn&apos;t sign again.</li>
+          <li>Your signature is added next to the original Lead&apos;s. The client doesn&apos;t sign again.</li>
           <li>{outgoing.display_name} already lost access. Their work, files and messages stay with the project.</li>
         </ul>
         <SignOfferForm version={v} outgoingLead={outgoing.display_name} />
@@ -126,7 +126,7 @@ function forClient(snapshot: LeadResignSnapshot, links: Props["links"]): Content
       body: (
         <>
           <p role="status">
-            {name} signed offer version {v} {formatMessageTime(replacementSignature(snapshot)?.signed_at)}. Nothing
+            On {formatMessageTime(replacementSignature(snapshot)?.signed_at)}, {name} signed offer version {v}. Nothing
             changes for you: same terms, same milestones.
           </p>
           {linkButton(links.team, "Back to the Team tab")}
@@ -140,8 +140,8 @@ function forClient(snapshot: LeadResignSnapshot, links: Props["links"]): Content
     body: (
       <>
         <p>
-          You approved {name} {formatMessageTime(snapshot.approved_at)}. They sign offer version {v}, the one you
-          accepted {formatMessageTime(snapshot.offer.decided_at)}. You don&apos;t need to accept it again.
+          On {formatMessageTime(snapshot.approved_at)}, you approved {name}. They sign offer version {v}, the one you
+          accepted on {formatMessageTime(snapshot.offer.decided_at)}, so you don&apos;t need to accept it again.
         </p>
         {linkButton(links.team, "Back to the Team tab")}
       </>
