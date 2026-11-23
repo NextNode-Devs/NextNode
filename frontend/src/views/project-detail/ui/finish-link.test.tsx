@@ -9,10 +9,11 @@ const project = (viewer: Partial<Project["viewer"]>, kind: Project["kind"] = "cl
   ({ id: 4, kind, viewer: { is_owner: false, is_lead: false, is_member: false, ...viewer } }) as Project;
 
 describe("FinishLink", () => {
-  it("takes the client, the Team Lead and members to final approval and the archived view", () => {
+  it("takes the client, the Team Lead and members to final approval, ratings and the archived view", () => {
     for (const viewer of [{ is_owner: true }, { is_lead: true }, { is_member: true }]) {
       const { unmount } = render(<FinishLink project={project(viewer)} />);
       expect(screen.getByRole("link", { name: "Final approval" })).toHaveAttribute("href", "/projects/4/final-approval");
+      expect(screen.getByRole("link", { name: "Ratings" })).toHaveAttribute("href", "/projects/4/ratings");
       expect(screen.getByRole("link", { name: "Archived view" })).toHaveAttribute("href", "/projects/4/archived");
       expect(screen.getByText("Prototype")).toBeInTheDocument();
       unmount();

@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
 import { getCertificates, getPortfolio, PortfolioProfile, portfolioHref, sampleShippedProjects } from "@/entities/developer";
+import { RatingCard, sampleRatingSummary, sampleReferences } from "@/entities/rating";
 import { getViewer, routeFor } from "@/entities/viewer";
 import { CertificateList } from "@/features/view-certificate";
 import { authedServerApi } from "@/shared/api/server-client";
@@ -13,6 +14,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/shared/ui/shadcn/alert";
 import { Button } from "@/shared/ui/shadcn/button";
 import { AppHeader } from "@/widgets/app-header";
 import { ShippedProjects } from "@/widgets/shipped-projects";
+import { TeamLeadReferences } from "@/widgets/team-lead-references";
 
 import { PortfolioActions } from "./portfolio-actions";
 
@@ -126,6 +128,8 @@ async function PortfolioScreen({ developerId, saved }: Props) {
       ) : null}
       <PortfolioProfile
         portfolio={portfolio}
+        // Phase 2 prototype (NN-35 #98): a sample rating, not this developer's.
+        rating={<RatingCard summary={sampleRatingSummary(portfolio.account_id)} />}
         certificates={
           certificates?.ok ? (
             <CertificateList accountId={portfolio.account_id} certificates={certificates.data} />
@@ -147,8 +151,9 @@ async function PortfolioScreen({ developerId, saved }: Props) {
           )
         }
       />
-      {/* Phase 2 prototype section (NN-17 #97): sample entries, clearly badged. */}
+      {/* Phase 2 prototype sections (NN-17 #97, NN-35 #98): sample entries, clearly badged. */}
       <ShippedProjects projects={sampleShippedProjects(portfolio.account_id)} isOwner={portfolio.is_owner} />
+      <TeamLeadReferences references={sampleReferences(portfolio.account_id)} isOwner={portfolio.is_owner} />
     </>
   );
 }

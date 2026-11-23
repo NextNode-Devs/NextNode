@@ -12,10 +12,12 @@ type Props = {
   actions?: ReactNode;
   /** The uploaded certificates with their preview (NN-34), in place of the old resume link. */
   certificates?: ReactNode;
+  /** Under the headline: the prototype rating (NN-35). Phase 1 pages leave it out. */
+  rating?: ReactNode;
 };
 
 /** A developer's portfolio as everyone sees it. Links open as entered; none is "verified". */
-export function PortfolioProfile({ portfolio, actions, certificates }: Props) {
+export function PortfolioProfile({ portfolio, actions, certificates, rating }: Props) {
   const { projects } = portfolio;
   return (
     <div className="space-y-6">
@@ -24,6 +26,7 @@ export function PortfolioProfile({ portfolio, actions, certificates }: Props) {
           <AvailabilityBadge available={portfolio.is_available} />
           <h1 className="text-2xl font-semibold tracking-tight break-words sm:text-3xl">{portfolio.display_name}</h1>
           <p className="text-lg text-muted-foreground break-words">{portfolio.headline}</p>
+          {rating ? <div className="pt-1">{rating}</div> : null}
         </div>
         {actions ? <div className="flex shrink-0 flex-wrap gap-2">{actions}</div> : null}
       </header>

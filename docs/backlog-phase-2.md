@@ -228,9 +228,19 @@ confidential project. Planned shapes: `ProjectClosing`
   the client rating and the Team Lead rating, each with its count; "New, no
   ratings yet" when empty
 - "Team Lead reference" on a member's profile
+- built: `/projects/[id]/ratings`, from the "Finishing the project" card
+  (client: rates the Lead and the team as a whole; Team Lead: rates each
+  member, with an optional Team Lead reference; members: told who rates
+  them). On `/developers/[id]` a rating chip under the headline opens the
+  breakdown card, and a "Team Lead references" prototype section lists what
+  Leads wrote. Sending ratings shows the under-construction toast
 
 Backend note: a Rating model, one per rater per ratee per project, only after
-`Completed`; averages and counts per rater type.
+`Completed`; averages and counts per rater type. The client's "team" rating
+counts toward each member's client average. A rating's optional comment from
+a Team Lead to a member is that member's Team Lead reference (public on the
+portfolio); other comments are private to the person rated. Ratings can't be
+edited once sent. Planned shapes: `entities/rating/model/rating.ts`.
 
 **NN-36 · Junior and new-developer spots**. Kai. Trace: Q4.
 - the Lead marks some open spots as junior
