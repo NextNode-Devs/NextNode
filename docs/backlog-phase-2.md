@@ -101,6 +101,10 @@ Hardik (`Hardik33`) (suggested developers panel). Trace: Q4.
 
 Backend note: score computed on the server from the project's tech stack and
 the developer's skills and availability. AI matching is a future iteration.
+*Prototype 22–23 Nov 2026: Hire Devs at `/projects/[id]/hire-devs` (Kaushalya:
+cards, match reason, filters) with "Suggested for your team" on top (Hardik:
+`widgets/suggested-developers`). One rule for both: `scoreMatch` in
+`entities/developer/model/match.ts`, run in the browser over sample developers.*
 
 **NN-15b · Workspace extras**. Isabella (`Isabella-Enriquez`). Trace: Q3, Q5.
 - project workspace tabs: chat, documents, video links (third-party meeting
