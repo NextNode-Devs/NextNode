@@ -20,6 +20,7 @@ import { RequirementDocuments } from "@/widgets/requirement-documents";
 import { TeamRoster } from "@/widgets/team-roster";
 
 import { HireDevsLink } from "./hire-devs-link";
+import { InviteLinkSection } from "./invite-link-section";
 import { PaymentsLink } from "./payments-link";
 import { PrimaryAction } from "./primary-action";
 import { ProjectChats } from "./project-chats";
@@ -98,6 +99,8 @@ async function ProjectScreen({ projectId, notice }: Props) {
 
   const project = result.data;
   const shown = project.viewer.is_owner ? await notice : null;
+  // Read after the request data above, so it is per-request (never prerendered).
+  const now = new Date().toISOString();
   const me = route.viewer.account;
   // Hire Lead happens on client projects, between their client and developers.
   const chats =
@@ -168,6 +171,7 @@ async function ProjectScreen({ projectId, notice }: Props) {
             <TeamRoster project={project} />
           </Suspense>
           <HireDevsLink project={project} />
+          <InviteLinkSection project={project} now={now} />
           {project.kind === "client" ? <LegalTermsCard /> : null}
         </aside>
       </div>
