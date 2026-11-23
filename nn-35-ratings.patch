@@ -1,0 +1,1160 @@
+diff --git a/docs/backlog-phase-2.md b/docs/backlog-phase-2.md
+index 87818e2..017d068 100644
+--- a/docs/backlog-phase-2.md
++++ b/docs/backlog-phase-2.md
+@@ -228,9 +228,19 @@ confidential project. Planned shapes: `ProjectClosing`
+   the client rating and the Team Lead rating, each with its count; "New, no
+   ratings yet" when empty
+ - "Team Lead reference" on a member's profile
++- built: `/projects/[id]/ratings`, from the "Finishing the project" card
++  (client: rates the Lead and the team as a whole; Team Lead: rates each
++  member, with an optional Team Lead reference; members: told who rates
++  them). On `/developers/[id]` a rating chip under the headline opens the
++  breakdown card, and a "Team Lead references" prototype section lists what
++  Leads wrote. Sending ratings shows the under-construction toast
+ 
+ Backend note: a Rating model, one per rater per ratee per project, only after
+-`Completed`; averages and counts per rater type.
++`Completed`; averages and counts per rater type. The client's "team" rating
++counts toward each member's client average. A rating's optional comment from
++a Team Lead to a member is that member's Team Lead reference (public on the
++portfolio); other comments are private to the person rated. Ratings can't be
++edited once sent. Planned shapes: `entities/rating/model/rating.ts`.
+ 
+ **NN-36 · Junior and new-developer spots**. Kai. Trace: Q4.
+ - the Lead marks some open spots as junior
+diff --git a/frontend/src/app/projects/[projectId]/ratings/page.tsx b/frontend/src/app/projects/[projectId]/ratings/page.tsx
+new file mode 100644
+index 0000000..2a52848
+--- /dev/null
++++ b/frontend/src/app/projects/[projectId]/ratings/page.tsx
+@@ -0,0 +1,8 @@
++import { RatingsView } from "@/views/project-closing";
++
++export const metadata = { title: "Ratings" };
++
++export default function Page({ params }: PageProps<"/projects/[projectId]/ratings">) {
++  // Resolved inside the view's Suspense boundary, so the page shell renders at once.
++  return <RatingsView projectId={params.then((p) => p.projectId)} />;
++}
+diff --git a/frontend/src/entities/developer/ui/portfolio-profile.tsx b/frontend/src/entities/developer/ui/portfolio-profile.tsx
+index 0338e79..8be244d 100644
+--- a/frontend/src/entities/developer/ui/portfolio-profile.tsx
++++ b/frontend/src/entities/developer/ui/portfolio-profile.tsx
+@@ -12,10 +12,12 @@ type Props = {
+   actions?: ReactNode;
+   /** The uploaded certificates with their preview (NN-34), in place of the old resume link. */
+   certificates?: ReactNode;
++  /** Under the headline: the prototype rating (NN-35). Phase 1 pages leave it out. */
++  rating?: ReactNode;
+ };
+ 
+ /** A developer's portfolio as everyone sees it. Links open as entered; none is "verified". */
+-export function PortfolioProfile({ portfolio, actions, certificates }: Props) {
++export function PortfolioProfile({ portfolio, actions, certificates, rating }: Props) {
+   const { projects } = portfolio;
+   return (
+     <div className="space-y-6">
+@@ -24,6 +26,7 @@ export function PortfolioProfile({ portfolio, actions, certificates }: Props) {
+           <AvailabilityBadge available={portfolio.is_available} />
+           <h1 className="text-2xl font-semibold tracking-tight break-words sm:text-3xl">{portfolio.display_name}</h1>
+           <p className="text-lg text-muted-foreground break-words">{portfolio.headline}</p>
++          {rating ? <div className="pt-1">{rating}</div> : null}
+         </div>
+         {actions ? <div className="flex shrink-0 flex-wrap gap-2">{actions}</div> : null}
+       </header>
+diff --git a/frontend/src/entities/rating/index.ts b/frontend/src/entities/rating/index.ts
+new file mode 100644
+index 0000000..7067618
+--- /dev/null
++++ b/frontend/src/entities/rating/index.ts
+@@ -0,0 +1,25 @@
++export {
++  formatStars,
++  isNewRatee,
++  overallAverage,
++  RATER_LABEL,
++  RATING_RULES,
++  ratingProblems,
++  totalRatings,
++  type RaterType,
++  type RatingStat,
++  type RatingSummary,
++  type RatingTarget,
++  type RatingValue,
++  type TeamLeadReference,
++} from "./model/rating";
++// Prototype sample data: import only from Phase 2 prototype screens.
++export {
++  RATING_SAMPLE_SITUATIONS,
++  SAMPLE_CLIENT_TARGETS,
++  SAMPLE_MEMBER_TARGETS,
++  sampleRatingSummary,
++  sampleReferences,
++  type RatingSampleSituation,
++} from "./model/sample";
++export { RatingCard } from "./ui/rating-card";
+diff --git a/frontend/src/entities/rating/model/rating.test.ts b/frontend/src/entities/rating/model/rating.test.ts
+new file mode 100644
+index 0000000..d521d9e
+--- /dev/null
++++ b/frontend/src/entities/rating/model/rating.test.ts
+@@ -0,0 +1,46 @@
++import { describe, expect, it } from "vitest";
++
++import { isNewRatee, overallAverage, ratingProblems, totalRatings } from "./rating";
++import { SAMPLE_CLIENT_TARGETS, sampleRatingSummary, sampleReferences } from "./sample";
++
++describe("rating summaries", () => {
++  it("weights the overall average by how many ratings each kind has", () => {
++    const summary = { account_id: 1, from_clients: { average: 5, count: 3 }, from_leads: { average: 4, count: 1 } };
++    expect(overallAverage(summary)).toBe(4.8);
++    expect(totalRatings(summary)).toBe(4);
++    expect(isNewRatee(summary)).toBe(false);
++  });
++
++  it("knows a new developer has no ratings at all", () => {
++    const fresh = sampleRatingSummary(8);
++    expect(isNewRatee(fresh)).toBe(true);
++    expect(overallAverage(fresh)).toBeNull();
++    expect(sampleReferences(8)).toEqual([]);
++  });
++
++  it("keeps sample averages between 1 and 5", () => {
++    for (let id = 1; id < 60; id++) {
++      const { from_clients, from_leads } = sampleRatingSummary(id);
++      for (const stat of [from_clients, from_leads]) {
++        if (stat.average !== null) expect(stat.average).toBeGreaterThanOrEqual(1);
++        if (stat.average !== null) expect(stat.average).toBeLessThanOrEqual(5);
++        expect(stat.average === null).toBe(stat.count === 0);
++      }
++    }
++  });
++});
++
++describe("ratingProblems", () => {
++  it("needs stars for everyone and keeps comments short", () => {
++    expect(ratingProblems(SAMPLE_CLIENT_TARGETS, {})).toEqual({
++      lead: "Choose 1 to 5 stars for Ada (Team Lead).",
++      team: "Choose 1 to 5 stars for The team.",
++    });
++    expect(
++      ratingProblems(SAMPLE_CLIENT_TARGETS, {
++        lead: { stars: 5, comment: "" },
++        team: { stars: 4, comment: "x".repeat(601) },
++      }),
++    ).toEqual({ team: "Keep it under 600 characters." });
++  });
++});
+diff --git a/frontend/src/entities/rating/model/rating.ts b/frontend/src/entities/rating/model/rating.ts
+new file mode 100644
+index 0000000..ff0d87c
+--- /dev/null
++++ b/frontend/src/entities/rating/model/rating.ts
+@@ -0,0 +1,92 @@
++/**
++ * Ratings and Team Lead references (Phase 2 prototype, NN-35 #98; stakeholder Q4).
++ *
++ * After a client project is completed, the client rates the Team Lead and
++ * the team, and the Team Lead rates each member (optionally writing a Team
++ * Lead reference, shown on the member's portfolio). One rating per rater per
++ * ratee per project, 1 to 5 stars.
++ *
++ * PROTOTYPE: there is no API yet; these are the planned shapes (backend note:
++ * a Rating model, only after `Completed`; averages and counts per rater type).
++ */
++
++/** Who gave a rating. Averages and counts are kept apart for each. */
++export type RaterType = "client" | "lead";
++
++export type RatingStat = {
++  /** 1–5, one decimal; `null` when there are no ratings of this kind. */
++  average: number | null;
++  count: number;
++};
++
++/** Planned `GET /api/developers/{id}/ratings/`. */
++export type RatingSummary = {
++  account_id: number;
++  from_clients: RatingStat;
++  from_leads: RatingStat;
++};
++
++/** Planned `GET /api/developers/{id}/references/`: what Team Leads wrote about a member. */
++export type TeamLeadReference = {
++  id: number;
++  member_account_id: number;
++  lead_name: string;
++  project_title: string;
++  body: string;
++  written_at: string;
++};
++
++/** Someone (or the team as a whole) the viewer rates on a project's ratings page. */
++export type RatingTarget = {
++  key: string;
++  kind: "lead" | "team" | "member";
++  name: string;
++  /** `null` for the team as a whole. */
++  account_id: number | null;
++};
++
++export type RatingValue = { stars: number | null; comment: string };
++
++export const RATING_RULES = { min: 1, max: 5, commentMax: 600 } as const;
++
++export const RATER_LABEL: Record<RaterType, string> = {
++  client: "From clients",
++  lead: "From Team Leads",
++};
++
++/** No ratings of either kind yet. */
++export function isNewRatee(summary: RatingSummary): boolean {
++  return summary.from_clients.count === 0 && summary.from_leads.count === 0;
++}
++
++/** Every rating together, weighted by count; `null` when there are none. */
++export function overallAverage(summary: RatingSummary): number | null {
++  const stats = [summary.from_clients, summary.from_leads].filter((s) => s.count > 0 && s.average !== null);
++  const count = stats.reduce((n, s) => n + s.count, 0);
++  if (count === 0) return null;
++  const total = stats.reduce((sum, s) => sum + (s.average ?? 0) * s.count, 0);
++  return Math.round((total / count) * 10) / 10;
++}
++
++export function totalRatings(summary: RatingSummary): number {
++  return summary.from_clients.count + summary.from_leads.count;
++}
++
++/** "4.5" for a bar's label. */
++export function formatStars(average: number): string {
++  return average.toFixed(1);
++}
++
++/** Per target, why its rating can't be sent; empty when everything is fine. */
++export function ratingProblems(targets: readonly RatingTarget[], values: Record<string, RatingValue>): Record<string, string> {
++  const problems: Record<string, string> = {};
++  for (const target of targets) {
++    const value = values[target.key];
++    if (!value?.stars || value.stars < RATING_RULES.min || value.stars > RATING_RULES.max) {
++      problems[target.key] = `Choose 1 to 5 stars for ${target.name}.`;
++    } else if (value.comment.trim().length > RATING_RULES.commentMax) {
++      problems[target.key] = `Keep it under ${RATING_RULES.commentMax} characters.`;
++    }
++  }
++  return problems;
++}
+diff --git a/frontend/src/entities/rating/model/sample.ts b/frontend/src/entities/rating/model/sample.ts
+new file mode 100644
+index 0000000..517e755
+--- /dev/null
++++ b/frontend/src/entities/rating/model/sample.ts
+@@ -0,0 +1,66 @@
++/**
++ * PROTOTYPE SAMPLE DATA (Phase 2, NN-35 #98). Only prototype screens may
++ * import this; never a Phase 1 screen.
++ *
++ * Stable values for any real developer id, so server and browser renders
++ * match: every fourth developer is new (no ratings, no references) to show
++ * the "New, no ratings yet" state. The people being rated match the archived
++ * clinic booking app sample (entities/project): Ada leads Margaret, Lee and Sam.
++ */
++import type { RatingSummary, RatingTarget, TeamLeadReference } from "./rating";
++
++export function sampleRatingSummary(accountId: number): RatingSummary {
++  if (accountId % 4 === 0) {
++    return { account_id: accountId, from_clients: { average: null, count: 0 }, from_leads: { average: null, count: 0 } };
++  }
++  return {
++    account_id: accountId,
++    from_clients: { average: 4 + (accountId % 9) / 10, count: 2 + (accountId % 5) },
++    // Every third developer has led only, so no Team Lead has rated them yet.
++    from_leads: accountId % 3 === 0 ? { average: null, count: 0 } : { average: 3.8 + (accountId % 7) / 10, count: 1 + (accountId % 4) },
++  };
++}
++
++export function sampleReferences(accountId: number): TeamLeadReference[] {
++  if (accountId % 4 === 0 || accountId % 3 === 0) return [];
++  return [
++    {
++      id: accountId * 10 + 1,
++      member_account_id: accountId,
++      lead_name: "Ada",
++      project_title: "Clinic booking app",
++      body: "Owned the booking flow end to end, wrote clear pull requests and helped newer teammates get unstuck.",
++      written_at: "2027-01-23T15:00:00Z",
++    },
++    {
++      id: accountId * 10 + 2,
++      member_account_id: accountId,
++      lead_name: "Priya",
++      project_title: "Food bank tracker",
++      body: "Reliable and calm under deadlines. I'd happily lead a team with them again.",
++      written_at: "2026-10-05T15:00:00Z",
++    },
++  ];
++}
++
++/** What the client rates: the Team Lead and the team as a whole. */
++export const SAMPLE_CLIENT_TARGETS: RatingTarget[] = [
++  { key: "lead", kind: "lead", name: "Ada (Team Lead)", account_id: 9201 },
++  { key: "team", kind: "team", name: "The team", account_id: null },
++];
++
++/** What the Team Lead rates: each member. */
++export const SAMPLE_MEMBER_TARGETS: RatingTarget[] = [
++  { key: "m-9202", kind: "member", name: "Margaret", account_id: 9202 },
++  { key: "m-9203", kind: "member", name: "Lee", account_id: 9203 },
++  { key: "m-9204", kind: "member", name: "Sam", account_id: 9204 },
++];
++
++/** Prototype only: the points around rating a tester can switch between. */
++export type RatingSampleSituation = "not_completed" | "open" | "already_rated";
++
++export const RATING_SAMPLE_SITUATIONS: { value: RatingSampleSituation; label: string }[] = [
++  { value: "not_completed", label: "Project not completed" },
++  { value: "open", label: "Ready to rate" },
++  { value: "already_rated", label: "Already rated" },
++];
+diff --git a/frontend/src/entities/rating/ui/rating-card.test.tsx b/frontend/src/entities/rating/ui/rating-card.test.tsx
+new file mode 100644
+index 0000000..9f35fcf
+--- /dev/null
++++ b/frontend/src/entities/rating/ui/rating-card.test.tsx
+@@ -0,0 +1,64 @@
++import { render, screen, waitFor } from "@testing-library/react";
++import userEvent from "@testing-library/user-event";
++import { describe, expect, it } from "vitest";
++
++import { RatingCard } from "./rating-card";
++
++const rated = {
++  account_id: 1,
++  from_clients: { average: 4.8, count: 5 },
++  from_leads: { average: 4.5, count: 2 },
++};
++const fresh = { account_id: 2, from_clients: { average: null, count: 0 }, from_leads: { average: null, count: 0 } };
++
++describe("RatingCard", () => {
++  it("opens on keyboard focus with a bar and count for clients and Team Leads; Escape closes it", async () => {
++    const user = userEvent.setup();
++    render(<RatingCard summary={rated} />);
++    const trigger = screen.getByRole("button", { name: /Rated 4.7 out of 5 from 7 ratings/ });
++    await user.tab();
++    expect(trigger).toHaveFocus();
++    const card = screen.getByRole("tooltip");
++    expect(card).toHaveTextContent("From clients4.8 · 5 ratings");
++    expect(card).toHaveTextContent("From Team Leads4.5 · 2 ratings");
++    expect(screen.getAllByTestId("rating-bar")).toHaveLength(2);
++    expect(trigger).toHaveAccessibleDescription(/From clients/);
++    await user.keyboard("{Escape}");
++    // Gone once its fade-out finishes.
++    await waitFor(() => expect(screen.queryByRole("tooltip")).not.toBeInTheDocument());
++  });
++
++  it("opens on hover and closes when the pointer leaves", async () => {
++    const user = userEvent.setup();
++    render(<RatingCard summary={rated} />);
++    await user.hover(screen.getByRole("button"));
++    expect(screen.getByRole("tooltip")).toBeInTheDocument();
++    await user.unhover(screen.getByRole("button"));
++    await waitFor(() => expect(screen.queryByRole("tooltip")).not.toBeInTheDocument());
++  });
++
++  it("opens on tap and stays open on a second tap", async () => {
++    const user = userEvent.setup();
++    render(<RatingCard summary={rated} />);
++    await user.pointer({ keys: "[TouchA]", target: screen.getByRole("button") });
++    expect(screen.getByRole("tooltip")).toBeInTheDocument();
++    await user.click(screen.getByRole("button"));
++    expect(screen.getByRole("tooltip")).toBeInTheDocument();
++  });
++
++  it('says "New, no ratings yet" when there are none', async () => {
++    const user = userEvent.setup();
++    render(<RatingCard summary={fresh} />);
++    expect(screen.getByRole("button", { name: /New, no ratings yet/ })).toBeInTheDocument();
++    await user.tab();
++    expect(screen.getByRole("tooltip")).toHaveTextContent("New, no ratings yet");
++    expect(screen.queryAllByTestId("rating-bar")).toHaveLength(0);
++  });
++
++  it("shows a kind with no ratings as such", async () => {
++    const user = userEvent.setup();
++    render(<RatingCard summary={{ ...rated, from_leads: { average: null, count: 0 } }} />);
++    await user.tab();
++    expect(screen.getByRole("tooltip")).toHaveTextContent("From Team LeadsNo ratings yet");
++  });
++});
+diff --git a/frontend/src/entities/rating/ui/rating-card.tsx b/frontend/src/entities/rating/ui/rating-card.tsx
+new file mode 100644
+index 0000000..71c4d06
+--- /dev/null
++++ b/frontend/src/entities/rating/ui/rating-card.tsx
+@@ -0,0 +1,126 @@
++"use client";
++
++import { StarIcon } from "lucide-react";
++import { AnimatePresence, motion, useReducedMotion } from "motion/react";
++import { useId, useState, type KeyboardEvent } from "react";
++
++import { cn } from "@/shared/lib/utils";
++
++import {
++  formatStars,
++  isNewRatee,
++  overallAverage,
++  RATER_LABEL,
++  totalRatings,
++  type RatingStat,
++  type RatingSummary,
++} from "../model/rating";
++
++type Props = {
++  summary: RatingSummary;
++  className?: string;
++};
++
++/**
++ * A developer's rating (NN-35, prototype). Hovering, focusing or tapping it
++ * opens a card with a bar for the clients' rating and one for the Team
++ * Leads', each with its count; "New, no ratings yet" when there are none.
++ * The bars grow with Motion, or appear at once with reduced motion. Escape,
++ * moving away or tapping elsewhere closes it.
++ */
++export function RatingCard({ summary, className }: Props) {
++  const cardId = useId();
++  const [open, setOpen] = useState(false);
++  const fresh = isNewRatee(summary);
++  const overall = overallAverage(summary);
++  const total = totalRatings(summary);
++  const label = fresh || overall === null ? "New, no ratings yet" : `${formatStars(overall)} (${total})`;
++  const spoken =
++    fresh || overall === null
++      ? "New, no ratings yet."
++      : `Rated ${formatStars(overall)} out of 5 from ${total} ${total === 1 ? "rating" : "ratings"}.`;
++
++  function onKeyDown(event: KeyboardEvent) {
++    if (event.key === "Escape" && open) {
++      event.stopPropagation();
++      setOpen(false);
++    }
++  }
++
++  return (
++    <span
++      className={cn("relative inline-flex", className)}
++      onMouseEnter={() => setOpen(true)}
++      onMouseLeave={() => setOpen(false)}
++    >
++      <button
++        type="button"
++        aria-describedby={open ? cardId : undefined}
++        aria-expanded={open}
++        onFocus={() => setOpen(true)}
++        onBlur={() => setOpen(false)}
++        // A tap focuses and opens it; a second tap or a click never closes it by surprise.
++        onClick={() => setOpen(true)}
++        onKeyDown={onKeyDown}
++        className="inline-flex min-h-9 items-center gap-1.5 rounded-full border px-3 text-sm font-medium transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
++      >
++        <StarIcon aria-hidden className={cn("size-4", fresh ? "text-muted-foreground" : "fill-current text-amber-500")} />
++        <span aria-hidden>{label}</span>
++        <span className="sr-only">{spoken} Show the breakdown.</span>
++      </button>
++      <AnimatePresence>
++        {open ? <Breakdown id={cardId} summary={summary} fresh={fresh} /> : null}
++      </AnimatePresence>
++    </span>
++  );
++}
++
++function Breakdown({ id, summary, fresh }: { id: string; summary: RatingSummary; fresh: boolean }) {
++  const reduce = useReducedMotion();
++  return (
++    <motion.div
++      id={id}
++      role="tooltip"
++      initial={reduce ? false : { opacity: 0, y: -4 }}
++      animate={{ opacity: 1, y: 0 }}
++      exit={reduce ? { opacity: 0, transition: { duration: 0 } } : { opacity: 0, y: -4 }}
++      transition={{ duration: 0.15 }}
++      className="absolute top-full left-0 z-30 mt-2 w-64 max-w-[calc(100vw-2rem)] rounded-lg border bg-popover p-3 text-popover-foreground shadow-md"
++    >
++      {fresh ? (
++        <p className="text-sm">New, no ratings yet</p>
++      ) : (
++        <dl className="space-y-3">
++          <Bar label={RATER_LABEL.client} stat={summary.from_clients} reduce={Boolean(reduce)} />
++          <Bar label={RATER_LABEL.lead} stat={summary.from_leads} reduce={Boolean(reduce)} />
++        </dl>
++      )}
++      <p className="mt-3 text-xs text-muted-foreground">Ratings are given after a project is completed.</p>
++    </motion.div>
++  );
++}
++
++function Bar({ label, stat, reduce }: { label: string; stat: RatingStat; reduce: boolean }) {
++  const percent = stat.average === null ? 0 : (stat.average / 5) * 100;
++  return (
++    <div className="space-y-1">
++      <div className="flex items-baseline justify-between gap-2 text-sm">
++        <dt>{label}</dt>
++        <dd className="text-muted-foreground">
++          {stat.average === null
++            ? "No ratings yet"
++            : `${formatStars(stat.average)} · ${stat.count} ${stat.count === 1 ? "rating" : "ratings"}`}
++        </dd>
++      </div>
++      <div aria-hidden className="h-2 overflow-hidden rounded-full bg-muted">
++        <motion.div
++          data-testid="rating-bar"
++          className="h-full rounded-full bg-amber-500"
++          initial={reduce ? false : { width: 0 }}
++          animate={{ width: `${percent}%` }}
++          transition={{ duration: 0.6, ease: "easeOut" }}
++        />
++      </div>
++    </div>
++  );
++}
+diff --git a/frontend/src/features/rate-project/index.ts b/frontend/src/features/rate-project/index.ts
+new file mode 100644
+index 0000000..de3f474
+--- /dev/null
++++ b/frontend/src/features/rate-project/index.ts
+@@ -0,0 +1 @@
++export { RatingForm } from "./ui/rating-form";
+diff --git a/frontend/src/features/rate-project/ui/rating-form.tsx b/frontend/src/features/rate-project/ui/rating-form.tsx
+new file mode 100644
+index 0000000..cebead8
+--- /dev/null
++++ b/frontend/src/features/rate-project/ui/rating-form.tsx
+@@ -0,0 +1,102 @@
++"use client";
++
++import { useId, useState, type FormEvent } from "react";
++
++import { RATING_RULES, ratingProblems, type RatingTarget, type RatingValue } from "@/entities/rating";
++import { underConstruction } from "@/shared/lib/toast";
++import { Button } from "@/shared/ui/shadcn/button";
++import { Label } from "@/shared/ui/shadcn/label";
++import { Textarea } from "@/shared/ui/shadcn/textarea";
++
++import { StarInput } from "./star-input";
++
++type Props = {
++  targets: RatingTarget[];
++  /** The Team Lead's comment on a member is their Team Lead reference, shown on the member's portfolio. */
++  commentIsReference: boolean;
++  /** Shows the ratings as sent (prototype preview; nothing is saved). */
++  onSubmitted: (values: Record<string, RatingValue>) => void;
++};
++
++/**
++ * Rate the people on a completed project (NN-35, prototype): 1–5 stars each,
++ * plus an optional comment or Team Lead reference. Checks it like the planned
++ * API would, then says it's under construction.
++ */
++export function RatingForm({ targets, commentIsReference, onSubmitted }: Props) {
++  const id = useId();
++  const [values, setValues] = useState<Record<string, RatingValue>>(() =>
++    Object.fromEntries(targets.map((t) => [t.key, { stars: null, comment: "" }])),
++  );
++  const [problems, setProblems] = useState<Record<string, string>>({});
++
++  function set(key: string, patch: Partial<RatingValue>) {
++    setValues((current) => ({ ...current, [key]: { ...current[key], ...patch } }));
++    if (problems[key]) {
++      setProblems((current) => {
++        const next = { ...current };
++        delete next[key];
++        return next;
++      });
++    }
++  }
++
++  function submit(event: FormEvent) {
++    event.preventDefault();
++    const found = ratingProblems(targets, values);
++    setProblems(found);
++    const first = targets.find((t) => found[t.key]);
++    if (first) {
++      document.getElementById(`${id}-${first.key}-1`)?.focus();
++      return;
++    }
++    onSubmitted(values);
++    underConstruction("Send ratings");
++  }
++
++  return (
++    <form noValidate onSubmit={submit} className="space-y-4">
++      {targets.map((target) => {
++        const field = `${id}-${target.key}`;
++        const problem = problems[target.key];
++        const value = values[target.key];
++        return (
++          <fieldset key={target.key} className="space-y-3 rounded-lg border p-4">
++            <legend className="px-1 font-medium">{target.name}</legend>
++            <StarInput
++              name={field}
++              value={value.stars}
++              onChange={(stars) => set(target.key, { stars })}
++              invalid={Boolean(problem)}
++              describedBy={problem ? `${field}-error` : undefined}
++            />
++            {problem ? (
++              <p id={`${field}-error`} role="alert" className="text-sm text-destructive">
++                {problem}
++              </p>
++            ) : null}
++            <div className="space-y-1.5">
++              <Label htmlFor={`${field}-comment`}>
++                {commentIsReference ? "Team Lead reference (optional)" : "Comment (optional)"}
++              </Label>
++              <Textarea
++                id={`${field}-comment`}
++                rows={3}
++                maxLength={RATING_RULES.commentMax}
++                value={value.comment}
++                aria-describedby={`${field}-hint`}
++                onChange={(e) => set(target.key, { comment: e.target.value })}
++              />
++              <p id={`${field}-hint`} className="text-xs text-muted-foreground">
++                {commentIsReference
++                  ? `Shown on ${target.name}'s portfolio as a Team Lead reference.`
++                  : "Only the person rated and NextNode see it."}
++              </p>
++            </div>
++          </fieldset>
++        );
++      })}
++      <Button type="submit">Send ratings</Button>
++    </form>
++  );
++}
+diff --git a/frontend/src/features/rate-project/ui/star-input.tsx b/frontend/src/features/rate-project/ui/star-input.tsx
+new file mode 100644
+index 0000000..3a20213
+--- /dev/null
++++ b/frontend/src/features/rate-project/ui/star-input.tsx
+@@ -0,0 +1,58 @@
++"use client";
++
++import { StarIcon } from "lucide-react";
++
++import { cn } from "@/shared/lib/utils";
++
++type Props = {
++  /** Unique per field: names the radio group. */
++  name: string;
++  value: number | null;
++  onChange: (stars: number) => void;
++  invalid?: boolean;
++  describedBy?: string;
++};
++
++/**
++ * 1–5 stars as a radio group: arrow keys move between stars, each has a
++ * spoken label, and the focused star shows a ring.
++ */
++export function StarInput({ name, value, onChange, invalid = false, describedBy }: Props) {
++  return (
++    <div
++      role="radiogroup"
++      aria-label="Stars"
++      aria-invalid={invalid || undefined}
++      aria-describedby={describedBy}
++      className="flex gap-1"
++    >
++      {[1, 2, 3, 4, 5].map((stars) => {
++        const id = `${name}-${stars}`;
++        const lit = value !== null && stars <= value;
++        return (
++          <label key={stars} htmlFor={id} className="relative cursor-pointer">
++            <input
++              id={id}
++              type="radio"
++              name={name}
++              value={stars}
++              checked={value === stars}
++              onChange={() => onChange(stars)}
++              className="peer sr-only"
++            />
++            <span className="sr-only">
++              {stars} {stars === 1 ? "star" : "stars"}
++            </span>
++            <StarIcon
++              aria-hidden
++              className={cn(
++                "size-8 rounded-md p-1 transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-ring",
++                lit ? "fill-amber-500 text-amber-500" : "text-muted-foreground hover:text-amber-500",
++              )}
++            />
++          </label>
++        );
++      })}
++    </div>
++  );
++}
+diff --git a/frontend/src/views/portfolio/ui/portfolio-view.tsx b/frontend/src/views/portfolio/ui/portfolio-view.tsx
+index d53680e..f0c35b3 100644
+--- a/frontend/src/views/portfolio/ui/portfolio-view.tsx
++++ b/frontend/src/views/portfolio/ui/portfolio-view.tsx
+@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
+ import { Suspense } from "react";
+ 
+ import { getCertificates, getPortfolio, PortfolioProfile, portfolioHref, sampleShippedProjects } from "@/entities/developer";
++import { RatingCard, sampleRatingSummary, sampleReferences } from "@/entities/rating";
+ import { getViewer, routeFor } from "@/entities/viewer";
+ import { CertificateList } from "@/features/view-certificate";
+ import { authedServerApi } from "@/shared/api/server-client";
+@@ -13,6 +14,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/shared/ui/shadcn/alert";
+ import { Button } from "@/shared/ui/shadcn/button";
+ import { AppHeader } from "@/widgets/app-header";
+ import { ShippedProjects } from "@/widgets/shipped-projects";
++import { TeamLeadReferences } from "@/widgets/team-lead-references";
+ 
+ import { PortfolioActions } from "./portfolio-actions";
+ 
+@@ -126,6 +128,8 @@ async function PortfolioScreen({ developerId, saved }: Props) {
+       ) : null}
+       <PortfolioProfile
+         portfolio={portfolio}
++        // Phase 2 prototype (NN-35 #98): a sample rating, not this developer's.
++        rating={<RatingCard summary={sampleRatingSummary(portfolio.account_id)} />}
+         certificates={
+           certificates?.ok ? (
+             <CertificateList accountId={portfolio.account_id} certificates={certificates.data} />
+@@ -147,8 +151,9 @@ async function PortfolioScreen({ developerId, saved }: Props) {
+           )
+         }
+       />
+-      {/* Phase 2 prototype section (NN-17 #97): sample entries, clearly badged. */}
++      {/* Phase 2 prototype sections (NN-17 #97, NN-35 #98): sample entries, clearly badged. */}
+       <ShippedProjects projects={sampleShippedProjects(portfolio.account_id)} isOwner={portfolio.is_owner} />
++      <TeamLeadReferences references={sampleReferences(portfolio.account_id)} isOwner={portfolio.is_owner} />
+     </>
+   );
+ }
+diff --git a/frontend/src/views/project-closing/index.ts b/frontend/src/views/project-closing/index.ts
+index 0908bb7..f98e8f6 100644
+--- a/frontend/src/views/project-closing/index.ts
++++ b/frontend/src/views/project-closing/index.ts
+@@ -1,2 +1,3 @@
+ export { ArchivedProjectView } from "./ui/archived-project-view";
+ export { FinalApprovalView } from "./ui/final-approval-view";
++export { RatingsView } from "./ui/ratings-view";
+diff --git a/frontend/src/views/project-closing/ui/ratings-view.tsx b/frontend/src/views/project-closing/ui/ratings-view.tsx
+new file mode 100644
+index 0000000..4a86509
+--- /dev/null
++++ b/frontend/src/views/project-closing/ui/ratings-view.tsx
+@@ -0,0 +1,60 @@
++import { ArrowLeftIcon } from "lucide-react";
++import Link from "next/link";
++import { Suspense } from "react";
++
++import { LoadingCards } from "@/shared/ui/load-states";
++import { PrototypeNotice } from "@/shared/ui/molecules/prototype-notice";
++import { AppHeader } from "@/widgets/app-header";
++import { RatingsPanel } from "@/widgets/project-closing";
++
++import { loadClosingProject } from "./load-closing-project";
++
++type Props = { projectId: Promise<string> };
++
++/**
++ * `/projects/[id]/ratings` (Phase 2 prototype, NN-35 #98). Access is real
++ * (the project's client, Team Lead and members); the people rated are sample data.
++ */
++export function RatingsView({ projectId }: Props) {
++  return (
++    <>
++      <AppHeader current="projects" />
++      <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-4 py-6 sm:px-6 sm:py-10">
++        <Suspense fallback={<LoadingCards count={2} label="Loading ratings" />}>
++          <Screen projectId={projectId} />
++        </Suspense>
++      </main>
++    </>
++  );
++}
++
++async function Screen({ projectId }: Props) {
++  const loaded = await loadClosingProject(await projectId, "ratings", "ratings");
++  if (!loaded.ok) return loaded.screen;
++  const { project, viewer } = loaded;
++  return (
++    <div className="space-y-6">
++      <Link
++        href={`/projects/${project.id}`}
++        className="inline-flex w-fit items-center gap-1 text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
++      >
++        <ArrowLeftIcon className="size-4" aria-hidden /> {project.title}
++      </Link>
++      <header className="space-y-1">
++        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Ratings</h1>
++        <p className="text-muted-foreground">
++          {viewer === "client"
++            ? "Rate your Team Lead and the team, once the project is completed."
++            : viewer === "lead"
++              ? "Rate each member, and write a Team Lead reference if you'd like."
++              : "How you're rated on this project."}
++        </p>
++      </header>
++      <PrototypeNotice>
++        This screen shows sample people, not this project&apos;s team. Sending ratings is under construction and saves
++        nothing.
++      </PrototypeNotice>
++      <RatingsPanel viewer={viewer} />
++    </div>
++  );
++}
+diff --git a/frontend/src/views/project-detail/ui/finish-link.test.tsx b/frontend/src/views/project-detail/ui/finish-link.test.tsx
+index 7c93337..70938a1 100644
+--- a/frontend/src/views/project-detail/ui/finish-link.test.tsx
++++ b/frontend/src/views/project-detail/ui/finish-link.test.tsx
+@@ -9,10 +9,11 @@ const project = (viewer: Partial<Project["viewer"]>, kind: Project["kind"] = "cl
+   ({ id: 4, kind, viewer: { is_owner: false, is_lead: false, is_member: false, ...viewer } }) as Project;
+ 
+ describe("FinishLink", () => {
+-  it("takes the client, the Team Lead and members to final approval and the archived view", () => {
++  it("takes the client, the Team Lead and members to final approval, ratings and the archived view", () => {
+     for (const viewer of [{ is_owner: true }, { is_lead: true }, { is_member: true }]) {
+       const { unmount } = render(<FinishLink project={project(viewer)} />);
+       expect(screen.getByRole("link", { name: "Final approval" })).toHaveAttribute("href", "/projects/4/final-approval");
++      expect(screen.getByRole("link", { name: "Ratings" })).toHaveAttribute("href", "/projects/4/ratings");
+       expect(screen.getByRole("link", { name: "Archived view" })).toHaveAttribute("href", "/projects/4/archived");
+       expect(screen.getByText("Prototype")).toBeInTheDocument();
+       unmount();
+diff --git a/frontend/src/views/project-detail/ui/finish-link.tsx b/frontend/src/views/project-detail/ui/finish-link.tsx
+index 789dd62..31489ce 100644
+--- a/frontend/src/views/project-detail/ui/finish-link.tsx
++++ b/frontend/src/views/project-detail/ui/finish-link.tsx
+@@ -1,4 +1,4 @@
+-import { ArchiveIcon, BadgeCheckIcon } from "lucide-react";
++import { ArchiveIcon, BadgeCheckIcon, StarIcon } from "lucide-react";
+ import Link from "next/link";
+ 
+ import type { Project } from "@/entities/project";
+@@ -7,8 +7,8 @@ import { Button } from "@/shared/ui/shadcn/button";
+ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/shadcn/card";
+ 
+ /**
+- * Phase 2 prototype entry point (NN-17 #97): final approval and the archived
+- * view. Client projects only, for the client, the Team Lead and members. It
++ * Phase 2 prototype entry point (NN-17 #97, NN-35 #98): final approval,
++ * ratings and the archived view. Client projects only, for the client, the Team Lead and members. It
+  * sits beside the Phase 1 sections and changes none of them.
+  */
+ export function FinishLink({ project }: { project: Project }) {
+@@ -24,8 +24,8 @@ export function FinishLink({ project }: { project: Project }) {
+         </CardTitle>
+         <CardDescription>
+           {is_owner
+-            ? "Approve the finished project, pay the final payment, and see it archived."
+-            : "The client's final approval, and the project once it's archived."}
++            ? "Approve the finished project, rate the team, and see it archived."
++            : "The client's final approval, ratings, and the project once it's archived."}
+         </CardDescription>
+       </CardHeader>
+       <CardContent className="flex flex-col gap-2">
+@@ -35,6 +35,12 @@ export function FinishLink({ project }: { project: Project }) {
+             Final approval
+           </Link>
+         </Button>
++        <Button asChild variant="outline" className="w-full">
++          <Link href={`/projects/${project.id}/ratings`}>
++            <StarIcon aria-hidden data-icon="inline-start" />
++            Ratings
++          </Link>
++        </Button>
+         <Button asChild variant="outline" className="w-full">
+           <Link href={`/projects/${project.id}/archived`}>
+             <ArchiveIcon aria-hidden data-icon="inline-start" />
+diff --git a/frontend/src/widgets/project-closing/index.ts b/frontend/src/widgets/project-closing/index.ts
+index 8389cf2..d102e73 100644
+--- a/frontend/src/widgets/project-closing/index.ts
++++ b/frontend/src/widgets/project-closing/index.ts
+@@ -1,2 +1,3 @@
+ export { ArchivedProject } from "./ui/archived-project";
+ export { FinalApprovalPanel } from "./ui/final-approval-panel";
++export { RatingsPanel } from "./ui/ratings-panel";
+diff --git a/frontend/src/widgets/project-closing/ui/ratings-panel.test.tsx b/frontend/src/widgets/project-closing/ui/ratings-panel.test.tsx
+new file mode 100644
+index 0000000..b07cec9
+--- /dev/null
++++ b/frontend/src/widgets/project-closing/ui/ratings-panel.test.tsx
+@@ -0,0 +1,53 @@
++import { act, render, screen, within } from "@testing-library/react";
++import userEvent from "@testing-library/user-event";
++import { afterEach, describe, expect, it } from "vitest";
++
++import { getToasts, resetToasts } from "@/shared/lib/toast";
++
++import { RatingsPanel } from "./ratings-panel";
++
++afterEach(() => act(() => resetToasts()));
++
++describe("RatingsPanel", () => {
++  it("lets the client rate the Team Lead and the team, needing stars for both", async () => {
++    const user = userEvent.setup();
++    render(<RatingsPanel viewer="client" />);
++    await user.click(screen.getByRole("button", { name: "Send ratings" }));
++    expect(screen.getByText("Choose 1 to 5 stars for Ada (Team Lead).")).toBeInTheDocument();
++    expect(getToasts()).toHaveLength(0);
++
++    const lead = screen.getByRole("group", { name: "Ada (Team Lead)" });
++    await user.click(within(lead).getByLabelText("5 stars"));
++    await user.type(within(lead).getByLabelText("Comment (optional)"), "Great updates.");
++    await user.click(within(screen.getByRole("group", { name: "The team" })).getByLabelText("4 stars"));
++    await user.click(screen.getByRole("button", { name: "Send ratings" }));
++
++    expect(getToasts().at(-1)?.description).toBe("Send ratings: this function is under construction.");
++    expect(screen.getByText("Preview only")).toBeInTheDocument();
++    expect(screen.getByText("Great updates.")).toBeInTheDocument();
++  });
++
++  it("lets the Team Lead rate each member and write a Team Lead reference", () => {
++    render(<RatingsPanel viewer="lead" />);
++    for (const name of ["Margaret", "Lee", "Sam"]) {
++      expect(screen.getByRole("group", { name })).toBeInTheDocument();
++    }
++    expect(screen.getAllByLabelText("Team Lead reference (optional)")).toHaveLength(3);
++    expect(screen.getByText("Shown on Margaret's portfolio as a Team Lead reference.")).toBeInTheDocument();
++  });
++
++  it("gives members nothing to rate", () => {
++    render(<RatingsPanel viewer="member" />);
++    expect(screen.getByText("Your client and Team Lead rate you")).toBeInTheDocument();
++    expect(screen.queryByRole("button", { name: "Send ratings" })).not.toBeInTheDocument();
++  });
++
++  it("stays closed until the project is completed, and shows ratings already sent", async () => {
++    const user = userEvent.setup();
++    render(<RatingsPanel viewer="client" initial="not_completed" />);
++    expect(screen.getByText("Ratings open when the project is completed")).toBeInTheDocument();
++    await user.click(screen.getByRole("button", { name: "Already rated" }));
++    expect(screen.getByRole("heading", { name: "Your ratings" })).toBeInTheDocument();
++    expect(screen.getByText("Clear updates every week.")).toBeInTheDocument();
++  });
++});
+diff --git a/frontend/src/widgets/project-closing/ui/ratings-panel.tsx b/frontend/src/widgets/project-closing/ui/ratings-panel.tsx
+new file mode 100644
+index 0000000..912f44c
+--- /dev/null
++++ b/frontend/src/widgets/project-closing/ui/ratings-panel.tsx
+@@ -0,0 +1,120 @@
++"use client";
++
++import { HourglassIcon, StarIcon, UsersIcon } from "lucide-react";
++import { useState } from "react";
++
++import { RatingForm } from "@/features/rate-project";
++import {
++  RATING_SAMPLE_SITUATIONS,
++  SAMPLE_CLIENT_TARGETS,
++  SAMPLE_MEMBER_TARGETS,
++  type RatingSampleSituation,
++  type RatingTarget,
++  type RatingValue,
++} from "@/entities/rating";
++import { PrototypeBadge } from "@/shared/ui/molecules/prototype-badge";
++import { StateCard } from "@/shared/ui/molecules/state-card";
++import { Alert, AlertDescription, AlertTitle } from "@/shared/ui/shadcn/alert";
++import { Button } from "@/shared/ui/shadcn/button";
++import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/shadcn/card";
++
++import { SamplePicker } from "./sample-picker";
++
++type Props = {
++  viewer: "client" | "lead" | "member";
++  /** Which sample to open on (tests). */
++  initial?: RatingSampleSituation;
++};
++
++const SAMPLE_GIVEN: Record<string, RatingValue> = {
++  lead: { stars: 5, comment: "Clear updates every week." },
++  team: { stars: 4, comment: "" },
++  "m-9202": { stars: 5, comment: "Owned the booking flow end to end." },
++  "m-9203": { stars: 4, comment: "" },
++  "m-9204": { stars: 4, comment: "" },
++};
++
++/**
++ * Rating after completion (NN-35, prototype). The client rates the Team Lead
++ * and the team; the Team Lead rates each member and may write a Team Lead
++ * reference. Members are rated, not raters. Nothing is saved.
++ */
++export function RatingsPanel({ viewer, initial = "open" }: Props) {
++  const [situation, setSituation] = useState<RatingSampleSituation>(initial);
++  const [given, setGiven] = useState<Record<string, RatingValue> | null>(null);
++  const targets: RatingTarget[] = viewer === "client" ? SAMPLE_CLIENT_TARGETS : SAMPLE_MEMBER_TARGETS;
++
++  function choose(next: RatingSampleSituation) {
++    setSituation(next);
++    setGiven(null);
++  }
++
++  const shown = given ?? (situation === "already_rated" ? SAMPLE_GIVEN : null);
++
++  return (
++    <div className="space-y-6">
++      <div className="flex flex-wrap items-end justify-between gap-3">
++        <SamplePicker options={RATING_SAMPLE_SITUATIONS} current={situation} onChange={choose} />
++        <PrototypeBadge />
++      </div>
++
++      {given ? (
++        <Alert role="note">
++          <AlertTitle>Preview only</AlertTitle>
++          <AlertDescription className="flex flex-wrap items-center gap-x-3 gap-y-2">
++            <span>Your ratings are shown here but not saved. Leaving the page resets them.</span>
++            <Button type="button" variant="outline" size="sm" onClick={() => choose("open")}>
++              Reset the sample
++            </Button>
++          </AlertDescription>
++        </Alert>
++      ) : null}
++
++      {viewer === "member" ? (
++        <StateCard
++          icon={<UsersIcon aria-hidden />}
++          title="Your client and Team Lead rate you"
++          message="Once the project is completed, the client rates the team and your Team Lead rates each member. Ratings show on your portfolio."
++        />
++      ) : situation === "not_completed" ? (
++        <StateCard
++          icon={<HourglassIcon aria-hidden />}
++          title="Ratings open when the project is completed"
++          message="Every milestone must be approved before anyone can be rated."
++        />
++      ) : shown ? (
++        <Card>
++          <CardHeader>
++            <CardTitle className="text-base">
++              <h2>Your ratings</h2>
++            </CardTitle>
++            <CardDescription>Ratings can&apos;t be changed once they&apos;re sent.</CardDescription>
++          </CardHeader>
++          <CardContent>
++            <ul className="divide-y">
++              {targets.map((t) => (
++                <li key={t.key} className="space-y-1 py-3 first:pt-0 last:pb-0">
++                  <p className="flex flex-wrap items-center gap-2 font-medium">
++                    {t.name}
++                    <span className="inline-flex items-center gap-1 text-sm text-muted-foreground">
++                      <StarIcon aria-hidden className="size-4 fill-amber-500 text-amber-500" />
++                      {shown[t.key]?.stars} of 5
++                    </span>
++                  </p>
++                  {shown[t.key]?.comment ? <p className="text-sm">{shown[t.key].comment}</p> : null}
++                </li>
++              ))}
++            </ul>
++          </CardContent>
++        </Card>
++      ) : (
++        <section aria-labelledby="rate-heading" className="space-y-3">
++          <h2 id="rate-heading" className="text-lg font-semibold">
++            {viewer === "client" ? "Rate your Team Lead and the team" : "Rate each member of your team"}
++          </h2>
++          <RatingForm targets={targets} commentIsReference={viewer === "lead"} onSubmitted={setGiven} />
++        </section>
++      )}
++    </div>
++  );
++}
+diff --git a/frontend/src/widgets/team-lead-references/index.ts b/frontend/src/widgets/team-lead-references/index.ts
+new file mode 100644
+index 0000000..1618a14
+--- /dev/null
++++ b/frontend/src/widgets/team-lead-references/index.ts
+@@ -0,0 +1 @@
++export { TeamLeadReferences } from "./ui/team-lead-references";
+diff --git a/frontend/src/widgets/team-lead-references/ui/team-lead-references.test.tsx b/frontend/src/widgets/team-lead-references/ui/team-lead-references.test.tsx
+new file mode 100644
+index 0000000..54e6f01
+--- /dev/null
++++ b/frontend/src/widgets/team-lead-references/ui/team-lead-references.test.tsx
+@@ -0,0 +1,20 @@
++import { render, screen } from "@testing-library/react";
++import { describe, expect, it } from "vitest";
++
++import { sampleReferences } from "@/entities/rating";
++
++import { TeamLeadReferences } from "./team-lead-references";
++
++describe("TeamLeadReferences", () => {
++  it("shows what Team Leads wrote, with who and on which project", () => {
++    render(<TeamLeadReferences references={sampleReferences(1)} isOwner={false} />);
++    expect(screen.getByText(/Owned the booking flow end to end/)).toBeInTheDocument();
++    expect(screen.getByText(/Ada, Team Lead on Clinic booking app/)).toBeInTheDocument();
++    expect(screen.getByText("Prototype")).toBeInTheDocument();
++  });
++
++  it("draws the empty state", () => {
++    render(<TeamLeadReferences references={[]} isOwner />);
++    expect(screen.getByText(/No references yet/)).toBeInTheDocument();
++  });
++});
+diff --git a/frontend/src/widgets/team-lead-references/ui/team-lead-references.tsx b/frontend/src/widgets/team-lead-references/ui/team-lead-references.tsx
+new file mode 100644
+index 0000000..d4e132e
+--- /dev/null
++++ b/frontend/src/widgets/team-lead-references/ui/team-lead-references.tsx
+@@ -0,0 +1,53 @@
++import { QuoteIcon } from "lucide-react";
++
++import type { TeamLeadReference } from "@/entities/rating";
++import { formatMonthYear } from "@/shared/lib/format-date";
++import { PrototypeBadge } from "@/shared/ui/molecules/prototype-badge";
++import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/shadcn/card";
++
++type Props = { references: TeamLeadReference[]; isOwner: boolean };
++
++/**
++ * "Team Lead reference" on a member's portfolio (NN-35, prototype): what
++ * their Team Leads wrote when rating them after a completed project. The
++ * entries are sample data, not this developer's.
++ */
++export function TeamLeadReferences({ references, isOwner }: Props) {
++  return (
++    <Card aria-labelledby="lead-references-title" role="region">
++      <CardHeader>
++        <CardTitle className="flex flex-wrap items-center justify-between gap-2 text-base">
++          <h2 id="lead-references-title">Team Lead references</h2>
++          <PrototypeBadge />
++        </CardTitle>
++        <CardDescription>Sample entries. Written by Team Leads after a completed project.</CardDescription>
++      </CardHeader>
++      <CardContent>
++        {references.length === 0 ? (
++          <p className="text-sm text-muted-foreground">
++            {isOwner
++              ? "No references yet. Your Team Lead can write one when they rate you after a project."
++              : "No Team Lead references yet."}
++          </p>
++        ) : (
++          <ul className="space-y-4">
++            {references.map((r) => (
++              <li key={r.id}>
++                <figure className="space-y-1.5">
++                  <blockquote className="flex gap-2 text-sm">
++                    <QuoteIcon aria-hidden className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
++                    <p>{r.body}</p>
++                  </blockquote>
++                  <figcaption className="pl-6 text-xs text-muted-foreground">
++                    {r.lead_name}, Team Lead on {r.project_title} ·{" "}
++                    <time dateTime={r.written_at}>{formatMonthYear(r.written_at)}</time>
++                  </figcaption>
++                </figure>
++              </li>
++            ))}
++          </ul>
++        )}
++      </CardContent>
++    </Card>
++  );
++}

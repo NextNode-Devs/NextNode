@@ -1,0 +1,405 @@
+diff --git a/docs/backlog-phase-2.md b/docs/backlog-phase-2.md
+index 017d068..66e0894 100644
+--- a/docs/backlog-phase-2.md
++++ b/docs/backlog-phase-2.md
+@@ -245,8 +245,18 @@ edited once sent. Planned shapes: `entities/rating/model/rating.ts`.
+ **NN-36 · Junior and new-developer spots**. Kai. Trace: Q4.
+ - the Lead marks some open spots as junior
+ - the new-talent badge and filter link to NN-33 and NN-34
++- built: a "Junior spots" prototype card on the project page beside the team
++  roster. The Team Lead of a recruiting team switches each open spot to
++  junior (saving shows the under-construction toast) and opens Hire Devs or
++  the directory filtered to new talent (`?new_talent=true`); everyone else
++  sees how many open spots are junior, with the "New talent" badge. The open
++  spots are the team's real ones; which are junior is sample data
+ 
+ Backend note: spot type on the team. Team size is still 5–7 including the Lead.
++A junior spot is one of the open spots, never an extra one, so the Lead can
++mark at most `open_spots`. The prototype does not stop a developer who is not
++new talent from taking a junior spot; whether the API should is open (Team
++Lead to decide). Planned shape: `entities/team/model/spots.ts`.
+ 
+ **NN-38 · Lead and member replacement (client projects)**. Hardik (flow),
+ Aliya (re-sign screen and the access-lost state). Trace: Q2.
+diff --git a/frontend/src/entities/team/index.ts b/frontend/src/entities/team/index.ts
+index 02004c5..7713a33 100644
+--- a/frontend/src/entities/team/index.ts
++++ b/frontend/src/entities/team/index.ts
+@@ -83,3 +83,16 @@ export {
+   sampleLeadResign,
+ } from "./model/lead-resign-sample";
+ export { TeamLiveRefresh } from "./ui/team-live-refresh";
++// Phase 2 prototype (NN-36 #99): junior spots.
++export {
++  clampJunior,
++  juniorCount,
++  juniorSpotsLine,
++  NEW_TALENT_DIRECTORY_HREF,
++  newTalentHireDevsHref,
++  spotsWithJunior,
++  type OpenSpot,
++  type SpotType,
++} from "./model/spots";
++// Prototype sample data: import only from Phase 2 prototype screens.
++export { sampleJuniorCount } from "./model/sample";
+diff --git a/frontend/src/entities/team/model/sample.ts b/frontend/src/entities/team/model/sample.ts
+new file mode 100644
+index 0000000..e3f837c
+--- /dev/null
++++ b/frontend/src/entities/team/model/sample.ts
+@@ -0,0 +1,12 @@
++/**
++ * PROTOTYPE SAMPLE DATA (Phase 2, NN-36 #99). Only prototype screens may
++ * import this; never a Phase 1 screen.
++ *
++ * The open spots themselves are real (the team's size and members); only
++ * which of them are junior is sample, since the API has no spot type yet.
++ */
++
++/** Until the API stores spot types: one junior spot whenever the team has two or more open. */
++export function sampleJuniorCount(openCount: number): number {
++  return openCount >= 2 ? 1 : 0;
++}
+diff --git a/frontend/src/entities/team/model/spots.test.ts b/frontend/src/entities/team/model/spots.test.ts
+new file mode 100644
+index 0000000..6bce11d
+--- /dev/null
++++ b/frontend/src/entities/team/model/spots.test.ts
+@@ -0,0 +1,30 @@
++import { describe, expect, it } from "vitest";
++
++import { sampleJuniorCount } from "./sample";
++import { clampJunior, juniorCount, juniorSpotsLine, newTalentHireDevsHref, spotsWithJunior } from "./spots";
++
++describe("junior spots", () => {
++  it("marks the first spots junior, never more than are open", () => {
++    expect(spotsWithJunior(3, 1).map((s) => s.type)).toEqual(["junior", "standard", "standard"]);
++    expect(juniorCount(spotsWithJunior(2, 5))).toBe(2);
++    expect(clampJunior(3, -1)).toBe(0);
++    expect(spotsWithJunior(0, 2)).toEqual([]);
++  });
++
++  it("says how many are junior in plain words", () => {
++    expect(juniorSpotsLine(spotsWithJunior(3, 1))).toBe("1 of 3 open spots is for junior developers.");
++    expect(juniorSpotsLine(spotsWithJunior(3, 2))).toBe("2 of 3 open spots are for junior developers.");
++    expect(juniorSpotsLine(spotsWithJunior(1, 1))).toBe("The open spot is for a junior developer.");
++    expect(juniorSpotsLine(spotsWithJunior(2, 0))).toBe("None of the 2 open spots are marked junior.");
++    expect(juniorSpotsLine([])).toBe("No open spots.");
++  });
++
++  it("links to Hire Devs showing new talent only", () => {
++    expect(newTalentHireDevsHref(4)).toBe("/projects/4/hire-devs?new_talent=true");
++  });
++
++  it("samples one junior spot when two or more are open", () => {
++    expect(sampleJuniorCount(1)).toBe(0);
++    expect(sampleJuniorCount(3)).toBe(1);
++  });
++});
+diff --git a/frontend/src/entities/team/model/spots.ts b/frontend/src/entities/team/model/spots.ts
+new file mode 100644
+index 0000000..de923c5
+--- /dev/null
++++ b/frontend/src/entities/team/model/spots.ts
+@@ -0,0 +1,52 @@
++/**
++ * Junior spots (Phase 2 prototype, NN-36 #99; stakeholder Q4).
++ *
++ * The Team Lead marks some of the team's open spots as junior: meant for a
++ * developer new to NextNode. "New talent" (NN-34) is a developer whose
++ * account is at most 15 days old; Hire Devs (NN-33) and the directory filter
++ * on it with `?new_talent=true`. Team size is still 5 to 7, Team Lead
++ * included: a junior spot is one of those open spots, never an extra one.
++ *
++ * PROTOTYPE: there is no API yet (backend note: a spot type on the team).
++ */
++
++export type SpotType = "standard" | "junior";
++
++/** One open spot on the team, numbered from 1 (planned `GET /api/teams/{id}/spots/`). */
++export type OpenSpot = { number: number; type: SpotType };
++
++/** The team's open spots, the first `juniorCount` of them junior. */
++export function spotsWithJunior(openCount: number, juniorCount: number): OpenSpot[] {
++  const junior = clampJunior(openCount, juniorCount);
++  return Array.from({ length: Math.max(0, openCount) }, (_, i) => ({
++    number: i + 1,
++    type: i < junior ? "junior" : "standard",
++  }));
++}
++
++/** A junior count can't be negative or more than the open spots. */
++export function clampJunior(openCount: number, juniorCount: number): number {
++  return Math.min(Math.max(0, juniorCount), Math.max(0, openCount));
++}
++
++export function juniorCount(spots: readonly OpenSpot[]): number {
++  return spots.filter((s) => s.type === "junior").length;
++}
++
++/** "1 of 3 open spots is for junior developers." */
++export function juniorSpotsLine(spots: readonly OpenSpot[]): string {
++  const junior = juniorCount(spots);
++  const open = spots.length;
++  if (open === 0) return "No open spots.";
++  if (junior === 0) return open === 1 ? "The open spot isn't marked junior." : `None of the ${open} open spots are marked junior.`;
++  if (open === 1) return "The open spot is for a junior developer.";
++  return `${junior} of ${open} open spots ${junior === 1 ? "is" : "are"} for junior developers.`;
++}
++
++/** Hire Devs (NN-33) showing new talent only. */
++export function newTalentHireDevsHref(projectId: number): string {
++  return `/projects/${projectId}/hire-devs?new_talent=true`;
++}
++
++/** The developer directory (NN-34) showing new talent only. */
++export const NEW_TALENT_DIRECTORY_HREF = "/developers?new_talent=true";
+diff --git a/frontend/src/features/mark-junior-spots/index.ts b/frontend/src/features/mark-junior-spots/index.ts
+new file mode 100644
+index 0000000..657c822
+--- /dev/null
++++ b/frontend/src/features/mark-junior-spots/index.ts
+@@ -0,0 +1 @@
++export { MarkJuniorSpots } from "./ui/mark-junior-spots";
+diff --git a/frontend/src/features/mark-junior-spots/ui/mark-junior-spots.tsx b/frontend/src/features/mark-junior-spots/ui/mark-junior-spots.tsx
+new file mode 100644
+index 0000000..5cbc9ad
+--- /dev/null
++++ b/frontend/src/features/mark-junior-spots/ui/mark-junior-spots.tsx
+@@ -0,0 +1,61 @@
++"use client";
++
++import { useId, useState } from "react";
++
++import { juniorSpotsLine, type OpenSpot } from "@/entities/team";
++import { underConstruction } from "@/shared/lib/toast";
++import { Button } from "@/shared/ui/shadcn/button";
++import { Label } from "@/shared/ui/shadcn/label";
++import { Switch } from "@/shared/ui/shadcn/switch";
++
++type Props = { initial: OpenSpot[] };
++
++/**
++ * The Team Lead marks open spots as junior (NN-36, prototype). The switches
++ * work on screen; saving says it's under construction and keeps nothing.
++ */
++export function MarkJuniorSpots({ initial }: Props) {
++  const id = useId();
++  const [spots, setSpots] = useState<OpenSpot[]>(initial);
++  const [saved, setSaved] = useState(false);
++
++  function toggle(number: number, junior: boolean) {
++    setSpots((current) => current.map((s) => (s.number === number ? { ...s, type: junior ? "junior" : "standard" } : s)));
++    setSaved(false);
++  }
++
++  return (
++    <div className="space-y-3">
++      <ul className="space-y-2">
++        {spots.map((spot) => (
++          <li key={spot.number} className="flex items-center justify-between gap-3">
++            <Label htmlFor={`${id}-${spot.number}`} className="font-normal">
++              Open spot {spot.number}: junior
++            </Label>
++            <Switch
++              id={`${id}-${spot.number}`}
++              checked={spot.type === "junior"}
++              onCheckedChange={(checked) => toggle(spot.number, checked)}
++            />
++          </li>
++        ))}
++      </ul>
++      <p className="text-muted-foreground" aria-live="polite">
++        {juniorSpotsLine(spots)}
++      </p>
++      <div className="flex flex-wrap items-center gap-2">
++        <Button
++          type="button"
++          size="sm"
++          onClick={() => {
++            setSaved(true);
++            underConstruction("Save junior spots");
++          }}
++        >
++          Save junior spots
++        </Button>
++        {saved ? <span className="text-xs text-muted-foreground">Shown here only. Nothing was saved.</span> : null}
++      </div>
++    </div>
++  );
++}
+diff --git a/frontend/src/views/project-detail/ui/junior-spots.test.tsx b/frontend/src/views/project-detail/ui/junior-spots.test.tsx
+new file mode 100644
+index 0000000..e220d9f
+--- /dev/null
++++ b/frontend/src/views/project-detail/ui/junior-spots.test.tsx
+@@ -0,0 +1,56 @@
++import { act, render, screen } from "@testing-library/react";
++import userEvent from "@testing-library/user-event";
++import { afterEach, describe, expect, it } from "vitest";
++
++import type { Project } from "@/entities/project";
++import { getToasts, resetToasts } from "@/shared/lib/toast";
++
++import { JuniorSpots } from "./junior-spots";
++
++afterEach(() => act(() => resetToasts()));
++
++const project = (viewer: Partial<Project["viewer"]>, team: Partial<Project["team"]> = {}) =>
++  ({
++    id: 4,
++    team: { id: 1, status: "open", size: 6, headcount: 3, open_spots: 3, ...team },
++    viewer: { is_owner: false, is_lead: false, is_member: false, ...viewer },
++  }) as Project;
++
++describe("JuniorSpots", () => {
++  it("lets the Team Lead mark open spots junior and links to new talent in Hire Devs and the directory", async () => {
++    const user = userEvent.setup();
++    render(<JuniorSpots project={project({ is_lead: true })} />);
++    expect(screen.getByText("1 of 3 open spots is for junior developers.")).toBeInTheDocument();
++    await user.click(screen.getByRole("switch", { name: "Open spot 2: junior" }));
++    expect(screen.getByText("2 of 3 open spots are for junior developers.")).toBeInTheDocument();
++
++    await user.click(screen.getByRole("button", { name: "Save junior spots" }));
++    expect(getToasts().at(-1)?.description).toBe("Save junior spots: this function is under construction.");
++    expect(screen.getByText("Shown here only. Nothing was saved.")).toBeInTheDocument();
++
++    expect(screen.getByRole("link", { name: "Matched new talent" })).toHaveAttribute("href", "/projects/4/hire-devs?new_talent=true");
++    expect(screen.getByRole("link", { name: "Browse new talent" })).toHaveAttribute("href", "/developers?new_talent=true");
++    expect(screen.getByText("Prototype")).toBeInTheDocument();
++  });
++
++  it("shows everyone else how many spots are junior, with the new-talent badge", () => {
++    render(<JuniorSpots project={project({})} />);
++    expect(screen.getByText("1 of 3 open spots is for junior developers.")).toBeInTheDocument();
++    expect(screen.getByText("New talent")).toBeInTheDocument();
++    expect(screen.queryByRole("switch")).not.toBeInTheDocument();
++  });
++
++  it("asks the Lead to set the team size first", () => {
++    render(<JuniorSpots project={project({ is_lead: true }, { size: null, open_spots: 0 })} />);
++    expect(screen.getByText(/Set the team size first/)).toBeInTheDocument();
++  });
++
++  it("is hidden when the team is full, closed, or has no junior spot to show", () => {
++    const { container, rerender } = render(<JuniorSpots project={project({ is_lead: true }, { open_spots: 0 })} />);
++    expect(container).toBeEmptyDOMElement();
++    rerender(<JuniorSpots project={project({}, { status: "active" })} />);
++    expect(container).toBeEmptyDOMElement();
++    rerender(<JuniorSpots project={project({}, { open_spots: 1 })} />);
++    expect(container).toBeEmptyDOMElement();
++  });
++});
+diff --git a/frontend/src/views/project-detail/ui/junior-spots.tsx b/frontend/src/views/project-detail/ui/junior-spots.tsx
+new file mode 100644
+index 0000000..02a936e
+--- /dev/null
++++ b/frontend/src/views/project-detail/ui/junior-spots.tsx
+@@ -0,0 +1,87 @@
++import { SearchIcon, SparklesIcon } from "lucide-react";
++import Link from "next/link";
++
++import { NewTalentBadge } from "@/entities/developer";
++import type { Project } from "@/entities/project";
++import {
++  juniorCount,
++  juniorSpotsLine,
++  NEW_TALENT_DIRECTORY_HREF,
++  newTalentHireDevsHref,
++  spotsWithJunior,
++  sampleJuniorCount,
++} from "@/entities/team";
++import { MarkJuniorSpots } from "@/features/mark-junior-spots";
++import { PrototypeBadge } from "@/shared/ui/molecules/prototype-badge";
++import { Button } from "@/shared/ui/shadcn/button";
++import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/shadcn/card";
++
++/**
++ * Phase 2 prototype (NN-36 #99): junior spots, beside the Phase 1 team roster.
++ * The open spots are the team's real ones; which are junior is sample data.
++ * The Team Lead marks them and finds new talent (NN-33 Hire Devs, NN-34
++ * directory); everyone else sees how many spots are junior.
++ */
++export function JuniorSpots({ project }: { project: Project }) {
++  const { team, viewer } = project;
++  if (team.status !== "open") return null;
++  const lead = viewer.is_lead;
++
++  if (team.size === null || team.open_spots <= 0) {
++    if (!lead || team.size !== null) return null;
++    return (
++      <SpotsCard description="Set the team size first. Junior spots are chosen from the open spots.">
++        <p className="text-muted-foreground">Teams have 5 to 7 people, Team Lead included.</p>
++      </SpotsCard>
++    );
++  }
++
++  const spots = spotsWithJunior(team.open_spots, sampleJuniorCount(team.open_spots));
++  if (lead) {
++    return (
++      <SpotsCard description="Keep some open spots for developers new to NextNode. Sample values: the API doesn't store spot types yet.">
++        <MarkJuniorSpots initial={spots} />
++        <div className="flex flex-col gap-2 pt-1">
++          <Button asChild variant="outline" size="sm">
++            <Link href={newTalentHireDevsHref(project.id)}>
++              <SparklesIcon aria-hidden data-icon="inline-start" />
++              Matched new talent
++            </Link>
++          </Button>
++          <Button asChild variant="outline" size="sm">
++            <Link href={NEW_TALENT_DIRECTORY_HREF}>
++              <SearchIcon aria-hidden data-icon="inline-start" />
++              Browse new talent
++            </Link>
++          </Button>
++        </div>
++      </SpotsCard>
++    );
++  }
++
++  if (juniorCount(spots) === 0) return null;
++  return (
++    <SpotsCard description="Sample values: the API doesn't store spot types yet.">
++      <p>{juniorSpotsLine(spots)}</p>
++      <p className="flex flex-wrap items-center gap-2 text-muted-foreground">
++        <NewTalentBadge />
++        <span>Joined NextNode in the last 15 days? These spots are for you.</span>
++      </p>
++    </SpotsCard>
++  );
++}
++
++function SpotsCard({ description, children }: { description: string; children: React.ReactNode }) {
++  return (
++    <Card>
++      <CardHeader>
++        <CardTitle className="flex items-center justify-between gap-2 text-base">
++          <h2>Junior spots</h2>
++          <PrototypeBadge />
++        </CardTitle>
++        <CardDescription>{description}</CardDescription>
++      </CardHeader>
++      <CardContent className="space-y-3 text-sm">{children}</CardContent>
++    </Card>
++  );
++}
+diff --git a/frontend/src/views/project-detail/ui/project-detail-view.tsx b/frontend/src/views/project-detail/ui/project-detail-view.tsx
+index 960e8ce..552719e 100644
+--- a/frontend/src/views/project-detail/ui/project-detail-view.tsx
++++ b/frontend/src/views/project-detail/ui/project-detail-view.tsx
+@@ -21,6 +21,7 @@ import { TeamRoster } from "@/widgets/team-roster";
+ 
+ import { HireDevsLink } from "./hire-devs-link";
+ import { InviteLinkSection } from "./invite-link-section";
++import { JuniorSpots } from "./junior-spots";
+ import { FinishLink } from "./finish-link";
+ import { PaymentsLink } from "./payments-link";
+ import { PrimaryAction } from "./primary-action";
+@@ -173,6 +174,7 @@ async function ProjectScreen({ projectId, notice }: Props) {
+             <TeamRoster project={project} />
+           </Suspense>
+           <HireDevsLink project={project} />
++          <JuniorSpots project={project} />
+           <InviteLinkSection project={project} now={now} />
+           {project.kind === "client" ? <LegalTermsCard /> : null}
+         </aside>

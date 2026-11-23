@@ -50,7 +50,25 @@ export {
   type ProjectRole,
 } from "./model/dashboard";
 // Prototype sample data: import only from Phase 2 prototype screens.
-export { sampleDashboard, type SampleDashboard } from "./model/sample";
+export {
+  CLOSING_SAMPLE_SITUATIONS,
+  SAMPLE_ARCHIVED_CONVERSATIONS,
+  sampleClosing,
+  sampleDashboard,
+  type ArchivedConversation,
+  type ArchivedMessage,
+  type ClosingSampleSituation,
+  type SampleDashboard,
+} from "./model/sample";
+// Phase 2 prototype (NN-17 #97): final approval and archiving.
+export {
+  approvedMilestones,
+  closingStage,
+  finalApprovalSteps,
+  type ClosingMilestone,
+  type ClosingStage,
+  type ProjectClosing,
+} from "./model/closing";
 export { ProjectRoleBadge } from "./ui/project-role-badge";
 // Phase 2 prototype (#93): the "To be defined" legal terms.
 export { LegalTerms, LegalTermsCard } from "./ui/legal-terms";
