@@ -1,4 +1,5 @@
 import { FolderOpenIcon, LockIcon, MegaphoneIcon } from "lucide-react";
+import Link from "next/link";
 
 import { PROJECT_ROLE_LABEL, ProjectRoleBadge, StatusBadge, type DashboardProject } from "@/entities/project";
 import { UPDATE_AUTHOR_ROLE_LABEL, type ProjectUpdate } from "@/entities/project-update";
@@ -33,7 +34,11 @@ export function ProjectRows({ projects, updates, filter }: Props) {
               <StatusBadge status={item.project.status} />
             </span>
           </div>
-          {item.has_access ? <Accessible item={item} update={latestUpdateFor(item.project.id, updates)} /> : <NoAccess />}
+          {item.has_access ? (
+            <Accessible item={item} update={latestUpdateFor(item.project.id, updates)} />
+          ) : (
+            <NoAccess projectId={item.project.id} title={item.project.title} />
+          )}
         </li>
       ))}
     </ul>
@@ -70,11 +75,19 @@ function Accessible({ item, update }: { item: DashboardProject; update: ProjectU
 }
 
 /** Permission denied: whoever leaves a team loses access straight away (stakeholder Q2). */
-function NoAccess() {
+function NoAccess({ projectId, title }: { projectId: number; title: string }) {
   return (
-    <p className="flex items-start gap-2 text-sm text-muted-foreground">
-      <LockIcon className="mt-0.5 size-4 shrink-0" aria-hidden />
-      You&apos;re no longer on this team, so its chat, files and updates are closed to you.
-    </p>
+    <>
+      <p className="flex items-start gap-2 text-sm text-muted-foreground">
+        <LockIcon className="mt-0.5 size-4 shrink-0" aria-hidden />
+        You&apos;re no longer on this team, so its chat, files and updates are closed to you.
+      </p>
+      {/* NN-38 (Aliya): the access-lost screen explains why and what stays. */}
+      <Button asChild size="sm" variant="outline">
+        <Link href={`/projects/${projectId}/no-access`}>
+          Why can&apos;t I open this?<span className="sr-only"> ({title})</span>
+        </Link>
+      </Button>
+    </>
   );
 }

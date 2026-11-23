@@ -57,4 +57,29 @@ export {
 } from "./model/replacement";
 // Prototype sample data: import only from Phase 2 prototype screens.
 export { SAMPLE_TEAM_SITUATIONS, sampleTeamChanges } from "./model/replacement-sample";
+// Phase 2 prototype (NN-38, Aliya): the new Lead signs the current offer; access-lost screen.
+export {
+  replacementSignature,
+  RESIGN_SITUATION_LABEL,
+  resignViewer,
+  type CurrentOffer,
+  type LeadResignSnapshot,
+  type LeadSignature,
+  type ResignSituation,
+  type ResignViewer,
+} from "./model/lead-resign";
+export {
+  ACCESS_REMOVAL_LABEL,
+  CLOSED_TO_FORMER_MEMBERS,
+  isAccessRemovalReason,
+  type AccessRemoval,
+  type AccessRemovalReason,
+} from "./model/access-removal";
+// Prototype sample data: import only from Phase 2 prototype screens.
+export {
+  SAMPLE_ACCESS_REMOVAL_REASONS,
+  SAMPLE_RESIGN_SITUATIONS,
+  sampleAccessRemoval,
+  sampleLeadResign,
+} from "./model/lead-resign-sample";
 export { TeamLiveRefresh } from "./ui/team-live-refresh";
