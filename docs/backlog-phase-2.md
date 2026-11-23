@@ -228,6 +228,12 @@ Aliya (re-sign screen and the access-lost state). Trace: Q2.
 *Flow prototype 21 Nov 2026 (Hardik): the Team tab on client projects,
 `/projects/[id]/team` (`widgets/team-changes`, sample data in
 `entities/team/model/replacement-sample.ts`).*
+*Re-sign and access-lost prototype 23 Nov 2026 (Aliya): the new Lead signs the
+current offer at `/projects/[id]/team/sign-offer` (`widgets/lead-resign`,
+`features/sign-offer-as-lead`), and "You no longer have access to this
+project" at `/projects/[id]/no-access` (`widgets/access-removed`), linked from
+the Team tab and the dashboard's no-access rows. Sample data in
+`entities/team/model/lead-resign-sample.ts`.*
 - leave or remove a member; the Lead picks a replacement
 - "Lead unresponsive" banner after 3 days
 - the team proposes a new Lead → client approves → the new Lead signs the
@@ -236,7 +242,10 @@ Aliya (re-sign screen and the access-lost state). Trace: Q2.
 
 Backend note: membership `Left` / `Removed` states; roster changes while
 `Active`; a co-signature on the offer; removing someone from conversations;
-an inactivity job.
+an inactivity job. The re-sign screen expects the co-signature on the
+accepted version (no new version, the client doesn't accept again); the
+access-lost screen expects `FORBIDDEN` on the project to carry the reason
+(left, removed, replaced as Lead) and when.
 
 **NN-39 · Assistant Lead and inactivity (developer projects)**. Jay
 (`jayparmarsectionA`) (shared authorization rules). Trace: Team
