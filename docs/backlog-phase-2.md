@@ -90,7 +90,14 @@ email through the provider.
 - expired-link and used-link screens
 
 Backend note: a signed, single-use token with an expiry, checked again when
-the link is accepted.
+the link is accepted. The prototype (`entities/invite-link`, the "Invite by
+link" card on the project page, `/invite/[token]`) expects: the Team Lead picks
+the expiry (24 hours, 3 days or 7 days); one active link per team, where a new
+link or Revoke stops the old one; `GET /api/projects/{id}/invite-links/` (Lead
+only) and `GET /api/invite-links/{token}/`, each link carrying a server-worked
+`status` (`active`, `expired`, `used`) and `expires_at`, `used_at`,
+`used_by_name`. Accepting re-checks that the viewer is a developer not already
+on the project and that the team is open with a spot free.
 
 **NN-33 · Developer matching**. Kaushalya (Hire Devs filters and cards),
 Hardik (`Hardik33`) (suggested developers panel). Trace: Q4.
