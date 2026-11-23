@@ -1,11 +1,11 @@
 import type { Project } from "@/entities/project";
 
-export type ProjectTab = "overview" | "chat" | "documents" | "meetings" | "updates" | "team" | "payments";
+export type ProjectTab = "overview" | "chat" | "documents" | "meetings" | "updates" | "team" | "milestones" | "payments";
 
 export type TabLink = { tab: ProjectTab; label: string; href: string };
 
 /** A workspace tab's route under `/projects/[id]`. */
-export const WORKSPACE_TABS = ["chat", "documents", "meetings", "updates", "team"] as const;
+export const WORKSPACE_TABS = ["chat", "documents", "meetings", "updates", "team", "milestones"] as const;
 export type WorkspaceTab = (typeof WORKSPACE_TABS)[number];
 
 /** The client, the Team Lead and members: the people the workspace is for. */
@@ -29,8 +29,8 @@ export function workspacePrivacyNote(project: Project, viewerRole: "developer" |
 /**
  * The tabs this viewer gets, in order. Anyone outside the project gets none
  * (the Overview alone, no tab bar). Chat is the team's own conversation, which
- * the client is not part of (#6); requirement documents, team changes (NN-38)
- * and payments exist on client projects only.
+ * the client is not part of (#6); requirement documents, team changes (NN-38),
+ * milestones (NN-16b) and payments exist on client projects only.
  */
 export function projectTabs(project: Project): TabLink[] {
   if (!isInWorkspace(project)) return [];
@@ -44,6 +44,7 @@ export function projectTabs(project: Project): TabLink[] {
     { tab: "meetings", label: "Meetings", href: `${base}/meetings` },
     { tab: "updates", label: "Updates", href: `${base}/updates` },
     client && { tab: "team", label: "Team", href: `${base}/team` },
+    client && { tab: "milestones", label: "Milestones", href: `${base}/milestones` },
     client && { tab: "payments", label: "Payments", href: `${base}/payments` },
   ];
   return tabs.filter((tab): tab is TabLink => Boolean(tab));

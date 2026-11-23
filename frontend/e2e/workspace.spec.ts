@@ -129,7 +129,7 @@ test.describe("Workspace tabs", () => {
     await grace.page.goto(projectPath);
     const tabs = grace.page.getByRole("navigation", { name: "Project sections" });
     await expect(tabs.getByRole("link", { name: "Overview" })).toHaveAttribute("aria-current", "page");
-    await expect(tabs.getByRole("link")).toHaveText(["Overview", "Documents", "Meetings", "Updates", "Team", "Payments"]);
+    await expect(tabs.getByRole("link")).toHaveText(["Overview", "Documents", "Meetings", "Updates", "Team", "Milestones", "Payments"]);
 
     await tabs.getByRole("link", { name: "Meetings" }).click();
     // A tab is a server-rendered page: under a full parallel run it can take more than the default 5 s.

@@ -9,6 +9,7 @@
  */
 import type { DeveloperCard, Skill } from "./developer";
 import { TIME_ZONE_OPTIONS, type ProfileGrowth } from "./profile-growth";
+import type { ShippedProject } from "./shipped-project";
 
 export function sampleProfileGrowth(accountId: number): ProfileGrowth {
   const zones = TIME_ZONE_OPTIONS;
@@ -54,3 +55,45 @@ export const SAMPLE_HIRE_DEVS_POOL: readonly DeveloperCard[] = [
   { account_id: 9009, display_name: "Sofia Rossi", headline: "Next.js and TypeScript, first projects", skills: skills("Next.js", "TypeScript", "React", "Docker"), is_available: true, project_count: 1, joined_at: "2026-11-10T15:00:00Z", is_new_talent: true },
   { account_id: 9010, display_name: "Arjun Mehta", headline: "Cloud and infrastructure", skills: skills("AWS", "Docker", "Terraform", "Python"), is_available: true, project_count: 4, joined_at: "2026-06-30T15:00:00Z", is_new_talent: false },
 ];
+
+/* ---------- Shipped projects (NN-17 #97) ---------- */
+
+const SHIPPED: ShippedProject[] = [
+  {
+    project_id: 9101,
+    title: "Clinic booking app",
+    summary: "Online booking, reminders and payments for a family clinic.",
+    role: "lead",
+    tech_stack: skills("Next.js", "Django", "PostgreSQL"),
+    shipped_at: "2027-01-22T16:30:00Z",
+    confidential: false,
+  },
+  {
+    project_id: 9102,
+    title: "Food bank tracker",
+    summary: "Stock and volunteer shifts for a neighbourhood food bank.",
+    role: "member",
+    tech_stack: skills("React", "Node.js"),
+    shipped_at: "2026-10-03T18:00:00Z",
+    confidential: false,
+  },
+  {
+    project_id: 9103,
+    title: "Internal payroll dashboard",
+    summary: "A confidential client project.",
+    role: "member",
+    tech_stack: skills("TypeScript"),
+    shipped_at: "2026-08-15T18:00:00Z",
+    confidential: true,
+  },
+];
+
+/**
+ * Stable sample shipped projects for any real developer: every third
+ * developer has none yet (the empty state); the rest have two public ones
+ * and one confidential one, which their portfolio never lists.
+ */
+export function sampleShippedProjects(accountId: number): ShippedProject[] {
+  if (accountId % 3 === 0) return [];
+  return SHIPPED.map((p) => ({ ...p, role: accountId % 2 === 0 && p.role === "lead" ? "member" : p.role }));
+}
