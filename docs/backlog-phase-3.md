@@ -294,7 +294,20 @@ e2e suite green.
 
 ## Still open (Team Lead)
 
-1. **Ownership after handover and code access** (Q1, Q2): who owns the code,
-   how the team splits the money, and how a Jobs developer gets access to a
-   project's GitHub repository under the NDA. Until it's decided, screens show
+1. **Ownership after handover and code access** (Q1, Q2): who owns the code
+   and how the team splits the money. Until it's decided, screens show
    "To be defined", as the legal panel does today.
+
+## Future build (not Phase 3)
+
+- **GitHub repositories through a NextNode GitHub App** (#199, Team Lead;
+  don't build until the Team Lead says so):
+  - the repository sits in the client's account
+  - a repository admin (the Lead or a named senior developer) sets up the
+    template, CI and branch protection
+  - access is kept in step with the team, and Jobs developers get access to
+    their branch only, for that job
+  - an NDA acknowledgement comes before any access
+  - webhooks bring CI status and preview links onto the project page
+  
+  Phase 3 Jobs stay file-based.
