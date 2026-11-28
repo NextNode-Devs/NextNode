@@ -89,6 +89,7 @@ from nextnode.domain.projects import UploadLimits
 from nextnode.infrastructure.access_rules import build_access_policy
 from nextnode.infrastructure.auth.clerk import ClerkTokenVerifier, UnconfiguredTokenVerifier
 from nextnode.infrastructure.certificate_wiring import CertificateWiring
+from nextnode.infrastructure.invite_link_wiring import InviteLinkWiring
 from nextnode.infrastructure.milestone_wiring import MilestoneWiring
 from nextnode.infrastructure.notification_wiring import NotificationWiring
 from nextnode.infrastructure.payments.fake_checkout import FakeCheckoutGateway
@@ -133,7 +134,14 @@ from nextnode.infrastructure.storage.local import LocalPrivateStorage
 
 
 @dataclass(frozen=True)
-class Container(StewardshipWiring, CertificateWiring, NotificationWiring, MilestoneWiring, StartGateWiring):
+class Container(  # wiring for later slices lives in their own *_wiring.py modules
+    StewardshipWiring,
+    CertificateWiring,
+    NotificationWiring,
+    MilestoneWiring,
+    StartGateWiring,
+    InviteLinkWiring,
+):
     token_verifier: TokenVerifier
     database: DatabaseProbe
     payment_gateway: PaymentGateway
@@ -357,19 +365,22 @@ class Container(StewardshipWiring, CertificateWiring, NotificationWiring, Milest
     # --- Hire Devs (#5) ---------------------------------------------------------------
 
     @property
-    def teams(self) -> TeamUseCases:
-        return TeamUseCases(
-            TeamDeps(
-                projects=self.projects,
-                candidacies=self.team_candidacies,
-                accounts=self.account_directory,
-                conversations=self.candidacy_conversations,
-                events=self.conversation_events,
-                names=self.account_names,
-                clock=self.clock,
-                uow=self.uow,
-            )
+    def team_deps(self) -> TeamDeps:
+        """Shared by Hire Devs and the invite links (A4, ``invite_link_wiring.py``)."""
+        return TeamDeps(
+            projects=self.projects,
+            candidacies=self.team_candidacies,
+            accounts=self.account_directory,
+            conversations=self.candidacy_conversations,
+            events=self.conversation_events,
+            names=self.account_names,
+            clock=self.clock,
+            uow=self.uow,
         )
+
+    @property
+    def teams(self) -> TeamUseCases:
+        return TeamUseCases(self.team_deps)
 
     @property
     def get_team(self) -> GetTeam:

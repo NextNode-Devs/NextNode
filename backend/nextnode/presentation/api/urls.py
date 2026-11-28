@@ -1,6 +1,14 @@
 from django.urls import path
 
-from nextnode.presentation.api import certificates, milestones, notifications, start_gate, stewardship, teams
+from nextnode.presentation.api import (
+    certificates,
+    invite_links,
+    milestones,
+    notifications,
+    start_gate,
+    stewardship,
+    teams,
+)
 from nextnode.presentation.api.accounts import AccountView, MeView, OnboardingView, SkillsView
 from nextnode.presentation.api.conversations import (
     ConversationDetailView,
@@ -154,6 +162,23 @@ urlpatterns = [
         name="offer-deposit-preview",
     ),
     path("projects/<int:project_id>/milestones/", start_gate.MilestonesView.as_view(), name="milestones"),
+    # Team invitation links (A4, #178)
+    path(
+        "projects/<int:project_id>/invite-links/",
+        invite_links.ProjectInviteLinksView.as_view(),
+        name="project-invite-links",
+    ),
+    path(
+        "projects/<int:project_id>/invite-links/revoke/",
+        invite_links.RevokeInviteLinksView.as_view(),
+        name="project-invite-links-revoke",
+    ),
+    path("invite-links/<str:token>/", invite_links.InviteLinkView.as_view(), name="invite-link"),
+    path(
+        "invite-links/<str:token>/accept/",
+        invite_links.AcceptInviteLinkView.as_view(),
+        name="invite-link-accept",
+    ),
     # Notifications (A3, #177)
     path("notifications/", notifications.NotificationsView.as_view(), name="notifications"),
     path("notifications/read-all/", notifications.MarkAllReadView.as_view(), name="notifications-read-all"),
