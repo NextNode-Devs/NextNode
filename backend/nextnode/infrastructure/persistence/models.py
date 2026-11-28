@@ -470,6 +470,7 @@ class RequirementDocumentModel(models.Model):
 
 # The start gate (#6) and NN-39 keep their tables in their own modules; importing them registers them.
 from nextnode.infrastructure.persistence.certificate_models import CertificateModel  # noqa: E402
+from nextnode.infrastructure.persistence.invite_link_models import InviteLinkModel  # noqa: E402
 from nextnode.infrastructure.persistence.milestone_models import MilestoneModel, MilestoneReviewModel  # noqa: E402
 from nextnode.infrastructure.persistence.notification_models import (  # noqa: E402
     NotificationModel,
@@ -481,6 +482,7 @@ from nextnode.infrastructure.persistence.stewardship_models import ActivityCheck
 __all__ = [
     "ActivityCheckModel",
     "CertificateModel",
+    "InviteLinkModel",
     "MilestoneModel",
     "MilestoneReviewModel",
     "NotificationModel",
