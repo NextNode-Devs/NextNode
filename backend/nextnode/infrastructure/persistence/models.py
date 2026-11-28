@@ -58,7 +58,7 @@ class AccountModel(models.Model):
     clerk_user_id = models.CharField(max_length=255, unique=True)
     role = models.CharField(max_length=16, choices=Role.choices)
     display_name = models.CharField(max_length=80)
-    status = models.CharField(max_length=16, default="active", db_index=True)  # A0: AccountStatus
+    status = models.CharField(max_length=16, default="active", db_default="active", db_index=True)  # A0
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -303,7 +303,7 @@ class ProjectModel(models.Model):
     tech_stack = models.ManyToManyField(SkillModel, related_name="projects", db_table="project_skill")
     target_delivery_date = models.DateField()
     proposed_budget_cents = models.PositiveIntegerField(null=True, blank=True)
-    confidential = models.BooleanField(default=False)  # A0; set by NN-53, kept off portfolios by A7
+    confidential = models.BooleanField(default=False, db_default=False)  # A0: NN-53 sets, A7 reads
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     deleted_at = models.DateTimeField(null=True, blank=True)
