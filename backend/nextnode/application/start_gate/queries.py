@@ -4,10 +4,11 @@ from __future__ import annotations
 
 from nextnode.application.ports import Actor
 from nextnode.application.start_gate.deps import StartGateDeps
-from nextnode.application.start_gate.dto import DepositPreview, StartGateView
+from nextnode.application.start_gate.dto import DepositPreview, MilestonePlanView, StartGateView
 from nextnode.domain.errors import ForbiddenError, InvalidStateTransitionError
 from nextnode.domain.payments import CURRENCY, deposit_for
 from nextnode.domain.projects import ensure_meets_minimum_budget
+from nextnode.domain.start_gate import OfferStatus, accepted_offer, latest_offer
 
 
 class GetStartGate:
@@ -36,3 +37,27 @@ class PreviewDeposit:
         ensure_meets_minimum_budget(total_cents, field="total_cents")
         percent = self._d.deposit_percent
         return DepositPreview(total_cents, deposit_for(total_cents, percent), percent, CURRENCY)
+
+
+class GetMilestonePlan:
+    """``GET /api/projects/{id}/milestones/`` (A1, #175): the plan of the
+    accepted offer, else of the version waiting for the client; ``None`` when
+    neither has one. The client, the Team Lead and members only."""
+
+    def __init__(self, deps: StartGateDeps) -> None:
+        self._d = deps
+
+    def execute(self, actor: Actor, project_id: int) -> MilestonePlanView | None:
+        record = self._d.load(project_id, lock=False)
+        self._d.require_involved(record, actor)
+        assert record.project.id is not None
+        if not record.project.is_client_project:
+            return None
+        offers = self._d.offers.for_project(record.project.id)
+        offer = accepted_offer(offers)
+        if offer is None:
+            latest = latest_offer(offers)
+            offer = latest if latest is not None and latest.status is OfferStatus.SENT else None
+        if offer is None or offer.plan is None:
+            return None
+        return MilestonePlanView.of(offer, offer.plan)

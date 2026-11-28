@@ -32,11 +32,24 @@ class OfferModel(models.Model):
     )
     decided_at = models.DateTimeField(null=True, blank=True)
     decline_reason = models.CharField(max_length=500, blank=True)
+    # A1 (#175): set only on a version sent with a milestone plan.
+    deposit_percent = models.PositiveSmallIntegerField(null=True, blank=True)
+    deposit_release_milestone = models.PositiveSmallIntegerField(null=True, blank=True)
 
     class Meta:
         db_table = "project_offer"
         ordering = ("project_id", "version")
         constraints = (
+            models.CheckConstraint(
+                condition=Q(deposit_percent__isnull=True) | Q(deposit_percent__in=[20, 25, 30, 35, 40]),
+                name="offer_deposit_percent_option",
+            ),
+            # The release milestone exists only on an accepted version with a plan, and is 1 or 2.
+            models.CheckConstraint(
+                condition=Q(deposit_release_milestone__isnull=True)
+                | Q(deposit_release_milestone__in=[1, 2], status="accepted", deposit_percent__isnull=False),
+                name="offer_release_milestone_valid",
+            ),
             models.UniqueConstraint(fields=["project", "version"], name="offer_version_once"),
             models.UniqueConstraint(fields=["project"], condition=Q(status="sent"), name="offer_one_open"),
             models.UniqueConstraint(

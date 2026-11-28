@@ -46,6 +46,12 @@ class WorkspaceChats(Protocol):
     def conversation_id_for(self, project_id: int) -> str | None: ...
 
 
+class MilestoneStarter(Protocol):
+    """A2's ``BeginMilestones``: milestone 1 in progress, the rest not started."""
+
+    def begin(self, project_id: int) -> None: ...
+
+
 class RecruitmentCloser(Protocol):
     """#5's ``CloseRecruitment``: closes every pending candidacy, live."""
 

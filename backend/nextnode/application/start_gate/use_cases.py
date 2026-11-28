@@ -13,13 +13,14 @@ from nextnode.application.start_gate.commands import (
     StartProject,
 )
 from nextnode.application.start_gate.deps import StartGateDeps
-from nextnode.application.start_gate.queries import GetStartGate, PreviewDeposit
+from nextnode.application.start_gate.queries import GetMilestonePlan, GetStartGate, PreviewDeposit
 
 
 class StartGateUseCases:
     def __init__(self, deps: StartGateDeps) -> None:
         self.get = GetStartGate(deps)
         self.preview_deposit = PreviewDeposit(deps)
+        self.milestone_plan = GetMilestonePlan(deps)
         self.close_proposal = CloseProposal(deps)
         self.send_offer = SendOffer(deps)
         self.accept_offer = AcceptOffer(deps)

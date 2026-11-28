@@ -10,6 +10,16 @@ from nextnode.domain.start_gate.gate import (
     evaluate_client,
     evaluate_developer,
 )
+from nextnode.domain.start_gate.milestones import (
+    DEFAULT_DEPOSIT_PERCENT,
+    DEPOSIT_PERCENT_OPTIONS,
+    MAX_MILESTONES,
+    MIN_MILESTONES,
+    MilestoneDraft,
+    MilestonePlan,
+    MilestoneStatus,
+    PlannedMilestone,
+)
 from nextnode.domain.start_gate.offer import (
     REASON_MAX,
     SUMMARY_MAX,
@@ -24,7 +34,11 @@ from nextnode.domain.start_gate.offer import (
 from nextnode.domain.start_gate.timeline import FinalisedTimeline, Timeline
 
 __all__ = [
+    "DEFAULT_DEPOSIT_PERCENT",
     "DEPOSIT_CONFIRMED",
+    "DEPOSIT_PERCENT_OPTIONS",
+    "MAX_MILESTONES",
+    "MIN_MILESTONES",
     "OFFER_ACCEPTED",
     "REASON_MAX",
     "SUMMARY_MAX",
@@ -34,11 +48,15 @@ __all__ = [
     "Condition",
     "FinalisedTimeline",
     "GateStatus",
+    "MilestoneDraft",
+    "MilestonePlan",
+    "MilestoneStatus",
     "NextActor",
     "Offer",
     "OfferOpenError",
     "OfferStatus",
     "OfferTerms",
+    "PlannedMilestone",
     "StartConditionMissingError",
     "Timeline",
     "accepted_offer",
