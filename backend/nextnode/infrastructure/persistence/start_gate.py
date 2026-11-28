@@ -9,14 +9,40 @@ from nextnode.application.payments.ports import DepositTerms
 from nextnode.domain.errors import InvalidStateTransitionError
 from nextnode.domain.start_gate import (
     FinalisedTimeline,
+    MilestonePlan,
+    MilestoneStatus,
     Offer,
     OfferOpenError,
     OfferStatus,
     OfferTerms,
+    PlannedMilestone,
     Timeline,
 )
+from nextnode.infrastructure.persistence.milestone_models import MilestoneModel
 from nextnode.infrastructure.persistence.models import ProjectModel, TeamModel
 from nextnode.infrastructure.persistence.start_gate_models import OfferModel, ProjectTimelineModel
+
+
+def _to_plan(row: OfferModel) -> MilestonePlan | None:
+    if row.deposit_percent is None:
+        return None
+    milestones = tuple(
+        PlannedMilestone(
+            sequence=m.sequence,
+            title=m.title,
+            description=m.description,
+            amount_cents=m.amount_cents,
+            due_date=m.due_date,
+            status=MilestoneStatus(m.status),
+            id=m.id,
+        )
+        for m in sorted(row.milestones.all(), key=lambda m: m.sequence)
+    )
+    return MilestonePlan(row.deposit_percent, milestones)
+
+
+def _offers():
+    return OfferModel.objects.prefetch_related("milestones")
 
 
 def _to_offer(row: OfferModel) -> Offer:
@@ -31,6 +57,8 @@ def _to_offer(row: OfferModel) -> Offer:
         decided_by_account_id=row.decided_by_id,
         decided_at=row.decided_at,
         decline_reason=row.decline_reason or None,
+        plan=_to_plan(row),
+        deposit_release_milestone=row.deposit_release_milestone,
     )
 
 
@@ -48,12 +76,26 @@ class DjangoOfferRepository:
                     delivery_date=terms.timeline.delivery_date,
                     signed_by_id=offer.signed_by_account_id,
                     signed_at=offer.signed_at,
+                    deposit_percent=offer.plan.deposit_percent if offer.plan else None,
                 )
+                if offer.plan is not None:
+                    MilestoneModel.objects.bulk_create(
+                        MilestoneModel(
+                            offer=row,
+                            sequence=m.sequence,
+                            title=m.title,
+                            description=m.description,
+                            amount_cents=m.amount_cents,
+                            due_date=m.due_date,
+                            status=m.status.value,
+                        )
+                        for m in offer.plan.milestones
+                    )
         except IntegrityError:
             # Another version was signed at the same moment; the use case holds the
             # project lock, so this is a safety net.
             raise OfferOpenError(offer.version - 1) from None
-        return _to_offer(row)
+        return _to_offer(_offers().get(pk=row.pk))
 
     def record_decision(self, offer: Offer) -> Offer:
         """Written only while the version is still ``sent``, so a decision is never overwritten."""
@@ -62,19 +104,18 @@ class DjangoOfferRepository:
             decided_by_id=offer.decided_by_account_id,
             decided_at=offer.decided_at,
             decline_reason=offer.decline_reason or "",
+            deposit_release_milestone=offer.deposit_release_milestone,
         )
         if updated != 1:
             raise InvalidStateTransitionError("This version of the offer has already been decided.")
-        return _to_offer(OfferModel.objects.get(pk=offer.id))
+        return _to_offer(_offers().get(pk=offer.id))
 
     def get(self, offer_id: int) -> Offer | None:
-        row = OfferModel.objects.filter(pk=offer_id, project__deleted_at__isnull=True).first()
+        row = _offers().filter(pk=offer_id, project__deleted_at__isnull=True).first()
         return _to_offer(row) if row else None
 
     def for_project(self, project_id: int) -> list[Offer]:
-        return [
-            _to_offer(row) for row in OfferModel.objects.filter(project_id=project_id).order_by("version")
-        ]
+        return [_to_offer(row) for row in _offers().filter(project_id=project_id).order_by("version")]
 
 
 class DjangoTimelineRepository:

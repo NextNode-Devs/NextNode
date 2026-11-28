@@ -14,6 +14,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from nextnode.application.start_gate.commands import OfferCommand
+from nextnode.domain.start_gate import MilestoneDraft
 from nextnode.infrastructure.container import get_container
 
 
@@ -39,23 +40,46 @@ class CloseProposalView(APIView):
         return Response({"data": asdict(view)})
 
 
+class MilestoneSerializer(serializers.Serializer):
+    title = serializers.CharField(allow_blank=True, max_length=1000)
+    description = serializers.CharField(allow_blank=True, max_length=5000, required=False, default="")
+    amount_cents = serializers.IntegerField(min_value=-2_000_000_000, max_value=2_000_000_000)
+    due_date = serializers.DateField()
+
+
 class OfferSerializer(serializers.Serializer):
     summary = serializers.CharField(allow_blank=True, max_length=5000)
     total_cents = serializers.IntegerField(max_value=2_000_000_000)
     start_date = serializers.DateField()
     delivery_date = serializers.DateField()
+    # A1 (#175): optional; the count, amounts and dates are the domain's rules.
+    milestones = MilestoneSerializer(many=True, required=False, max_length=50)
+    deposit_percent = serializers.IntegerField(required=False, min_value=0, max_value=100)
 
 
 class OffersView(APIView):
-    """The Team Lead signs and sends the next version of the offer."""
+    """The Team Lead signs and sends the next version of the offer, optionally
+    with a milestone plan and a deposit % (A1)."""
 
     def post(self, request: Request, project_id: int) -> Response:
         body = OfferSerializer(data=request.data)
         body.is_valid(raise_exception=True)
-        view = get_container().start_gate.send_offer.execute(
-            request.user.actor, project_id, OfferCommand(**body.validated_data)
+        data = dict(body.validated_data)
+        rows = data.pop("milestones", None)
+        command = OfferCommand(
+            **data, milestones=None if rows is None else [MilestoneDraft(**row) for row in rows]
         )
+        view = get_container().start_gate.send_offer.execute(request.user.actor, project_id, command)
         return Response({"data": asdict(view)}, status=201)
+
+
+class MilestonesView(APIView):
+    """The project's milestone plan (A1): the accepted offer's, else the one
+    waiting for the client; ``null`` when there is none."""
+
+    def get(self, request: Request, project_id: int) -> Response:
+        plan = get_container().start_gate.milestone_plan.execute(request.user.actor, project_id)
+        return Response({"data": asdict(plan) if plan else None})
 
 
 class PreviewSerializer(serializers.Serializer):
@@ -74,11 +98,20 @@ class DepositPreviewView(APIView):
         return Response({"data": asdict(preview)})
 
 
+class AcceptSerializer(serializers.Serializer):
+    deposit_release_milestone = serializers.IntegerField(required=False, allow_null=True)
+
+
 class AcceptOfferView(APIView):
-    """The project's client accepts the open version: the project becomes Assigned."""
+    """The project's client accepts the open version: the project becomes
+    Assigned. With a milestone plan, the body names milestone 1 or 2."""
 
     def post(self, request: Request, offer_id: int) -> Response:
-        view = get_container().start_gate.accept_offer.execute(request.user.actor, offer_id)
+        body = AcceptSerializer(data=request.data)
+        body.is_valid(raise_exception=True)
+        view = get_container().start_gate.accept_offer.execute(
+            request.user.actor, offer_id, body.validated_data.get("deposit_release_milestone")
+        )
         return Response({"data": asdict(view)})
 
 

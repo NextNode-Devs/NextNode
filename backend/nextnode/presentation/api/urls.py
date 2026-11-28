@@ -153,6 +153,7 @@ urlpatterns = [
         start_gate.DepositPreviewView.as_view(),
         name="offer-deposit-preview",
     ),
+    path("projects/<int:project_id>/milestones/", start_gate.MilestonesView.as_view(), name="milestones"),
     path("offers/<int:offer_id>/accept/", start_gate.AcceptOfferView.as_view(), name="offer-accept"),
     path("offers/<int:offer_id>/decline/", start_gate.DeclineOfferView.as_view(), name="offer-decline"),
     path("projects/<int:project_id>/timeline/", start_gate.TimelineView.as_view(), name="timeline"),
