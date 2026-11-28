@@ -288,6 +288,9 @@ e2e suite green.
   Features tab. The Features tab (NN-46) is only for projects still being
   built. For now both are plain tabs; a later sprint may move the Features tab
   into a sidebar on the client and developer project pages.
+- **Checkout charges the deposit % agreed on the offer** (A1, #175). An
+  offer without milestones still pays the default `DEPOSIT_PERCENT`. This
+  replaces the Phase 2 rule that the live deposit stays at the default.
 - **Credit for Track A goes to each screen's owner** in the task sheet. Claude
   builds those backends only to remove dependencies, so the team isn't held
   up if a feature runs late.
@@ -310,4 +313,9 @@ e2e suite green.
   - an NDA acknowledgement comes before any access
   - webhooks bring CI status and preview links onto the project page
   
-  Phase 3 Jobs stay file-based.
+  Phase 3 Jobs stay file-based. Two-step sign-in is required for
+  repository admins; the security notes are on #199.
+- **Developer identity screening** (#201, Team Lead; a last-minute task near
+  the end of the project): ID and face verification through a provider
+  before a developer works on client projects or jobs, with the records kept
+  for legal purposes; privacy terms "To be defined".
