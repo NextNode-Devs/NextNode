@@ -40,7 +40,6 @@ from nextnode.application.conversations.ports import (
     ReadMarkers,
 )
 from nextnode.application.conversations.queries import GetConversation, ListConversations, ListMessages
-from nextnode.application.conversations.workspace import TeamWorkspaceChats
 from nextnode.application.health import CheckHealth
 from nextnode.application.hiring.lead import (
     AcceptLeadInvitation,
@@ -81,9 +80,7 @@ from nextnode.application.projects.documents import (
 )
 from nextnode.application.projects.ports import DocumentRepository, FileStorage, LinkSigner, ProjectRepository
 from nextnode.application.projects.queries import GetProject, ListMyProjects, SearchProjects
-from nextnode.application.start_gate.deps import StartGateDeps
 from nextnode.application.start_gate.ports import OfferRepository, TimelineRepository
-from nextnode.application.start_gate.use_cases import StartGateUseCases
 from nextnode.application.teams.deps import TeamDeps
 from nextnode.application.teams.ports import CandidacyRepository, TeamMembers
 from nextnode.application.teams.queries import GetTeam
@@ -92,6 +89,7 @@ from nextnode.domain.projects import UploadLimits
 from nextnode.infrastructure.access_rules import build_access_policy
 from nextnode.infrastructure.auth.clerk import ClerkTokenVerifier, UnconfiguredTokenVerifier
 from nextnode.infrastructure.certificate_wiring import CertificateWiring
+from nextnode.infrastructure.milestone_wiring import MilestoneWiring
 from nextnode.infrastructure.notification_wiring import NotificationWiring
 from nextnode.infrastructure.payments.fake_checkout import FakeCheckoutGateway
 from nextnode.infrastructure.payments.stripe_gateway import StripeGateway, UnconfiguredPaymentGateway
@@ -128,13 +126,14 @@ from nextnode.infrastructure.persistence.start_gate import (
 from nextnode.infrastructure.persistence.teams import DjangoTeamCandidacies, DjangoTeamMembers
 from nextnode.infrastructure.realtime.conversation_events import OnCommitConversationEvents
 from nextnode.infrastructure.realtime.publisher import ChannelsEventPublisher
+from nextnode.infrastructure.start_gate_wiring import StartGateWiring
 from nextnode.infrastructure.stewardship_wiring import StewardshipWiring
 from nextnode.infrastructure.storage.links import DjangoLinkSigner
 from nextnode.infrastructure.storage.local import LocalPrivateStorage
 
 
 @dataclass(frozen=True)
-class Container(StewardshipWiring, CertificateWiring, NotificationWiring):  # wiring kept in own modules
+class Container(StewardshipWiring, CertificateWiring, NotificationWiring, MilestoneWiring, StartGateWiring):
     token_verifier: TokenVerifier
     database: DatabaseProbe
     payment_gateway: PaymentGateway
@@ -376,23 +375,7 @@ class Container(StewardshipWiring, CertificateWiring, NotificationWiring):  # wi
     def get_team(self) -> GetTeam:
         return GetTeam(self.projects, self.team_members, self.access_policy)
 
-    # --- project start gate (#6) -----------------------------------------------------
-
-    @property
-    def start_gate(self) -> StartGateUseCases:
-        return StartGateUseCases(
-            StartGateDeps(
-                projects=self.projects,
-                offers=self.offers,
-                timelines=self.timelines,
-                deposits=self.deposit_status,
-                workspace=TeamWorkspaceChats(self.open_conversation, self.conversations),
-                recruitment=self.teams.close_recruitment,
-                clock=self.clock,
-                uow=self.uow,
-                deposit_percent=settings.ENV.deposit_percent,
-            )
-        )
+    # --- project start gate (#6): start_gate is in start_gate_wiring.py ------------------
 
     @property
     def handle_payment_webhook(self) -> HandlePaymentWebhook:

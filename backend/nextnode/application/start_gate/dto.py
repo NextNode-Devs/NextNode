@@ -22,8 +22,8 @@ FINALIZE_TIMELINE = "finalize_timeline"
 
 @dataclass(frozen=True)
 class MilestoneView:
-    """The frontend's ``Milestone`` (``entities/milestone``). ``submitted_at``
-    and ``approved_at`` stay ``None`` until A2 (#176) adds the review loop."""
+    """The frontend's ``Milestone`` (``entities/milestone``); ``submitted_at``
+    and ``approved_at`` come from the review loop (A2, #176)."""
 
     id: int
     project_id: int
@@ -48,8 +48,8 @@ class MilestoneView:
             amount_cents=milestone.amount_cents,
             due_date=milestone.due_date.isoformat(),
             status=milestone.status.value,
-            submitted_at=None,
-            approved_at=None,
+            submitted_at=milestone.submitted_at.isoformat() if milestone.submitted_at else None,
+            approved_at=milestone.approved_at.isoformat() if milestone.approved_at else None,
         )
 
 

@@ -19,7 +19,7 @@ working; a plan sent with the offer is held to every rule above.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime
 from enum import StrEnum
 
 from nextnode.domain.errors import ValidationError
@@ -67,6 +67,8 @@ class PlannedMilestone:
     due_date: date
     status: MilestoneStatus = MilestoneStatus.PENDING_DEPOSIT
     id: int | None = None
+    submitted_at: datetime | None = None  # A2: the Lead's latest submission
+    approved_at: datetime | None = None  # A2: the client's approval
 
 
 def _row_errors(index: int, row: MilestoneDraft, title: str, description: str) -> dict[str, list[str]]:

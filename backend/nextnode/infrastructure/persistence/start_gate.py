@@ -35,6 +35,8 @@ def _to_plan(row: OfferModel) -> MilestonePlan | None:
             due_date=m.due_date,
             status=MilestoneStatus(m.status),
             id=m.id,
+            submitted_at=m.submitted_at,
+            approved_at=m.approved_at,
         )
         for m in sorted(row.milestones.all(), key=lambda m: m.sequence)
     )

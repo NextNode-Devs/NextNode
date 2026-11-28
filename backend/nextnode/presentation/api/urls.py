@@ -1,6 +1,6 @@
 from django.urls import path
 
-from nextnode.presentation.api import certificates, start_gate, stewardship, teams
+from nextnode.presentation.api import certificates, milestones, start_gate, stewardship, teams
 from nextnode.presentation.api.accounts import AccountView, MeView, OnboardingView, SkillsView
 from nextnode.presentation.api.conversations import (
     ConversationDetailView,
@@ -154,6 +154,27 @@ urlpatterns = [
         name="offer-deposit-preview",
     ),
     path("projects/<int:project_id>/milestones/", start_gate.MilestonesView.as_view(), name="milestones"),
+    # Milestone delivery and review (A2, #176)
+    path(
+        "projects/<int:project_id>/milestones/reviews/",
+        milestones.MilestoneBoardView.as_view(),
+        name="milestone-board",
+    ),
+    path(
+        "milestones/<int:milestone_id>/submit/",
+        milestones.SubmitMilestoneView.as_view(),
+        name="milestone-submit",
+    ),
+    path(
+        "milestones/<int:milestone_id>/approve/",
+        milestones.ApproveMilestoneView.as_view(),
+        name="milestone-approve",
+    ),
+    path(
+        "milestones/<int:milestone_id>/request-revision/",
+        milestones.RequestRevisionView.as_view(),
+        name="milestone-request-revision",
+    ),
     path("offers/<int:offer_id>/accept/", start_gate.AcceptOfferView.as_view(), name="offer-accept"),
     path("offers/<int:offer_id>/decline/", start_gate.DeclineOfferView.as_view(), name="offer-decline"),
     path("projects/<int:project_id>/timeline/", start_gate.TimelineView.as_view(), name="timeline"),
