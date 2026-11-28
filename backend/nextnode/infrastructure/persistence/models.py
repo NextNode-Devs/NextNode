@@ -58,6 +58,7 @@ class AccountModel(models.Model):
     clerk_user_id = models.CharField(max_length=255, unique=True)
     role = models.CharField(max_length=16, choices=Role.choices)
     display_name = models.CharField(max_length=80)
+    status = models.CharField(max_length=16, default="active", db_default="active", db_index=True)  # A0
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -65,6 +66,9 @@ class AccountModel(models.Model):
         db_table = "account"
         constraints = (
             models.CheckConstraint(condition=Q(role__in=["developer", "client"]), name="account_role_valid"),
+            models.CheckConstraint(
+                condition=Q(status__in=["active", "paused", "deleted"]), name="account_status_valid"
+            ),
         )
 
     def __str__(self) -> str:
@@ -299,6 +303,7 @@ class ProjectModel(models.Model):
     tech_stack = models.ManyToManyField(SkillModel, related_name="projects", db_table="project_skill")
     target_delivery_date = models.DateField()
     proposed_budget_cents = models.PositiveIntegerField(null=True, blank=True)
+    confidential = models.BooleanField(default=False, db_default=False)  # A0: NN-53 sets, A7 reads
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     deleted_at = models.DateTimeField(null=True, blank=True)
@@ -465,7 +470,21 @@ class RequirementDocumentModel(models.Model):
 
 # The start gate (#6) and NN-39 keep their tables in their own modules; importing them registers them.
 from nextnode.infrastructure.persistence.certificate_models import CertificateModel  # noqa: E402
+from nextnode.infrastructure.persistence.milestone_models import MilestoneModel, MilestoneReviewModel  # noqa: E402
+from nextnode.infrastructure.persistence.notification_models import (  # noqa: E402
+    NotificationModel,
+    NotificationSettingModel,
+)
 from nextnode.infrastructure.persistence.start_gate_models import OfferModel, ProjectTimelineModel  # noqa: E402
 from nextnode.infrastructure.persistence.stewardship_models import ActivityCheckModel  # noqa: E402
 
-__all__ = ["ActivityCheckModel", "CertificateModel", "OfferModel", "ProjectTimelineModel"]
+__all__ = [
+    "ActivityCheckModel",
+    "CertificateModel",
+    "MilestoneModel",
+    "MilestoneReviewModel",
+    "NotificationModel",
+    "NotificationSettingModel",
+    "OfferModel",
+    "ProjectTimelineModel",
+]

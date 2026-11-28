@@ -21,6 +21,7 @@ from nextnode.application.start_gate.dto import (
 )
 from nextnode.application.start_gate.ports import (
     DepositStatusReader,
+    MilestoneStarter,
     OfferRepository,
     RecruitmentCloser,
     TimelineRepository,
@@ -64,6 +65,7 @@ class StartGateDeps:
         uow: UnitOfWork,
         *,
         deposit_percent: int,
+        milestones: MilestoneStarter | None = None,
     ) -> None:
         self.projects = projects
         self.offers = offers
@@ -74,6 +76,7 @@ class StartGateDeps:
         self.clock = clock
         self.uow = uow
         self.deposit_percent = deposit_percent
+        self.milestones = milestones
 
     # --- loading -------------------------------------------------------------------
 
@@ -129,6 +132,8 @@ class StartGateDeps:
         self.projects.save(project)
         self.projects.save_team(team)
         self.workspace.open_for_team(project.id, list(team.participant_ids))
+        if project.is_client_project and self.milestones is not None:
+            self.milestones.begin(project.id)  # A2: work starts on milestone 1
 
     # --- the view -----------------------------------------------------------------------
 

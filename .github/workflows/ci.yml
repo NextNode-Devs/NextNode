@@ -4,9 +4,15 @@ name: CI
 # branch: staging.yml calls this workflow and reports "Staging gate". main is
 # production and is not re-tested; a PR into main must carry the passing
 # Staging gate already recorded on the staging commit it promotes.
+#
+# Each change runs once: feature branches through their pull request into
+# develop, develop on push. Running push and pull_request for the same commit
+# doubled the e2e runs, and parallel runs exhaust the shared Clerk
+# development instance's rate limit ("Too Many Requests"). Use
+# workflow_dispatch for a branch that has no pull request yet.
 on:
   push:
-    branches: [develop, "feature/**"]
+    branches: [develop]
   pull_request:
     branches: [develop]
   workflow_dispatch:

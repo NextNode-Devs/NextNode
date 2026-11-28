@@ -198,8 +198,10 @@ uv run pytest
 ```
 
 GitHub Actions runs the same checks (plus dependency audits, a production
-settings check and `docker compose config`) on pushes to `develop` and
-`feature/**` and on PRs into `develop`, as early feedback. **`staging` is
+settings check and `docker compose config`) on PRs into `develop` and on
+pushes to `develop`, as early feedback. Feature branches run through their PR,
+once per change (Actions → CI → "Run workflow" checks a branch without a PR).
+**`staging` is
 where testing is completed:** `staging.yml` runs the full suite and reports
 one `Staging gate` check. `main` is production and is not re-tested; it only
 accepts `staging` commits that passed `Staging gate`. Details:
