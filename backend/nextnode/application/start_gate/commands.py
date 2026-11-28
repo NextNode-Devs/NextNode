@@ -7,14 +7,29 @@ two requests never interleave. Each returns the gate as stored afterwards.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date
 
 from nextnode.application.ports import Actor
 from nextnode.application.start_gate.deps import StartGateDeps
 from nextnode.application.start_gate.dto import StartGateView
-from nextnode.domain.errors import ConflictError, ForbiddenError, InvalidStateTransitionError, NotFoundError
-from nextnode.domain.start_gate import FinalisedTimeline, Offer, OfferTerms, Timeline, accepted_offer
+from nextnode.domain.errors import (
+    ConflictError,
+    ForbiddenError,
+    InvalidStateTransitionError,
+    NotFoundError,
+    ValidationError,
+)
+from nextnode.domain.start_gate import (
+    DEFAULT_DEPOSIT_PERCENT,
+    FinalisedTimeline,
+    MilestoneDraft,
+    MilestonePlan,
+    Offer,
+    OfferTerms,
+    Timeline,
+    accepted_offer,
+)
 
 OFFER_NOT_FOUND = "We couldn't find that offer."
 
@@ -47,6 +62,25 @@ class OfferCommand:
     total_cents: int
     start_date: date
     delivery_date: date
+    # A1 (#175): a milestone plan is optional, so the Phase 1 form keeps working.
+    milestones: list[MilestoneDraft] | None = field(default=None)
+    deposit_percent: int | None = None
+
+
+def _plan(command: OfferCommand, terms: OfferTerms) -> MilestonePlan | None:
+    if command.milestones is None:
+        if command.deposit_percent is not None:
+            raise ValidationError(
+                "The deposit % is agreed together with the milestones. Add the milestones too.",
+                {"milestones": ["Add the milestones."]},
+            )
+        return None
+    return MilestonePlan.create(
+        command.milestones,
+        total_cents=terms.total_cents,
+        timeline=terms.timeline,
+        deposit_percent=command.deposit_percent or DEFAULT_DEPOSIT_PERCENT,
+    )
 
 
 class SendOffer:
@@ -73,7 +107,9 @@ class SendOffer:
                 delivery_date=command.delivery_date,
                 today=self._d.clock.now().date(),
             )
-            offer = Offer.sign(project.id, previous, terms, actor_id, self._d.clock.now())
+            offer = Offer.sign(
+                project.id, previous, terms, actor_id, self._d.clock.now(), _plan(command, terms)
+            )
             self._d.offers.add(offer)
             self._d.projects.save(project)
             return self._d.view(self._d.load(project_id), actor)
@@ -86,7 +122,9 @@ class _Decide:
     def __init__(self, deps: StartGateDeps) -> None:
         self._d = deps
 
-    def _decide(self, actor: Actor, offer_id: int, reason: str | None) -> StartGateView:
+    def _decide(
+        self, actor: Actor, offer_id: int, reason: str | None, release_milestone: int | None = None
+    ) -> StartGateView:
         actor_id = _account(actor)
         with self._d.uow.atomic():
             found = self._d.offers.get(offer_id)
@@ -100,7 +138,7 @@ class _Decide:
             owner = record.project.owner_account_id
             now = self._d.clock.now()
             if reason is None:
-                decided = offer.accept(actor_id, owner, now)
+                decided = offer.accept(actor_id, owner, now, release_milestone)
                 self._d.projects.save(record.project.accept_offer())
             else:
                 decided = offer.decline(actor_id, owner, reason, now)
@@ -109,10 +147,12 @@ class _Decide:
 
 
 class AcceptOffer(_Decide):
-    """The client accepts: the version, user and time are recorded and the project becomes ``Assigned``."""
+    """The client accepts: the version, user and time are recorded and the project
+    becomes ``Assigned``. With a milestone plan, the client accepts every
+    milestone together and picks milestone 1 or 2 to release the deposit."""
 
-    def execute(self, actor: Actor, offer_id: int) -> StartGateView:
-        return self._decide(actor, offer_id, None)
+    def execute(self, actor: Actor, offer_id: int, release_milestone: int | None = None) -> StartGateView:
+        return self._decide(actor, offer_id, None, release_milestone)
 
 
 class DeclineOffer(_Decide):

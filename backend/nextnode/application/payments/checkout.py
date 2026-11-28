@@ -64,7 +64,7 @@ class StartDepositCheckout:
                 raise InvalidStateTransitionError(
                     "The deposit can be paid once you have accepted the Team Lead's offer."
                 )
-            amount = deposit_for(terms.accepted_total_cents, self._percent)
+            amount = deposit_for(terms.accepted_total_cents, self._percent_for(terms))
 
             current = self._payments.current_deposit(project_id)
             if current is not None and current.status is PaymentStatus.COMPLETED:
@@ -104,13 +104,17 @@ class StartDepositCheckout:
         self._payments.save(pending)
         return None
 
+    def _percent_for(self, terms: DepositTerms) -> int:
+        """The % the client accepted on the offer (Team Lead, 28 Nov 2026), else the default."""
+        return terms.agreed_deposit_percent or self._percent
+
     def _request(self, payment: Payment, terms: DepositTerms) -> CheckoutRequest:
         project_url = f"{self._origin}/projects/{terms.project_id}/deposit"
         return CheckoutRequest(
             payment_id=payment.id,
             amount_cents=payment.amount_cents,
             currency=payment.currency,
-            description=f"Deposit ({self._percent}%): {terms.title}"[:200],
+            description=f"Deposit ({self._percent_for(terms)}%): {terms.title}"[:200],
             # Stripe fills in {CHECKOUT_SESSION_ID}. Returning here confirms nothing.
             success_url=f"{project_url}/return?session_id={{CHECKOUT_SESSION_ID}}",
             cancel_url=f"{project_url}/cancelled",

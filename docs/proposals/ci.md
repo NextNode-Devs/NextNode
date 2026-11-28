@@ -8,7 +8,7 @@ The original proposal, run locally before activation, lives in git history.
 
 | File | Runs on | What it does |
 | --- | --- | --- |
-| `ci.yml` | push to `develop`, `feature/**`; PRs into `develop`; manual; called by `staging.yml` | Jobs `compose`, `frontend`, `backend`, `e2e` (below) |
+| `ci.yml` | push to `develop`; PRs into `develop` (feature branches run once, through their PR); manual; called by `staging.yml` | Jobs `compose`, `frontend`, `backend`, `e2e` (below) |
 | `branch-flow.yml` | every PR | Enforces `feature/*` → `develop` → `staging` → `main`: only `develop` may merge into `staging`, only `staging` into `main` |
 | `staging.yml` | PRs into `staging`; push to `staging`; manual | Runs `ci.yml` in full, then the **`Staging gate`** check (fails unless every CI job passed); the deploy job is off (see CD below) |
 

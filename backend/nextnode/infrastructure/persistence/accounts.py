@@ -5,6 +5,7 @@ from django.db.models import Case, IntegerField, Value, When
 
 from nextnode.domain.accounts import (
     Account,
+    AccountStatus,
     AlreadyOnboardedError,
     ClientProfile,
     DeveloperProfile,
@@ -40,6 +41,7 @@ def _to_entity(row: AccountModel) -> Account:
         display_name=row.display_name,
         profile=profile,
         created_at=row.created_at,
+        status=AccountStatus(row.status),
     )
 
 
