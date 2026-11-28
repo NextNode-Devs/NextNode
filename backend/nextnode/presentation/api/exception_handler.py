@@ -1,6 +1,7 @@
 """The single place errors become HTTP responses.
 
-Shape: ``{"error": {"code", "message", "fields"?}}``. Unknown exceptions are
+Shape: ``{"error": {"code", "message", "fields"?, "details"?}}``; ``details``
+carries a lost-access ``reason`` and ``at`` (A0). Unknown exceptions are
 logged server-side and answered with a generic 500 that reveals nothing.
 """
 
@@ -26,10 +27,12 @@ DOMAIN_STATUS = {
 }
 
 
-def error_body(code: str, message: str, fields: dict | None = None) -> dict:
+def error_body(code: str, message: str, fields: dict | None = None, details: dict | None = None) -> dict:
     error: dict = {"code": code, "message": message}
     if fields:
         error["fields"] = fields
+    if details:
+        error["details"] = details
     return {"error": error}
 
 
@@ -57,7 +60,8 @@ def handle_exception(exc: Exception, context: dict) -> Response:
         # Nearest mapped ancestor: AlreadyOnboardedError → ConflictError → 409.
         status = next((DOMAIN_STATUS[cls] for cls in type(exc).__mro__ if cls in DOMAIN_STATUS), 400)
         fields = exc.fields if isinstance(exc, domain.ValidationError) else None
-        return Response(error_body(exc.code, exc.message, fields), status=status)
+        details = exc.details if isinstance(exc, domain.ForbiddenError) else None
+        return Response(error_body(exc.code, exc.message, fields, details), status=status)
 
     if isinstance(exc, InvalidWebhookError):
         return Response(error_body("INVALID_WEBHOOK", str(exc)), status=400)
