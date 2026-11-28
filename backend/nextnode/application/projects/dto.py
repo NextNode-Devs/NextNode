@@ -104,6 +104,7 @@ class ProjectView:
     viewer: ViewerView
     viewer_actions: list[str]
     created_at: str | None
+    confidential: bool
 
     @classmethod
     def of(cls, record: ProjectRecord, actor: Actor, *, can_read_documents: bool) -> ProjectView:
@@ -137,6 +138,7 @@ class ProjectView:
             ),
             viewer_actions=viewer_actions(record, actor),
             created_at=project.created_at.isoformat() if project.created_at else None,
+            confidential=project.confidential,
         )
 
 

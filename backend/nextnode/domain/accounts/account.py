@@ -5,6 +5,7 @@ from datetime import datetime
 
 from nextnode.domain.accounts.profiles import DISPLAY_NAME_MAX, ClientProfile, DeveloperProfile, clean_text
 from nextnode.domain.accounts.role import Role
+from nextnode.domain.accounts.status import AccountStatus, is_visible
 from nextnode.domain.errors import ConflictError, ValidationError
 
 
@@ -26,6 +27,12 @@ class Account:
     display_name: str
     profile: ClientProfile | DeveloperProfile
     created_at: datetime | None = None
+    status: AccountStatus = AccountStatus.ACTIVE
+
+    @property
+    def is_visible(self) -> bool:
+        """Listed for other people (directory, feed, suggestions): only while active."""
+        return is_visible(self.status)
 
     @classmethod
     def onboard(
