@@ -7,6 +7,7 @@ from datetime import UTC, date, datetime, timedelta
 
 import pytest
 
+from nextnode.application.notifications.center import DeliverNotifications
 from nextnode.application.ports import Notification, NotificationCategory
 from nextnode.domain.accounts import (
     DELETED_ACCOUNT_NAME,
@@ -18,7 +19,6 @@ from nextnode.domain.accounts import (
 )
 from nextnode.domain.errors import AccessReason, ForbiddenError
 from nextnode.infrastructure.container import get_container, override_container
-from nextnode.infrastructure.notifications.null_sender import NullNotificationSender
 from nextnode.infrastructure.persistence.models import AccountModel, ProjectModel
 from nextnode.infrastructure.persistence.projects import DjangoProjectRepository
 from nextnode.presentation.api.exception_handler import handle_exception
@@ -77,12 +77,8 @@ def test_every_reason_the_access_screen_words():
 # --- notification port --------------------------------------------------------------
 
 
-def test_the_container_has_a_notification_store_that_does_nothing_yet():
-    assert isinstance(get_container().notifications, NullNotificationSender)
-    note = Notification(
-        1, NotificationCategory.HIRING, "interest_request", "New interest", "Grace is interested."
-    )
-    assert get_container().notifications.send(note) is None
+def test_the_container_sends_through_the_real_store():  # A3 (#177) replaced A0's do-nothing store
+    assert isinstance(get_container().notifications, DeliverNotifications)
 
 
 def test_tests_can_swap_the_notification_store():
@@ -99,7 +95,7 @@ def test_tests_can_swap_the_notification_store():
             )
         )
     assert [n.link for n in sent] == ["/projects/3"]
-    assert isinstance(get_container().notifications, NullNotificationSender)
+    assert isinstance(get_container().notifications, DeliverNotifications)
 
 
 # --- end to end (PostgreSQL) -------------------------------------------------------
