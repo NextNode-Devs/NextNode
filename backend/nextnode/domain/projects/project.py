@@ -121,6 +121,9 @@ class Project:
     status: ProjectStatus
     details: ProjectDetails
     created_at: datetime | None = None
+    # Kept out of portfolios (A0, #174). Set by the brief's switch (NN-53, #194);
+    # read by the portfolio update on final approval (A7, #181).
+    confidential: bool = False
 
     @classmethod
     def publish(cls, kind: ProjectKind, owner_account_id: int, details: ProjectDetails) -> Project:

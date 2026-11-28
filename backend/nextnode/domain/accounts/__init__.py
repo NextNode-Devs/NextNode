@@ -18,10 +18,12 @@ from nextnode.domain.accounts.profiles import (
 )
 from nextnode.domain.accounts.role import Role
 from nextnode.domain.accounts.skills import MAX_SKILLS, SKILL_MAX_LENGTH, SkillName, normalize_skills
+from nextnode.domain.accounts.status import DELETED_ACCOUNT_NAME, AccountStatus, is_visible
 
 __all__ = [
     "BIO_MAX",
     "COMPANY_NAME_MAX",
+    "DELETED_ACCOUNT_NAME",
     "DISPLAY_NAME_MAX",
     "HEADLINE_MAX",
     "INDUSTRY_MAX",
@@ -32,6 +34,7 @@ __all__ = [
     "SKILL_MAX_LENGTH",
     "URL_MAX",
     "Account",
+    "AccountStatus",
     "AlreadyOnboardedError",
     "ClientProfile",
     "DeveloperProfile",
@@ -40,5 +43,6 @@ __all__ = [
     "Role",
     "SkillName",
     "is_new_talent",
+    "is_visible",
     "normalize_skills",
 ]

@@ -9,7 +9,7 @@ from django.db import IntegrityError, transaction
 from django.db.models import Count, Exists, F, OuterRef, Prefetch, Q, QuerySet
 
 from nextnode.application.projects.ports import ProjectPage, ProjectQuery, ProjectRecord
-from nextnode.domain.accounts import SkillName
+from nextnode.domain.accounts import AccountStatus, SkillName
 from nextnode.domain.hiring import LeadAlreadyHiredError, LeadProject
 from nextnode.domain.projects import (
     DocumentType,
@@ -80,6 +80,7 @@ def _to_record(row: ProjectModel) -> ProjectRecord:
             proposed_budget_cents=row.proposed_budget_cents,
         ),
         created_at=row.created_at,
+        confidential=row.confidential,
     )
     team = Team(
         id=team_row.id,
@@ -112,6 +113,7 @@ class DjangoProjectRepository:
             row = ProjectModel(kind=project.kind.value, owner_id=project.owner_account_id)
             _set_details(row, project.details)
             row.status = project.status.value
+            row.confidential = project.confidential
             row.save()
             row.tech_stack.set(SkillModel.objects.filter(key__in=[s.key for s in project.details.tech_stack]))
             team_row = TeamModel.objects.create(project=row, status=team.status.value)
@@ -139,6 +141,7 @@ class DjangoProjectRepository:
             row = ProjectModel.objects.select_for_update().get(pk=project.id)
             _set_details(row, project.details)
             row.status = project.status.value
+            row.confidential = project.confidential
             row.save()
             row.tech_stack.set(SkillModel.objects.filter(key__in=[s.key for s in project.details.tech_stack]))
         stored = self.get(project.id)
@@ -176,7 +179,11 @@ class DjangoProjectRepository:
                 members.filter(account_id=team.assistant_lead_account_id).update(role=ASSISTANT_LEAD)
 
     def search(self, query: ProjectQuery, offset: int, limit: int) -> ProjectPage:
-        rows = ProjectModel.objects.filter(deleted_at__isnull=True, status=ProjectModel.Status.POSTED)
+        rows = ProjectModel.objects.filter(
+            deleted_at__isnull=True,
+            status=ProjectModel.Status.POSTED,
+            owner__status=AccountStatus.ACTIVE.value,  # paused or deleted owners' projects aren't listed (A0)
+        )
         # Hidden while its members are asked whether it is still active (NN-39).
         rows = rows.exclude(
             Exists(ActivityCheckModel.objects.filter(project=OuterRef("pk"), status="pending"))

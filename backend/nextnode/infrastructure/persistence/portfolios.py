@@ -7,7 +7,7 @@ from django.db.models.functions import Lower
 
 from nextnode.application.accounts.directory import DirectoryPage, DirectoryQuery
 from nextnode.application.accounts.ports import DeveloperPortfolio
-from nextnode.domain.accounts import DeveloperProfile, Portfolio, PortfolioProject, SkillName
+from nextnode.domain.accounts import AccountStatus, DeveloperProfile, Portfolio, PortfolioProject, SkillName
 from nextnode.infrastructure.persistence.models import (
     AccountModel,
     DeveloperProfileModel,
@@ -84,7 +84,10 @@ class DjangoDeveloperSearch:
     client account can never appear; the role filter makes that explicit."""
 
     def search(self, query: DirectoryQuery, offset: int, limit: int) -> DirectoryPage:
-        rows = DeveloperProfileModel.objects.filter(account__role=AccountModel.Role.DEVELOPER)
+        rows = DeveloperProfileModel.objects.filter(
+            account__role=AccountModel.Role.DEVELOPER,
+            account__status=AccountStatus.ACTIVE.value,  # paused and deleted accounts aren't listed (A0)
+        )
         if query.text:
             rows = rows.filter(
                 Q(account__display_name__icontains=query.text) | Q(headline__icontains=query.text)

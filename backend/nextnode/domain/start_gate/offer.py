@@ -19,6 +19,7 @@ from enum import StrEnum
 from nextnode.domain.errors import ConflictError, ForbiddenError, InvalidStateTransitionError, ValidationError
 from nextnode.domain.projects.budget import MIN_PROJECT_BUDGET, format_cad
 from nextnode.domain.projects.project import MAX_BUDGET
+from nextnode.domain.start_gate.milestones import MilestonePlan, ensure_release_choice
 from nextnode.domain.start_gate.timeline import Timeline
 
 SUMMARY_MIN = 20
@@ -83,10 +84,18 @@ class Offer:
     decided_by_account_id: int | None = None
     decided_at: datetime | None = None
     decline_reason: str | None = None
+    plan: MilestonePlan | None = None  # A1: optional, so the Phase 1 offer form keeps working
+    deposit_release_milestone: int | None = None  # 1 or 2, chosen by the client on accepting
 
     @classmethod
     def sign(
-        cls, project_id: int, previous: list[Offer], terms: OfferTerms, lead_account_id: int, at: datetime
+        cls,
+        project_id: int,
+        previous: list[Offer],
+        terms: OfferTerms,
+        lead_account_id: int,
+        at: datetime,
+        plan: MilestonePlan | None = None,
     ) -> Offer:
         """The next version, signed by the Lead. Refused while another version is open or accepted."""
         latest = max(previous, key=lambda offer: offer.version, default=None)
@@ -95,7 +104,7 @@ class Offer:
         if latest is not None and latest.status is OfferStatus.ACCEPTED:
             raise InvalidStateTransitionError("The client has already accepted an offer for this project.")
         version = 1 if latest is None else latest.version + 1
-        return cls(None, project_id, version, terms, lead_account_id, at)
+        return cls(None, project_id, version, terms, lead_account_id, at, plan=plan)
 
     @property
     def is_open(self) -> bool:
@@ -109,10 +118,22 @@ class Offer:
                 f"Version {self.version} of the offer was already {self.status}; it can't be changed."
             )
 
-    def accept(self, client_account_id: int, owner_account_id: int, at: datetime) -> Offer:
+    def accept(
+        self,
+        client_account_id: int,
+        owner_account_id: int,
+        at: datetime,
+        release_milestone: int | None = None,
+    ) -> Offer:
+        """The client accepts every milestone together and, when the offer has
+        a plan, picks milestone 1 or 2 to release the deposit."""
         self._decide(client_account_id, owner_account_id)
         return replace(
-            self, status=OfferStatus.ACCEPTED, decided_by_account_id=client_account_id, decided_at=at
+            self,
+            status=OfferStatus.ACCEPTED,
+            decided_by_account_id=client_account_id,
+            decided_at=at,
+            deposit_release_milestone=ensure_release_choice(self.plan, release_milestone),
         )
 
     def decline(self, client_account_id: int, owner_account_id: int, reason: str, at: datetime) -> Offer:
