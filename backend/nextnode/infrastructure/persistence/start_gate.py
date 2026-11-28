@@ -161,4 +161,5 @@ class DjangoDepositTerms:
             is_assigned=row.status == ProjectModel.Status.ASSIGNED,
             offer_version_id=accepted.id if accepted else None,
             accepted_total_cents=accepted.total_cents if accepted else None,
+            agreed_deposit_percent=accepted.deposit_percent if accepted else None,
         )

@@ -56,7 +56,7 @@ class MilestoneView:
 @dataclass(frozen=True)
 class MilestonePlanView:
     """The frontend's ``MilestonePlan``. ``deposit_cents`` is the deposit this
-    plan agrees; until A11 (#185) the live checkout still charges ``DEPOSIT_PERCENT``."""
+    plan agrees, which is what checkout charges once the client accepts."""
 
     project_id: int
     offer_id: int
@@ -112,7 +112,10 @@ class OfferView:
             status=offer.status.value,
             summary=offer.terms.summary,
             total_cents=offer.terms.total_cents,
-            deposit_cents=deposit_for(offer.terms.total_cents, deposit_percent),
+            # What checkout charges: the plan's agreed %, else the default (A1).
+            deposit_cents=deposit_for(
+                offer.terms.total_cents, offer.plan.deposit_percent if offer.plan else deposit_percent
+            ),
             currency=CURRENCY,
             start_date=offer.terms.timeline.start_date.isoformat(),
             delivery_date=offer.terms.timeline.delivery_date.isoformat(),

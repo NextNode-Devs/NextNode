@@ -100,6 +100,9 @@ class DepositTerms:
     is_assigned: bool  # the client accepted the Team Lead's offer
     offer_version_id: int | None
     accepted_total_cents: int | None
+    # The deposit % agreed on the accepted offer's milestone plan (A1, #175);
+    # None for an offer without a plan, which pays the default DEPOSIT_PERCENT.
+    agreed_deposit_percent: int | None = None
 
 
 class DepositTermsSource(Protocol):

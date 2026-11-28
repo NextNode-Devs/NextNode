@@ -185,8 +185,8 @@ def test_the_lead_sends_a_plan_the_client_accepts_it_choosing_milestone_2(api, a
     )
     assert [m["sequence"] for m in shown["milestones"]] == [1, 2, 3]
     assert {m["status"] for m in shown["milestones"]} == {"pending_deposit"}
-    # The live deposit (what checkout charges) is unchanged until A11.
-    assert offer["deposit_cents"] == 200_000
+    # Checkout charges the agreed % (Team Lead, 28 Nov 2026).
+    assert offer["deposit_cents"] == 300_000
 
     # Everyone on the project reads the waiting plan; the client then accepts all of it.
     for sub in ("user_client", "user_lead", "user_dev0"):
@@ -277,3 +277,20 @@ def test_a_developer_idea_has_no_plan(api, auth, people):
 
     idea = make_project(people, ProjectKind.DEVELOPER)
     assert plan_of(api, auth, idea, "user_lead").json()["data"] is None
+
+
+@pytest.mark.django_db
+def test_checkout_charges_the_deposit_percent_the_client_accepted(api, auth, project):
+    """Team Lead, 28 Nov 2026: the agreed %, not the default, is what Stripe charges."""
+    from tests.payment_fakes import FakeGateway
+
+    close(api, auth, project)
+    offer = send_plan(api, auth, project, deposit_percent=30).json()["data"]["offers"][0]
+    accept(api, auth, offer["id"], 1)
+    gateway = FakeGateway()
+    with override_container(payment_gateway=gateway):
+        paid = api.post(f"/api/projects/{project}/deposit/checkout/", **auth("user_client"))
+    assert paid.status_code in (200, 201), paid.json()
+    assert paid.json()["data"]["amount_cents"] == 300_000  # 30 % of CAD 10,000.00
+    assert gateway.created[0].amount_cents == 300_000
+    assert gateway.created[0].description.startswith("Deposit (30%)")
